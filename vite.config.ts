@@ -15,8 +15,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     plugins: [react()],
-    // 关键配置：使用相对路径，允许生成的静态文件在本地文件夹或子目录中直接运行
-    base: './',
+    // Base path should be / for production deployment on root domain
+    base: '/',
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
