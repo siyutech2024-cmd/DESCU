@@ -118,6 +118,8 @@ app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+app.listen(Number(port), '0.0.0.0', () => {
+    console.log(`Server starting...`);
+    console.log(`env.PORT currently is: ${process.env.PORT}`);
+    console.log(`Server explicitly listening on http://0.0.0.0:${port}`);
 });
