@@ -66,6 +66,8 @@
 
 ## 🌐 3. 前端部署 (Vercel)
 
+> 💡 **提示**: 查看 [Vercel 详细部署图文指南](docs/VERCEL_DEPLOYMENT.md) 获取更详细的操作步骤。
+
 ### 3.1 部署步骤
 1. 访问 Vercel 并选择 `Add New Project`。
 2. 导入 GitHub 仓库。
