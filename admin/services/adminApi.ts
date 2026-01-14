@@ -1,6 +1,6 @@
 // 管理员后台API服务
 
-import { supabase } from '../../services/sp';
+import { supabase } from '../../services/supabase';
 import * as AdminTypes from '../types/admin';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
