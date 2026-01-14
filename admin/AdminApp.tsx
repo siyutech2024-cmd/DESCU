@@ -14,9 +14,9 @@ const AdminSettings = () => <div className="p-8"><h2 className="text-2xl font-bo
 export const AdminApp: React.FC = () => {
     return (
         <Routes>
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="login" element={<AdminLogin />} />
+            <Route path="" element={<AdminLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<ProductList />} />
                 <Route path="users" element={<UserList />} />
