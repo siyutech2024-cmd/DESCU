@@ -90,8 +90,10 @@
 
 ### 3.3 部署与验证
 1. 点击 Deploy。
-2. 部署完成后，访问生成的 Vercel 域名。
-3. 测试商品发布、AI 分析和管理员登录功能。
+2. 部署完成后，在 Vercel 仪表板中进入 **Settings -> Domains**。
+3. 添加你的正式域名 `descu.ai` (Vercel 会自动添加 www 前缀)。
+4. 验证 DNS 配置 (推荐使用 CNAME 或 A 记录)。
+5. 测试商品发布、AI 分析和管理员登录功能。
 
 ---
 
@@ -112,7 +114,7 @@ WHERE email = 'your-email@gmail.com';
 
 - **Build 失败 (后端)**: 检查 Railway Root Directory 是否设置为 `server`。
 - **401 Unauthorized**: 检查 `SUPABASE_SERVICE_ROLE_KEY` 是否正确。
-- **跨域 (CORS) 错误**: 检查后端 `server/src/index.ts` 中的 `cors` 配置是否包含前端生产域名。如果遇到严格 CORS 问题，可以将 `app.use(cors())` 修改为允许特定域名。
+- **跨域 (CORS) 错误**: 检查后端 `server/src/index.ts` 中的 `cors` 配置。我们已预设了 `descu.ai`，如果你使用其他域名，请手动添加。
 
 ---
 **文档维护**: 请将过时的部署文档归档至 `docs/archive/`。

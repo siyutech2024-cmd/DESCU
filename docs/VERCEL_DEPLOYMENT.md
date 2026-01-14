@@ -52,8 +52,11 @@ Vercel 通常能自动识别 Vite 框架，但请务必核对以下设置：
 ### 绑定自定义域名
 1. 部署完成后，点击 **"Continue to Dashboard"**。
 2. 进入 **"Settings"** -> **"Domains"**。
-3. 输入你想绑定的域名 (如 `descu.com`)。
-4. 按照 Vercel 提示在你的域名服务商处添加 CNAME 或 A 记录。
+3. 输入你的正式域名 `descu.ai`。
+4. Vercel 会自动检测并提示你添加 DNS 记录：
+   - 如果是根域名 (`descu.ai`)，通常添加 **A 记录** 指向 `76.76.21.21`。
+   - 如果是子域名 (`www.descu.ai`)，通常添加 **CNAME 记录** 指向 `cname.vercel-dns.com`。
+5. 按照提示在你的域名服务商（如 GoDaddy, Namecheap, Aliyun）处添加记录。
 
 ---
 
