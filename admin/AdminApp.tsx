@@ -7,7 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 // 占位组件，后续可以扩展
 import { ProductList } from './pages/ProductList';
 import { UserList } from './pages/UserList';
-const MessageMonitor = () => <div className="p-8"><h2 className="text-2xl font-bold">消息监控</h2><p className="text-gray-600 mt-2">功能开发中...</p></div>;
+import { MessageMonitor } from './pages/MessageMonitor';
 const Reports = () => <div className="p-8"><h2 className="text-2xl font-bold">数据报表</h2><p className="text-gray-600 mt-2">功能开发中...</p></div>;
 const AdminSettings = () => <div className="p-8"><h2 className="text-2xl font-bold">设置</h2><p className="text-gray-600 mt-2">功能开发中...</p></div>;
 
