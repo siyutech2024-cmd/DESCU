@@ -34,7 +34,7 @@
 ### 3. 配置启动命令
 在 **"Settings"** 选项卡下的 **"Build & Deploy"** 部分，确认以下设置（通常会自动检测，但请核对）：
 
-- **Build Command**: `npm install && npm run build`
+- **Build Command**: `npm install --include=dev && npm run build` (确保安装 TypeScript 等构建工具)
 - **Start Command**: `npm start`
 - **Watch Paths**: `/server/**` (可选，用于触发重新部署)
 

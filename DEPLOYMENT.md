@@ -46,7 +46,7 @@
 2. 选择仓库 `siyutech2024-cmd/DESCU`。
 3. **关键设置**:
    - **Root Directory**: `server`
-   - **Build Command**: `npm install && npm run build` (或者 `npm install && tsc`)
+   - **Build Command**: `npm install --include=dev && npm run build` (防止构建时缺少 TypeScript)
    - **Start Command**: `npm start`
 
 ### 2.3 配置环境变量 (Variables)
