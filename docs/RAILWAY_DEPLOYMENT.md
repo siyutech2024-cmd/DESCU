@@ -44,10 +44,11 @@
 
 | 变量名 | 值 (示例) | 说明 |
 | :--- | :--- | :--- |
-| `PORT` | `3000` | 服务端口 (必须设置) |
 | `GEMINI_API_KEY` | `AIza...` | Google AI Key |
 | `SUPABASE_URL` | `https://xxxx.supabase.co` | 数据库 URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJh...` | 后端专用密钥 |
+
+> **注意**: 请 **不要** 手动设置 `PORT` 变量，Railway 会自动分配及注入该变量。手动设置可能导致端口不匹配。
 
 添加完成后，Railway 会自动触发重新部署。
 
@@ -110,8 +111,8 @@ railway variables --set SUPABASE_URL=https://...
 **A**: 在 Settings 中，确保 Railway 的 Plan 是 Hobby 或 Pro (如果是 Free tier 可能会有限制)，或者检查 `package-lock.json` 是否冲突。
 
 ### Q: 访问 API 报 404 错误 (x-railway-fallback)
-**A**: 这通常是因为端口不匹配。
-请务必在 Variables 中添加 `PORT=3000`，确保 Railway 知道去 3000 端口转发流量。
+**A**: 这是端口不匹配导致的。
+如果您手动设置了 `PORT` 变量，请**删除它**。Railway 会自动分配一个动态端口（如 6234），您的应用会自动监听该端口。手动固定为 3000 往往会导致 Railway 转发失败。
 
 ### Q: 如何查看实时日志？
 **A**: 点击服务卡片 -> **"Deployments"** -> 点击当前最新的一次部署 -> **"View Logs"**。
