@@ -1,0 +1,8 @@
+
+{
+  "name": "DESCU - 二手智选",
+  "description": "智能二手交易平台。AI自动生成商品描述，优先展示身边好物。",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
