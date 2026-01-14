@@ -7,7 +7,7 @@ const getApiBaseUrl = (): string => {
             return import.meta.env.VITE_API_URL;
         }
         // Fallback: Use known production backend if env var is missing
-        return 'https://descu-api.up.railway.app';
+        return 'https://descu-production.up.railway.app';
     }
 
     // 开发环境 - 使用 Vite 代理
