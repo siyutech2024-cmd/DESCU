@@ -10,10 +10,17 @@ const port = process.env.PORT || 3000;
 
 app.use(cors({
     origin: [
+        // 本地开发
         'http://localhost:5173',
         'http://localhost:5174',
+        'http://localhost:3000',
+        // 生产环境
         'https://descu.ai',
-        'https://www.descu.ai'
+        'https://www.descu.ai',
+        // Vercel预览部署
+        /https:\/\/.*\.vercel\.app$/,
+        // 或者允许所有域名（仅用于测试）
+        // '*'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
