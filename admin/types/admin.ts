@@ -75,22 +75,27 @@ export interface AdminConversation {
     id: string;
     product_id: string;
     user1_id: string;
-    user2_id字: string;
+    user2_id: string;
     last_message_time: string;
     created_at: string;
     deleted_at: string | null;
     message_count?: number;
     product_title?: string;
     product_image?: string;
+    buyer_email?: string;
+    seller_email?: string;
 }
 
 export interface AdminMessage {
     id: string;
     conversation_id: string;
     sender_id: string;
+    sender_email?: string;
     text: string;
+    content: string;
     is_read: boolean;
     timestamp: string;
+    created_at: string;
     deleted_at: string | null;
     is_flagged: boolean;
     flag_reason: string | null;
