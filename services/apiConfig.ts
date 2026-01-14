@@ -6,8 +6,8 @@ const getApiBaseUrl = (): string => {
         if (import.meta.env.VITE_API_URL) {
             return import.meta.env.VITE_API_URL;
         }
-        // 否则使用相对路径（假设前后端部署在同一域名）
-        return '';
+        // Fallback: Use known production backend if env var is missing
+        return 'https://descu-api.up.railway.app';
     }
 
     // 开发环境 - 使用 Vite 代理

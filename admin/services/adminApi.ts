@@ -3,7 +3,7 @@
 import { supabase } from '../../services/supabase';
 import * as AdminTypes from '../types/admin';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'https://descu-api.up.railway.app';
 
 // 获取认证Token
 const getAuthToken = async (): Promise<string | null> => {
