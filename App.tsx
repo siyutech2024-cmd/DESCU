@@ -14,6 +14,8 @@ import { MapPinOff, RefreshCw, SearchX, Car, Home, Smartphone, Briefcase, Armcha
 import { calculateDistance } from './services/utils';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { supabase } from './services/supabase';
+import { API_BASE_URL } from './services/apiConfig';
+import { createOrGetConversation, sendMessage as sendMessageApi } from './services/chatService';
 
 
 // --- EXPANDED MOCK DATA TEMPLATES ---
@@ -206,6 +208,10 @@ const AppContent: React.FC = () => {
   // Chat State
   const [conversations, setConversations] = useState<Conversation[]>([]);
 
+  // Loading and Error States
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+
   useEffect(() => {
     document.title = "DESCU";
   }, [language]);
@@ -329,15 +335,85 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleProductSubmit = (newProductData: Omit<Product, 'id' | 'createdAt' | 'distance'>) => {
-    const newProduct: Product = {
-      ...newProductData,
-      id: `new-${Date.now()}`,
-      createdAt: Date.now(),
-      isPromoted: false,
-    };
-    setProducts(prev => [newProduct, ...prev]);
-    setCurrentView({ type: 'home' });
+  const handleProductSubmit = async (newProductData: Omit<Product, 'id' | 'createdAt' | 'distance'>) => {
+    if (!user) {
+      alert('请先登录');
+      return;
+    }
+
+    setIsCreatingProduct(true);
+
+    try {
+      // 调用后端 API 创建商品
+      const response = await fetch(`${API_BASE_URL}/api/products`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          seller_id: user.id,
+          seller_name: user.name,
+          seller_email: user.email,
+          seller_avatar: user.avatar,
+          seller_verified: user.isVerified || false,
+          title: newProductData.title,
+          description: newProductData.description,
+          price: newProductData.price,
+          currency: newProductData.currency,
+          images: newProductData.images,
+          category: newProductData.category,
+          delivery_type: newProductData.deliveryType,
+          latitude: newProductData.location.latitude,
+          longitude: newProductData.location.longitude,
+          location_name: newProductData.locationName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || '商品发布失败');
+      }
+
+      const savedProduct = await response.json();
+
+      // 转换数据库格式到应用格式
+      const productForApp: Product = {
+        id: savedProduct.id,
+        seller: {
+          id: savedProduct.seller_id,
+          name: savedProduct.seller_name,
+          email: savedProduct.seller_email,
+          avatar: savedProduct.seller_avatar || user.avatar,
+          isVerified: savedProduct.seller_verified || false,
+        },
+        title: savedProduct.title,
+        description: savedProduct.description,
+        price: savedProduct.price,
+        currency: savedProduct.currency,
+        images: savedProduct.images || [],
+        category: savedProduct.category,
+        deliveryType: savedProduct.delivery_type,
+        location: {
+          latitude: savedProduct.latitude,
+          longitude: savedProduct.longitude,
+        },
+        locationName: savedProduct.location_name,
+        createdAt: new Date(savedProduct.created_at).getTime(),
+        isPromoted: savedProduct.is_promoted || false,
+      };
+
+      // 更新本地状态
+      setProducts(prev => [productForApp, ...prev]);
+      setIsSellModalOpen(false);
+      setCurrentView({ type: 'home' });
+
+      alert('🎉 商品发布成功！');
+    } catch (error) {
+      console.error('商品创建失败:', error);
+      alert(`❌ 商品发布失败: ${error instanceof Error ? error.message : '请稍后重试'}`);
+    } finally {
+      setIsCreatingProduct(false);
+    }
   };
 
   const addToCart = (product: Product) => {
@@ -360,19 +436,34 @@ const AppContent: React.FC = () => {
   };
 
   // Chat Logic
-  const handleContactSeller = (product: Product) => {
+  const handleContactSeller = async (product: Product) => {
     if (!user) {
       handleLogin();
       return;
     }
-    let conversationId = conversations.find(
-      c => c.otherUser.id === product.seller.id && c.productId === product.id
-    )?.id;
 
-    if (!conversationId) {
-      conversationId = `conv-${Date.now()}`;
+    // 检查是否已有对话
+    let existingConv = conversations.find(
+      c => c.otherUser.id === product.seller.id && c.productId === product.id
+    );
+
+    if (existingConv) {
+      setCurrentView({ type: 'chat-window', conversationId: existingConv.id });
+      return;
+    }
+
+    setIsLoadingChat(true);
+    try {
+      // 调用 API 创建或获取对话
+      const conversation = await createOrGetConversation(
+        product.id,
+        user.id,
+        product.seller.id
+      );
+
+      // 创建本地对话对象
       const newConversation: Conversation = {
-        id: conversationId,
+        id: conversation.id || conversation.conversation?.id, // 处理不同的响应格式
         otherUser: product.seller,
         productId: product.id,
         productTitle: product.title,
@@ -380,18 +471,27 @@ const AppContent: React.FC = () => {
         messages: [],
         lastMessageTime: Date.now(),
       };
-      setConversations(prev => [...prev, newConversation]);
-    }
 
-    setCurrentView({ type: 'chat-window', conversationId });
+      setConversations(prev => [...prev, newConversation]);
+      setCurrentView({ type: 'chat-window', conversationId: newConversation.id });
+    } catch (error) {
+      console.error('创建对话失败:', error);
+      alert('❌ 无法打开聊天，请稍后重试');
+    } finally {
+      setIsLoadingChat(false);
+    }
   };
 
-  const handleSendMessage = (conversationId: string, text: string) => {
+  const handleSendMessage = async (conversationId: string, text: string) => {
     if (!user) return;
+    if (!text.trim()) return;
 
     const timestamp = Date.now();
-    const newMessage = {
-      id: `msg-${timestamp}`,
+    const tempMessageId = `msg-temp-${timestamp}`;
+
+    // 先添加到本地UI（乐观更新）
+    const tempMessage = {
+      id: tempMessageId,
       senderId: user.id,
       text,
       timestamp,
@@ -402,44 +502,45 @@ const AppContent: React.FC = () => {
       if (c.id === conversationId) {
         return {
           ...c,
-          messages: [...c.messages, newMessage],
+          messages: [...c.messages, tempMessage],
           lastMessageTime: timestamp,
         };
       }
       return c;
     }));
 
-    // Simulate Reply
-    setTimeout(() => {
-      const replyTimestamp = Date.now();
-      const replies = [
-        "¡Hola! Sí, todavía está disponible. ¿Te interesa?",
-        "Hola, claro que sí. ¿Cuándo podrías pasar a verlo?",
-        "¡Gracias por tu mensaje! El precio es negociable.",
-        "Hola, funciona perfectamente. Te mando más fotos si quieres.",
-        "¿Estás en CDMX? Podemos vernos en un punto medio."
-      ];
-      const randomReply = replies[Math.floor(Math.random() * replies.length)];
+    try {
+      // 调用 API 发送消息
+      const savedMessage = await sendMessageApi(conversationId, user.id, text);
 
-      const replyMessage = {
-        id: `msg-reply-${replyTimestamp}`,
-        senderId: 'seller',
-        text: randomReply,
-        timestamp: replyTimestamp,
-        isRead: false,
-      };
-
+      // 用真实ID替换临时ID
       setConversations(prev => prev.map(c => {
         if (c.id === conversationId) {
           return {
             ...c,
-            messages: [...c.messages, replyMessage],
-            lastMessageTime: replyTimestamp,
+            messages: c.messages.map(m =>
+              m.id === tempMessageId
+                ? { ...m, id: savedMessage.id || savedMessage.message?.id }
+                : m
+            ),
           };
         }
         return c;
       }));
-    }, 1500 + Math.random() * 2000);
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      // 从UI移除失败的消息
+      setConversations(prev => prev.map(c => {
+        if (c.id === conversationId) {
+          return {
+            ...c,
+            messages: c.messages.filter(m => m.id !== tempMessageId),
+          };
+        }
+        return c;
+      }));
+      alert('❌ 消息发送失败，请重试');
+    }
   };
 
   // Sorting & Filtering

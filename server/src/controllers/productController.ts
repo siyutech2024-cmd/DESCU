@@ -3,23 +3,64 @@ import { supabase } from '../index';
 
 export const createProduct = async (req: Request, res: Response) => {
     try {
-        const productData = req.body;
+        const {
+            seller_id,
+            seller_name,
+            seller_email,
+            seller_avatar,
+            seller_verified,
+            title,
+            description,
+            price,
+            currency,
+            images,
+            category,
+            delivery_type,
+            latitude,
+            longitude,
+            location_name
+        } = req.body;
 
-        // Basic validation
-        if (!productData.title || !productData.seller) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        // 验证必填字段
+        if (!seller_id || !title || !price || price < 0) {
+            return res.status(400).json({ error: 'Missing or invalid required fields' });
         }
+
+        // 准备数据
+        const productData = {
+            seller_id,
+            seller_name: seller_name || 'Unknown',
+            seller_email: seller_email || '',
+            seller_avatar: seller_avatar || null,
+            seller_verified: seller_verified || false,
+            title,
+            description: description || '',
+            price: Number(price),
+            currency: currency || 'MXN',
+            images: images || [],
+            category: category || 'other',
+            delivery_type: delivery_type || 'both',
+            latitude: latitude || 0,
+            longitude: longitude || 0,
+            location_name: location_name || '',
+            status: 'active',
+            views_count: 0,
+            reported_count: 0,
+            is_promoted: false
+        };
 
         const { data, error } = await supabase
             .from('products')
             .insert([productData])
-            .select();
+            .select()
+            .single();
 
         if (error) {
+            console.error('Supabase error:', error);
             throw error;
         }
 
-        res.status(201).json(data[0]);
+        res.status(201).json(data);
     } catch (error) {
         console.error('Error creating product:', error);
         res.status(500).json({ error: 'Failed to create product' });
@@ -31,13 +72,15 @@ export const getProducts = async (req: Request, res: Response) => {
         const { data, error } = await supabase
             .from('products')
             .select('*')
-            .order('createdAt', { ascending: false });
+            .is('deleted_at', null)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        res.json(data);
+        res.json(data || []);
     } catch (error: any) {
         console.error("Error fetching products:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message || 'Failed to fetch products' });
     }
 };

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { API_BASE_URL } from './apiConfig';
 
 // 创建或获取对话
 export const createOrGetConversation = async (
@@ -7,7 +8,7 @@ export const createOrGetConversation = async (
     user2Id: string
 ): Promise<any> => {
     try {
-        const response = await fetch('/api/conversations', {
+        const response = await fetch(`${API_BASE_URL}/api/conversations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -28,7 +29,7 @@ export const createOrGetConversation = async (
 // 获取用户所有对话
 export const getUserConversations = async (userId: string): Promise<any[]> => {
     try {
-        const response = await fetch(`/api/conversations/${userId}`);
+        const response = await fetch(`${API_BASE_URL}/api/conversations/${userId}`);
         if (!response.ok) throw new Error('Failed to fetch conversations');
         return await response.json();
     } catch (error) {
@@ -44,7 +45,7 @@ export const sendMessage = async (
     text: string
 ): Promise<any> => {
     try {
-        const response = await fetch('/api/messages', {
+        const response = await fetch(`${API_BASE_URL}/api/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -70,7 +71,7 @@ export const getMessages = async (
 ): Promise<any[]> => {
     try {
         const response = await fetch(
-            `/api/messages/${conversationId}?limit=${limit}&offset=${offset}`
+            `${API_BASE_URL}/api/messages/${conversationId}?limit=${limit}&offset=${offset}`
         );
         if (!response.ok) throw new Error('Failed to fetch messages');
         return await response.json();
@@ -86,7 +87,7 @@ export const markMessagesAsRead = async (
     userId: string
 ): Promise<void> => {
     try {
-        const response = await fetch(`/api/messages/${conversationId}/read`, {
+        const response = await fetch(`${API_BASE_URL}/api/messages/${conversationId}/read`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId }),
