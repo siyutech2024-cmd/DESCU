@@ -32,6 +32,37 @@ import {
     markMessagesAsRead
 } from './controllers/chatController';
 
+// Admin imports
+import { requireAdmin } from './middleware/adminAuth';
+import {
+    getDashboardStats,
+    getAdminInfo,
+    getAdminLogs
+} from './controllers/adminController';
+import {
+    getAdminProducts,
+    getAdminProduct,
+    updateAdminProduct,
+    deleteAdminProduct,
+    restoreAdminProduct,
+    updateProductStatus,
+    updateProductPromotion,
+    batchUpdateProducts
+} from './controllers/adminProductController';
+import {
+    getAdminUsers,
+    getAdminUser,
+    updateUserVerification,
+    deleteAdminUser
+} from './controllers/adminUserController';
+import {
+    getAdminConversations,
+    getAdminConversation,
+    deleteAdminConversation,
+    deleteAdminMessage,
+    flagAdminMessage
+} from './controllers/adminMessageController';
+
 // API Endpoints
 app.post('/api/analyze', analyzeImage);
 app.post('/api/products', createProduct);
@@ -44,8 +75,37 @@ app.post('/api/messages', sendMessage);
 app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
 
+// Admin Endpoints - All require admin authentication
+// Dashboard
+app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);
+app.get('/api/admin/auth/me', requireAdmin, getAdminInfo);
+app.get('/api/admin/logs', requireAdmin, getAdminLogs);
+
+// Product Management
+app.get('/api/admin/products', requireAdmin, getAdminProducts);
+app.get('/api/admin/products/:id', requireAdmin, getAdminProduct);
+app.put('/api/admin/products/:id', requireAdmin, updateAdminProduct);
+app.delete('/api/admin/products/:id', requireAdmin, deleteAdminProduct);
+app.post('/api/admin/products/:id/restore', requireAdmin, restoreAdminProduct);
+app.patch('/api/admin/products/:id/status', requireAdmin, updateProductStatus);
+app.patch('/api/admin/products/:id/promote', requireAdmin, updateProductPromotion);
+app.post('/api/admin/products/batch', requireAdmin, batchUpdateProducts);
+
+// User Management
+app.get('/api/admin/users', requireAdmin, getAdminUsers);
+app.get('/api/admin/users/:id', requireAdmin, getAdminUser);
+app.patch('/api/admin/users/:id/verify', requireAdmin, updateUserVerification);
+app.delete('/api/admin/users/:id', requireAdmin, deleteAdminUser);
+
+// Message Management
+app.get('/api/admin/conversations', requireAdmin, getAdminConversations);
+app.get('/api/admin/conversations/:id', requireAdmin, getAdminConversation);
+app.delete('/api/admin/conversations/:id', requireAdmin, deleteAdminConversation);
+app.delete('/api/admin/messages/:id', requireAdmin, deleteAdminMessage);
+app.patch('/api/admin/messages/:id/flag', requireAdmin, flagAdminMessage);
+
 app.get('/', (req, res) => {
-    res.send('Venya Marketplace API is running');
+    res.send('DESCU Marketplace API is running');
 });
 
 app.listen(port, () => {
