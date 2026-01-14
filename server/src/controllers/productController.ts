@@ -22,7 +22,15 @@ export const createProduct = async (req: Request, res: Response) => {
         } = req.body;
 
         // 验证必填字段
-        if (!seller_id || !title || !price || price < 0) {
+        console.log('Received product data:', { seller_id, title, price, category });
+
+        if (!seller_id || !title) {
+            console.error('Validation failed: missing seller_id or title');
+            return res.status(400).json({ error: 'Missing or invalid required fields' });
+        }
+
+        if (price === undefined || price === null) {
+            console.error('Validation failed: price is missing');
             return res.status(400).json({ error: 'Missing or invalid required fields' });
         }
 
