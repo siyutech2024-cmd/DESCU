@@ -8,8 +8,8 @@ import { Dashboard } from './pages/Dashboard';
 import { ProductList } from './pages/ProductList';
 import { UserList } from './pages/UserList';
 import { MessageMonitor } from './pages/MessageMonitor';
-const Reports = () => <div className="p-8"><h2 className="text-2xl font-bold">数据报表</h2><p className="text-gray-600 mt-2">功能开发中...</p></div>;
-const AdminSettings = () => <div className="p-8"><h2 className="text-2xl font-bold">设置</h2><p className="text-gray-600 mt-2">功能开发中...</p></div>;
+import { Reports } from './pages/Reports';
+import { Settings } from './pages/Settings';
 
 export const AdminApp: React.FC = () => {
     return (
@@ -22,7 +22,7 @@ export const AdminApp: React.FC = () => {
                 <Route path="users" element={<UserList />} />
                 <Route path="messages" element={<MessageMonitor />} />
                 <Route path="reports" element={<Reports />} />
-                <Route path="settings" element={<AdminSettings />} />
+                <Route path="settings" element={<Settings />} />
             </Route>
         </Routes>
     );

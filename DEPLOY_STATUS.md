@@ -7,6 +7,8 @@
 - 用户管理 (UserList)  
 - 商品管理 (ProductList)
 - 消息监控 (MessageMonitor)
+- 数据报表 (Reports)
+- 系统设置 (Settings)
 
 ## 🔧 部署说明
 如遇到缓存问题，请在 Vercel Dashboard 手动 Redeploy。

@@ -196,3 +196,244 @@ export const getAdminLogs = async (req: AdminRequest, res: Response) => {
         res.status(500).json({ error: '获取操作日志失败' });
     }
 };
+
+/**
+ * 获取数据报表统计
+ */
+export const getReportsData = async (req: AdminRequest, res: Response) => {
+    try {
+        const { timeRange = '7d' } = req.query;
+
+        // 计算时间范围
+        const now = new Date();
+        let startDate: Date;
+
+        switch (timeRange) {
+            case '24h':
+                startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                break;
+            case '7d':
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case '30d':
+                startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                break;
+            case '90d':
+                startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                break;
+            default:
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        }
+
+        // 获取销售趋势（按日期统计商品数量）
+        const { data: salesTrend, error: salesError } = await supabase
+            .rpc('get_sales_trend', {
+                start_date: startDate.toISOString(),
+                end_date: now.toISOString()
+            })
+            .order('date', { ascending: true });
+
+        // 获取用户增长趋势
+        const { data: userGrowth, error: userError } = await supabase
+            .rpc('get_user_growth', {
+                start_date: startDate.toISOString(),
+                end_date: now.toISOString()
+            })
+            .order('date', { ascending: true });
+
+        // 获取分类统计
+        const { data: categoryStats, error: categoryError } = await supabase
+            .from('products')
+            .select('category')
+            .is('deleted_at', null);
+
+        // 统计每个分类的数量
+        const categoryCounts: Record<string, number> = {};
+        categoryStats?.forEach(item => {
+            const category = item.category || '未分类';
+            categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        });
+
+        const categoryDistribution = Object.entries(categoryCounts).map(([name, count]) => ({
+            name,
+            count,
+            percentage: categoryStats ? Math.round((count / categoryStats.length) * 100) : 0
+        }));
+
+        // 获取热门商品 Top 10
+        const { data: topProducts, error: topError } = await supabase
+            .from('products')
+            .select(`
+                id,
+                title,
+                price,
+                currency,
+                category,
+                seller_name,
+                views,
+                created_at
+            `)
+            .is('deleted_at', null)
+            .order('views', { ascending: false })
+            .limit(10);
+
+        // 获取活跃用户 Top 10（按商品发布数量）
+        const { data: activeUsers, error: activeError } = await supabase
+            .from('products')
+            .select('seller_id, seller_name, seller_email')
+            .is('deleted_at', null);
+
+        const userProductCounts: Record<string, { name: string; email: string; count: number }> = {};
+        activeUsers?.forEach(item => {
+            const key = item.seller_id;
+            if (!userProductCounts[key]) {
+                userProductCounts[key] = {
+                    name: item.seller_name,
+                    email: item.seller_email,
+                    count: 0
+                };
+            }
+            userProductCounts[key].count++;
+        });
+
+        const topUsers = Object.values(userProductCounts)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+        res.json({
+            salesTrend: salesTrend || [],
+            userGrowth: userGrowth || [],
+            categoryDistribution,
+            topProducts: topProducts || [],
+            topUsers
+        });
+    } catch (error) {
+        console.error('获取报表数据失败:', error);
+        res.status(500).json({ error: '获取报表数据失败' });
+    }
+};
+
+/**
+ * 获取系统设置
+ */
+export const getSystemSettings = async (req: AdminRequest, res: Response) => {
+    try {
+        const { data: settings, error } = await supabase
+            .from('system_settings')
+            .select('*')
+            .order('setting_key', { ascending: true });
+
+        if (error) {
+            console.error('获取系统设置失败:', error);
+            // 如果表不存在，返回默认设置
+            return res.json({
+                settings: [
+                    { setting_key: 'site_name', setting_value: 'DESCU', description: '网站名称' },
+                    { setting_key: 'max_upload_size', setting_value: '10', description: '最大上传文件大小(MB)' },
+                    { setting_key: 'enable_registration', setting_value: 'true', description: '是否开放注册' },
+                    { setting_key: 'enable_ai_analysis', setting_value: 'true', description: '是否启用AI分析' },
+                    { setting_key: 'maintenance_mode', setting_value: 'false', description: '维护模式' }
+                ]
+            });
+        }
+
+        res.json({ settings: settings || [] });
+    } catch (error) {
+        console.error('获取系统设置失败:', error);
+        res.status(500).json({ error: '获取系统设置失败' });
+    }
+};
+
+/**
+ * 更新系统设置
+ */
+export const updateSystemSettings = async (req: AdminRequest, res: Response) => {
+    try {
+        const { setting_key, setting_value, description } = req.body;
+
+        if (!setting_key || setting_value === undefined) {
+            return res.status(400).json({ error: '缺少必要参数' });
+        }
+
+        // 尝试插入或更新设置
+        const { data, error } = await supabase
+            .from('system_settings')
+            .upsert({
+                setting_key,
+                setting_value: String(setting_value),
+                description: description || null,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'setting_key'
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // 记录操作日志
+        if (req.admin) {
+            await logAdminAction(
+                req.admin.id,
+                req.admin.email,
+                'update',
+                'system_setting',
+                setting_key,
+                { old_value: null, new_value: setting_value },
+                req.ip,
+                req.get('user-agent')
+            );
+        }
+
+        res.json({ message: '设置已更新', setting: data });
+    } catch (error) {
+        console.error('更新系统设置失败:', error);
+        res.status(500).json({ error: '更新系统设置失败' });
+    }
+};
+
+/**
+ * 批量更新系统设置
+ */
+export const batchUpdateSettings = async (req: AdminRequest, res: Response) => {
+    try {
+        const { settings } = req.body;
+
+        if (!Array.isArray(settings) || settings.length === 0) {
+            return res.status(400).json({ error: '无效的设置数据' });
+        }
+
+        const updates = settings.map(s => ({
+            setting_key: s.setting_key,
+            setting_value: String(s.setting_value),
+            description: s.description || null,
+            updated_at: new Date().toISOString()
+        }));
+
+        const { data, error } = await supabase
+            .from('system_settings')
+            .upsert(updates, { onConflict: 'setting_key' })
+            .select();
+
+        if (error) throw error;
+
+        // 记录操作日志
+        if (req.admin) {
+            await logAdminAction(
+                req.admin.id,
+                req.admin.email,
+                'batch_update',
+                'system_settings',
+                'multiple',
+                { count: settings.length },
+                req.ip,
+                req.get('user-agent')
+            );
+        }
+
+        res.json({ message: '设置已批量更新', settings: data });
+    } catch (error) {
+        console.error('批量更新设置失败:', error);
+        res.status(500).json({ error: '批量更新设置失败' });
+    }
+};

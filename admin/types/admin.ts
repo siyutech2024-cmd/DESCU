@@ -126,3 +126,11 @@ export interface ApiResponse<T> {
     error?: string;
     message?: string;
 }
+
+export interface SystemSetting {
+    setting_key: string;
+    setting_value: string;
+    description: string | null;
+    updated_at?: string;
+}
+

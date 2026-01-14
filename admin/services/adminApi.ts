@@ -225,4 +225,37 @@ export const adminApi = {
             pagination: AdminTypes.Pagination;
         }>(`/api/admin/logs?${queryString}`);
     },
+
+    // ==================== 数据报表 ====================
+
+    getReports: async (params?: { timeRange?: string }) => {
+        const queryString = new URLSearchParams(params as any).toString();
+        return apiRequest<{
+            salesTrend: any[];
+            userGrowth: any[];
+            categoryDistribution: any[];
+            topProducts: AdminTypes.AdminProduct[];
+            topUsers: any[];
+        }>(`/api/admin/reports?${queryString}`);
+    },
+
+    // ==================== 系统设置 ====================
+
+    getSettings: async () => {
+        return apiRequest<{ settings: AdminTypes.SystemSetting[] }>('/api/admin/settings');
+    },
+
+    updateSetting: async (setting_key: string, setting_value: string, description?: string) => {
+        return apiRequest('/api/admin/settings', {
+            method: 'PUT',
+            body: JSON.stringify({ setting_key, setting_value, description }),
+        });
+    },
+
+    batchUpdateSettings: async (settings: Array<{ setting_key: string; setting_value: string; description?: string }>) => {
+        return apiRequest('/api/admin/settings/batch', {
+            method: 'POST',
+            body: JSON.stringify({ settings }),
+        });
+    },
 };

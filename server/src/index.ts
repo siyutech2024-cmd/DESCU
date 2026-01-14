@@ -47,7 +47,11 @@ import { requireAdmin } from './middleware/adminAuth';
 import {
     getDashboardStats,
     getAdminInfo,
-    getAdminLogs
+    getAdminLogs,
+    getReportsData,
+    getSystemSettings,
+    updateSystemSettings,
+    batchUpdateSettings
 } from './controllers/adminController';
 import {
     getAdminProducts,
@@ -113,6 +117,15 @@ app.get('/api/admin/conversations/:id', requireAdmin, getAdminConversation);
 app.delete('/api/admin/conversations/:id', requireAdmin, deleteAdminConversation);
 app.delete('/api/admin/messages/:id', requireAdmin, deleteAdminMessage);
 app.patch('/api/admin/messages/:id/flag', requireAdmin, flagAdminMessage);
+
+// Reports and Analytics
+app.get('/api/admin/reports', requireAdmin, getReportsData);
+
+// System Settings
+app.get('/api/admin/settings', requireAdmin, getSystemSettings);
+app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
+app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
+
 
 app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');
