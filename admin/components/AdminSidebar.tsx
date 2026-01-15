@@ -13,7 +13,7 @@ import {
     Shield,
     CheckCircle
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+
 import { adminApi } from '../services/adminApi';
 
 interface AdminSidebarProps {
