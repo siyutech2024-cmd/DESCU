@@ -268,7 +268,7 @@ export const MessageMonitor: React.FC = () => {
                                                 <Flag className="w-4 h-4" />
                                             </button>
                                         </div>
-                                        <p className="text-gray-900 text-sm">{msg.content}</p>
+                                        <p className="text-gray-900 text-sm">{msg.text || msg.content}</p>
                                         {msg.is_flagged && msg.flag_reason && (
                                             <div className="mt-2 text-xs text-red-700">
                                                 标记原因: {msg.flag_reason}
