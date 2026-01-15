@@ -17,6 +17,7 @@ interface NavbarProps {
   onLogoClick: () => void;
   onChatClick: () => void;
   unreadCount: number;
+  locationName?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -30,7 +31,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSellClick,
   onLogoClick,
   onChatClick,
-  unreadCount
+  unreadCount,
+  locationName = "CDMX"
 }) => {
   const { t, language, setLanguage } = useLanguage();
 
@@ -66,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Location Indicator - Pill */}
         <div className="hidden sm:flex items-center gap-1.5 text-gray-600 text-xs font-bold bg-white/50 border border-white/40 px-3 py-1.5 rounded-full cursor-pointer hover:bg-white hover:shadow-sm transition-all whitespace-nowrap">
           <MapPin size={12} className="text-brand-600" />
-          <span>CDMX</span>
+          <span>{locationName}</span>
         </div>
 
         {/* Search Bar - Modern Glass Input */}

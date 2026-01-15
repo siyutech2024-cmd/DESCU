@@ -189,6 +189,7 @@ const generateMockProducts = (center: Coordinates, lang: Language): Product[] =>
 };
 
 import { GlassToast, ToastType } from './components/GlassToast';
+import { reverseGeocode } from './services/locationService';
 
 // --- MAIN CONTENT COMPONENT ---
 // This component consumes the Language Context
@@ -212,6 +213,7 @@ const AppContent: React.FC = () => {
   const [isLoadingLoc, setIsLoadingLoc] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [locationName, setLocationName] = useState<string>('CDMX');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   const [currentView, setCurrentView] = useState<ViewState>({ type: 'home' });
@@ -355,8 +357,15 @@ const AppContent: React.FC = () => {
       }
     };
 
-    const updateProducts = (coords: Coordinates) => {
+    const updateProducts = async (coords: Coordinates) => {
       setLocation(coords);
+
+      // Fetch location name
+      const name = await reverseGeocode(coords.latitude, coords.longitude);
+      if (name) {
+        setLocationName(name);
+      }
+
       loadProductsFromAPI(coords);
     };
 
@@ -949,6 +958,7 @@ const AppContent: React.FC = () => {
         onLogoClick={() => setCurrentView({ type: 'home' })}
         onChatClick={() => setCurrentView({ type: 'chat-list' })}
         unreadCount={unreadCount}
+        locationName={locationName}
       />
 
       <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden">
