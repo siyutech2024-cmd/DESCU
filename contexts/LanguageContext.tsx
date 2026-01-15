@@ -55,6 +55,7 @@ const translations: Record<Language, Record<string, string>> = {
     'modal.submit': '立即发布',
     'modal.submit.analyzing': '分析中...',
     'modal.policy_hint': '发布即表示您同意我们的内容政策，严禁发布仇恨言论或虚假政治信息。',
+    'modal.ai_error': 'AI分析失败，请检查网络或稍后重试',
     'cart.title': '购物车',
     'cart.empty': '购物车空空如也',
     'cart.go_shop': '去逛逛',
@@ -163,6 +164,7 @@ const translations: Record<Language, Record<string, string>> = {
     'modal.submit': 'Post Listing',
     'modal.submit.analyzing': 'Analyzing...',
     'modal.policy_hint': 'By posting, you agree to our policies. Hate speech and political misinformation are strictly prohibited.',
+    'modal.ai_error': 'AI analysis failed. Please check connection or try again.',
     'cart.title': 'Cart',
     'cart.empty': 'Your cart is empty',
     'cart.go_shop': 'Go Shopping',
@@ -271,6 +273,7 @@ const translations: Record<Language, Record<string, string>> = {
     'modal.submit': 'Publicar Ahora',
     'modal.submit.analyzing': 'Analizando...',
     'modal.policy_hint': 'Al publicar, aceptas nuestras políticas. Se prohíbe el discurso de odio y la desinformación política.',
+    'modal.ai_error': 'Análisis de IA fallido. Revisa tu conexión o intenta más tarde.',
     'cart.title': 'Carrito',
     'cart.empty': 'Tu carrito está vacío',
     'cart.go_shop': 'Ir a la tienda',
@@ -339,7 +342,7 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>('es'); 
+  const [language, setLanguage] = useState<Language>('es');
 
   const t = (key: string): string => {
     return translations[language][key] || key;

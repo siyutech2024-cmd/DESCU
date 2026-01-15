@@ -1,9 +1,10 @@
 
 import { AISuggestion, Language } from "../types";
+import { API_ENDPOINTS } from "./apiConfig";
 
 export const analyzeProductImage = async (base64Image: string, language: Language = 'es'): Promise<AISuggestion> => {
   try {
-    const response = await fetch('/api/analyze', {
+    const response = await fetch(API_ENDPOINTS.ANALYZE, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
