@@ -385,44 +385,50 @@ const AppContent: React.FC = () => {
     const loadConversations = async () => {
       try {
         const data = await getUserConversations(user.id);
-        // Map backend data to frontend model if necessary
-        // Assuming backend returns matching structure or we need mapping
-        // Backend returns snake_case, frontend uses camelCase/User object?
-        // Let's check getUserConversations implementation in chatService.
-        // chatService returns result of fetch, which is json. 
-        // Backend returns snake_case columns.
-        // We need to map it to Conversation type.
 
-        const mappedConversations: Conversation[] = data.map((c: any) => ({
-          id: c.id,
-          productId: c.product_id,
-          productTitle: c.product_title || 'Product', // Backend needs to join product info
-          productImage: c.product_image || '',
-          otherUser: { // This is tricky. Backend doesn't return full otherUser object by default unless joined.
-            id: user.id === c.user1_id ? c.user2_id : c.user1_id,
-            name: 'User', // Placeholder if not joined
-            email: '',
-            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
-            isVerified: false
-          },
-          lastMessageTime: new Date(c.updated_at).getTime(),
-          messages: [] // Initial load might not have messages? Or we fetch them separately?
-        }));
+        // Map backend data to frontend model
+        const mappedConversations: Conversation[] = data.map((c: any) => {
+          //Determine if current user is buyer or seller
+          const isBuyer = user.id === c.user1_id;
 
-        // Wait, getUserConversations in chatService calls API /api/conversations/:userId
-        // chatController.getUserConversations returns `select('*')` from conversations table.
-        // It DOES NOT join product or user info!
-        // This is another backend issue. The frontend needs Enrichment.
-        // But for now, let's at least load the raw list so it's not empty.
+          // Construct other user info
+          let otherUser;
+          if (isBuyer && c.seller_info) {
+            // If I am buyer, other user is seller
+            otherUser = {
+              id: c.seller_info.id,
+              name: c.seller_info.name,
+              email: '', // Not returned by API for privacy
+              avatar: c.seller_info.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+              isVerified: false
+            };
+          } else {
+            // If I am seller, other user is buyer (info not fully available yet)
+            // Or fallback if seller_info is missing
+            otherUser = {
+              id: isBuyer ? c.user2_id : c.user1_id,
+              name: isBuyer ? 'Seller' : 'Buyer', // Placeholder
+              email: '',
+              avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
+              isVerified: false
+            };
+          }
 
-        // However, looking at the code, I see ChatList attempts to render `conv.otherUser.avatar`.
-        // If we don't have that data, it will crash or look bad.
-        // The Admin API did join product info manually. The Chat Controller does NOT.
+          return {
+            id: c.id,
+            productId: c.product_id,
+            productTitle: c.product_title || 'Product',
+            productImage: c.product_image || '',
+            otherUser,
+            lastMessageTime: new Date(c.updated_at).getTime(),
+            messages: []
+          };
+        });
 
-        // Let's implement the basic fetch first.
         setConversations(mappedConversations);
       } catch (error) {
         console.error('Failed to load conversations', error);
+        alert('无法加载对话列表，请检查网络连接'); // Optional: don't annoy user if it's just empty
       }
     };
 
