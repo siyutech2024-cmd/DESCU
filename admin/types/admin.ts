@@ -59,6 +59,8 @@ export interface AdminProduct {
     views_count: number;
     reported_count: number;
     created_at: string;
+    updated_at?: string;
+    review_note?: string; // 审核备注
 }
 
 export interface AdminUserInfo {
