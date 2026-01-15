@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { ProductEditModal } from '../components/ProductEditModal';
+import { AdvancedFilters, FilterValues } from '../components/AdvancedFilters';
+import { BatchOperationModal } from '../components/BatchOperationModal';
 import { showToast } from '../utils/toast';
-
-// Icons
-const SearchIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>);
-const StarIcon = ({ filled }: { filled: boolean }) => filled ? (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-500"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>) : (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>);
-const TrashIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>);
-const EyeIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>);
+import { exportToCSV } from '../utils/export';
+import { Search, Download, ChevronUp, ChevronDown, Star, Trash2, Eye, MoreVertical } from 'lucide-react';
 
 export const ProductList: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -19,7 +17,11 @@ export const ProductList: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
+    const [editing Product, setEditingProduct] = useState<AdminProduct | null>(null);
+    const [showBatchModal, setShowBatchModal] = useState(false);
+    const [advancedFilters, setAdvancedFilters] = useState<FilterValues>({});
+    const [sortBy, setSortBy] = useState<string>('created_at');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -29,7 +31,10 @@ export const ProductList: React.FC = () => {
                 limit: 15,
                 search,
                 status: statusFilter === 'all' ? undefined : statusFilter,
-                category: categoryFilter === 'all' ? undefined : categoryFilter
+                category: categoryFilter === 'all' ? undefined : categoryFilter,
+                ...advancedFilters,
+                sort: sortBy,
+                order: sortOrder
             });
             if (res.data) {
                 setProducts(res.data.products);
@@ -37,6 +42,7 @@ export const ProductList: React.FC = () => {
             }
         } catch (error) {
             console.error(error);
+            showToast.error('加载商品失败');
         } finally {
             setLoading(false);
         }
@@ -45,7 +51,23 @@ export const ProductList: React.FC = () => {
     useEffect(() => {
         const timer = setTimeout(fetchProducts, 300);
         return () => clearTimeout(timer);
-    }, [page, search, statusFilter, categoryFilter]);
+    }, [page, search, statusFilter, categoryFilter, advancedFilters, sortBy, sortOrder]);
+
+    const handleSort = (field: string) => {
+        if (sortBy === field) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(field);
+            setSortOrder('desc');
+        }
+    };
+
+    const SortIcon = ({ field }: { field: string }) => {
+        if (sortBy !== field) return null;
+        return sortOrder === 'asc' ?
+            <ChevronUp className="w-4 h-4 inline ml-1" /> :
+            <ChevronDown className="w-4 h-4 inline ml-1" />;
+    };
 
     const toggleSelect = (id: string) => {
         setSelectedIds(prev =>
@@ -59,19 +81,40 @@ export const ProductList: React.FC = () => {
         );
     };
 
-    const handleBatchAction = async (action: string) => {
+    const handleBatchOperation = async (operation: string, params?: any) => {
         if (selectedIds.length === 0) {
-            alert('请先选择商品');
+            showToast.error('请先选择商品');
             return;
         }
 
-        if (!confirm(`确定要对 ${selectedIds.length} 个商品执行"${action}"操作吗？`)) {
-            return;
-        }
+        try {
+            // 根据不同操作类型执行
+            if (operation === 'change_category') {
+                await adminApi.batchUpdateProducts(selectedIds, { category: params.category });
+                showToast.success(`已将 ${selectedIds.length} 个商品的分类修改为 ${params.category}`);
+            } else if (operation === 'change_status') {
+                await adminApi.batchUpdateProducts(selectedIds, { status: params.status });
+                showToast.success(`已将 ${selectedIds.length} 个商品的状态修改为 ${params.status}`);
+            } else if (operation === 'promote') {
+                await adminApi.batchUpdateProducts(selectedIds, { is_promoted: true });
+                showToast.success(`已将 ${selectedIds.length} 个商品设为推荐`);
+            } else if (operation === 'unpromote') {
+                await adminApi.batchUpdateProducts(selectedIds, { is_promoted: false });
+                showToast.success(`已取消 ${selectedIds.length} 个商品的推荐`);
+            } else if (operation === 'delete') {
+                if (confirm(`确定要删除 ${selectedIds.length} 个商品吗？此操作不可恢复！`)) {
+                    for (const id of selectedIds) {
+                        await adminApi.deleteProduct(id);
+                    }
+                    showToast.success(`已删除 ${selectedIds.length} 个商品`);
+                }
+            }
 
-        await adminApi.batchUpdateProducts(selectedIds, action);
-        setSelectedIds([]);
-        fetchProducts();
+            setSelectedIds([]);
+            fetchProducts();
+        } catch (error) {
+            showToast.error('批量操作失败');
+        }
     };
 
     const handlePromote = async (id: string, current: boolean) => {
@@ -96,67 +139,114 @@ export const ProductList: React.FC = () => {
         }
     };
 
-    const categories = ['数码', '服装', '图书', '家电', '运动', '美妆', '其他'];
+    const handleExport = () => {
+        const dataToExport = selectedIds.length > 0
+            ? products.filter(p => selectedIds.includes(p.id))
+            : products;
+
+        if (dataToExport.length === 0) {
+            showToast.error('没有可导出的数据');
+            return;
+        }
+
+        exportToCSV(dataToExport, '商品列表');
+        showToast.success(`已导出 ${dataToExport.length} 个商品`);
+    };
+
+    const categories = [
+        { value: 'all', label: '全部分类' },
+        { value: 'electronics', label: '电子产品' },
+        { value: 'furniture', label: '家具' },
+        { value: 'clothing', label: '服装' },
+        { value: 'books', label: '图书' },
+        { value: 'sports', label: '运动' },
+        { value: 'vehicles', label: '车辆' },
+        { value: 'real_estate', label: '房产' },
+        { value: 'services', label: '服务' },
+        { value: 'other', label: '其他' },
+    ];
 
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">商品管理</h2>
-                <div className="flex gap-3">
+        <div className="space-y-6">
+            {/* Header */}
+            <div>
+                <h1 className="text-3xl font-black text-gray-900">商品管理</h1>
+                <p className="text-gray-600 mt-1">管理平台所有商品</p>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-xl shadow-sm border p-4">
+                <div className="flex flex-wrap gap-3 items-center">
+                    {/* Search */}
+                    <div className="flex-1 min-w-[200px]">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="搜索商品标题..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Category Filter */}
                     <select
-                        className="border rounded-lg px-3 py-2 bg-white text-sm"
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                        {categories.map(cat => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                    </select>
+
+                    {/* Status Filter */}
+                    <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     >
-                        <option value="all">所有状态</option>
+                        <option value="all">全部状态</option>
                         <option value="active">在售</option>
                         <option value="inactive">已下架</option>
                         <option value="pending_review">待审核</option>
                     </select>
-                    <select
-                        className="border rounded-lg px-3 py-2 bg-white text-sm"
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value)}
+
+                    {/* Advanced Filters */}
+                    <AdvancedFilters
+                        onApply={(filters) => setAdvancedFilters(filters)}
+                        onReset={() => setAdvancedFilters({})}
+                    />
+
+                    {/* Export Button */}
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
                     >
-                        <option value="all">所有分类</option>
-                        {categories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                    </select>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="搜索商品标题..."
-                            className="pl-10 pr-4 py-2 border rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                        <div className="absolute left-3 top-2.5 text-gray-400">
-                            <SearchIcon />
-                        </div>
-                    </div>
+                        <Download className="w-4 h-4" />
+                        导出
+                    </button>
                 </div>
             </div>
 
+            {/* Batch Actions Bar */}
             {selectedIds.length > 0 && (
-                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
-                    <span className="text-sm text-blue-800">已选择 {selectedIds.length} 个商品</span>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+                    <span className="text-blue-900 font-medium">
+                        已选择 {selectedIds.length} 个商品
+                    </span>
                     <div className="flex gap-2">
                         <button
-                            onClick={() => handleBatchAction('delete')}
-                            className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            onClick={() => setShowBatchModal(true)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                         >
-                            批量下架
-                        </button>
-                        <button
-                            onClick={() => handleBatchAction('promote')}
-                            className="px-3 py-1.5 text-xs bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
-                        >
-                            批量推荐
+                            批量操作
                         </button>
                         <button
                             onClick={() => setSelectedIds([])}
-                            className="px-3 py-1.5 text-xs bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                            className="px-4 py-2 border rounded-lg hover:bg-white"
                         >
                             取消选择
                         </button>
@@ -164,147 +254,170 @@ export const ProductList: React.FC = () => {
                 </div>
             )}
 
+            {/* Product Table */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 border-b">
-                        <tr>
-                            <th className="px-4 py-3 w-12">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedIds.length === products.length && products.length > 0}
-                                    onChange={toggleSelectAll}
-                                    className="w-4 h-4 rounded border-gray-300"
-                                />
-                            </th>
-                            <th className="px-4 py-3 font-semibold text-gray-600">商品</th>
-                            <th className="px-4 py-3 font-semibold text-gray-600">分类</th>
-                            <th className="px-4 py-3 font-semibold text-gray-600">价格</th>
-                            <th className="px-4 py-3 font-semibold text-gray-600">卖家</th>
-                            <th className="px-4 py-3 font-semibold text-gray-600">状态</th>
-                            <th className="px-4 py-3 font-semibold text-gray-600">数据</th>
-                            <th className="px-4 py-3 font-semibold text-gray-600 text-right">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {loading ? (
-                            Array.from({ length: 8 }).map((_, i) => (
-                                <tr key={i} className="animate-pulse">
-                                    <td className="px-4 py-3"><div className="w-4 h-4 bg-gray-200 rounded"></div></td>
-                                    <td className="px-4 py-3"><div className="h-12 w-12 bg-gray-200 rounded"></div></td>
-                                    <td className="px-4 py-3"><div className="h-4 w-16 bg-gray-200 rounded"></div></td>
-                                    <td className="px-4 py-3"><div className="h-4 w-12 bg-gray-200 rounded"></div></td>
-                                    <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded"></div></td>
-                                    <td className="px-4 py-3"><div className="h-6 w-16 bg-gray-200 rounded-full"></div></td>
-                                    <td className="px-4 py-3"><div className="h-4 w-12 bg-gray-200 rounded"></div></td>
-                                    <td className="px-4 py-3"></td>
-                                </tr>
-                            ))
-                        ) : products.length === 0 ? (
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-50 border-b">
                             <tr>
-                                <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
-                                    暂无商品数据
-                                </td>
-                            </tr>
-                        ) : (
-                            products.map((product) => (
-                                <tr
-                                    key={product.id}
-                                    className="hover:bg-gray-50 transition-colors cursor-pointer"
-                                    onClick={() => setEditingProduct(product)}
+                                <th className="px-4 py-3 text-left">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.length === products.length && products.length > 0}
+                                        onChange={toggleSelectAll}
+                                        className="rounded"
+                                    />
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">图片</th>
+                                <th
+                                    className="px-4 py-3 text-left text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100"
+                                    onClick={() => handleSort('title')}
                                 >
-                                    <td className="px-4 py-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(product.id)}
-                                            onChange={() => toggleSelect(product.id)}
-                                            className="w-4 h-4 rounded border-gray-300"
-                                        />
+                                    标题 <SortIcon field="title" />
+                                </th>
+                                <th
+                                    className="px-4 py-3 text-left text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100"
+                                    onClick={() => handleSort('price')}
+                                >
+                                    价格 <SortIcon field="price" />
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">分类</th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">卖家</th>
+                                <th
+                                    className="px-4 py-3 text-left text-sm font-semibold text-gray-600 cursor-pointer hover:bg-gray-100"
+                                    onClick={() => handleSort('views_count')}
+                                >
+                                    浏览 <SortIcon field="views_count" />
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">状态</th>
+                                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                                        加载中...
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-3">
+                                </tr>
+                            ) : products.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                                        暂无商品数据
+                                    </td>
+                                </tr>
+                            ) : (
+                                products.map((product) => (
+                                    <tr
+                                        key={product.id}
+                                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                        onClick={() => setEditingProduct(product)}
+                                    >
+                                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.includes(product.id)}
+                                                onChange={() => toggleSelect(product.id)}
+                                                className="rounded"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-3">
                                             <img
                                                 src={product.images?.[0] || 'https://via.placeholder.com/60'}
-                                                alt=""
-                                                className="w-12 h-12 rounded object-cover border"
+                                                alt={product.title}
+                                                className="w-12 h-12 rounded object-cover"
                                             />
-                                            <div className="max-w-xs">
-                                                <div className="font-medium text-gray-900 truncate">{product.title}</div>
-                                                <div className="text-xs text-gray-500">ID: {product.id.slice(0, 8)}...</div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="font-medium text-gray-900 truncate max-w-xs">
+                                                {product.title}
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                                            {product.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 font-semibold text-gray-900">¥{product.price}</td>
-                                    <td className="px-4 py-3 text-gray-600">{product.seller_email?.split('@')[0] || '未知'}</td>
-                                    <td className="px-4 py-3">
-                                        {product.status === 'active' ? (
-                                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">在售</span>
-                                        ) : product.status === 'inactive' ? (
-                                            <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">下架</span>
-                                        ) : (
-                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">待审</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-xs text-gray-600">
-                                        <div className="flex items-center gap-1">
-                                            <EyeIcon /> {product.views_count || 0}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => handlePromote(product.id, product.is_promoted)}
-                                                className="p-1.5 hover:bg-yellow-50 rounded transition-colors"
-                                                title={product.is_promoted ? '取消推荐' : '推荐'}
-                                            >
-                                                <StarIcon filled={product.is_promoted} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDelete(product.id);
-                                                }}
-                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                                title="删除"
-                                            >
-                                                <TrashIcon />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className="font-semibold text-gray-900">
+                                                ${product.price}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className="text-sm text-gray-600 capitalize">
+                                                {product.category?.replace('_', ' ')}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className="text-sm text-gray-600">
+                                                {product.seller_name}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                                                <Eye className="w-4 h-4" />
+                                                {product.views_count || 0}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2 py-1 text-xs rounded-full ${product.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                    product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                                                        'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                {product.status === 'active' ? '在售' :
+                                                    product.status === 'inactive' ? '下架' : '待审'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button
+                                                    onClick={() => handlePromote(product.id, product.is_promoted)}
+                                                    className={`p-1.5 rounded transition-colors ${product.is_promoted
+                                                            ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
+                                                            : 'text-gray-400 hover:bg-gray-100'
+                                                        }`}
+                                                    title={product.is_promoted ? '取消推荐' : '推荐'}
+                                                >
+                                                    <Star className="w-4 h-4" fill={product.is_promoted ? 'currentColor' : 'none'} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(product.id)}
+                                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                    title="删除"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                            第 {page} 页，共 {totalPages} 页
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                disabled={page === 1}
+                                onClick={() => setPage(p => p - 1)}
+                                className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                上一页
+                            </button>
+                            <button
+                                disabled={page === totalPages}
+                                onClick={() => setPage(p => p + 1)}
+                                className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                下一页
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {totalPages > 1 && (
-                <div className="flex justify-center mt-6 gap-2">
-                    <button
-                        disabled={page === 1}
-                        onClick={() => setPage(p => p - 1)}
-                        className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50 text-sm"
-                    >
-                        上一页
-                    </button>
-                    <span className="px-4 py-2 text-gray-600 text-sm">
-                        {page} / {totalPages}
-                    </span>
-                    <button
-                        disabled={page === totalPages}
-                        onClick={() => setPage(p => p + 1)}
-                        className="px-4 py-2 border rounded-lg disabled:opacity-50 hover:bg-gray-50 text-sm"
-                    >
-                        下一页
-                    </button>
-                </div>
-            )}
-
-            {/* Edit Modal */}
+            {/* Modals */}
             {editingProduct && (
                 <ProductEditModal
                     product={editingProduct}
@@ -314,6 +427,14 @@ export const ProductList: React.FC = () => {
                         setEditingProduct(null);
                         fetchProducts();
                     }}
+                />
+            )}
+
+            {showBatchModal && (
+                <BatchOperationModal
+                    selectedCount={selectedIds.length}
+                    onClose={() => setShowBatchModal(false)}
+                    onExecute={handleBatchOperation}
                 />
             )}
         </div>
