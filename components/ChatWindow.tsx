@@ -48,15 +48,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   // Subscribe to real-time messages
   useEffect(() => {
     const unsubscribe = subscribeToMessages(conversation.id, (newMsg) => {
+      // Ignore my own messages from realtime to avoid duplicates with optimistic UI
+      if (newMsg.sender_id === currentUser.id || newMsg.senderId === currentUser.id) return;
+
       setMessages(prev => {
         // Check if message already exists (e.g. from optimistic update with real ID)
         if (prev.some(m => m.id === newMsg.id)) return prev;
         return [...prev, newMsg];
       });
-      // Mark as read if it's from other user
-      if (newMsg.sender_id !== currentUser.id) {
-        markMessagesAsRead(conversation.id, currentUser.id);
-      }
+
+      // Keep "Mark as read" logic, though effectively it's always implied for received messages
+      markMessagesAsRead(conversation.id, currentUser.id);
     });
 
     return () => {
