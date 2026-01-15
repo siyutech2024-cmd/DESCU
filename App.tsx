@@ -386,7 +386,7 @@ const AppContent: React.FC = () => {
       try {
         const data = await getUserConversations(user.id);
         // DEBUG: 临时调试弹窗，确认数据是否到达
-        // alert(`调试信息:\n用户ID: ${user.id}\n获取到 ${data.length} 条对话\nAPI地址: ${API_BASE_URL}`);
+        alert(`调试信息:\n用户ID: ${user.id}\n获取到 ${data.length} 条对话\nAPI地址: ${API_BASE_URL}`);
 
         // Map backend data to frontend model
         const mappedConversations: Conversation[] = data.map((c: any) => {
