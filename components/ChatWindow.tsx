@@ -138,58 +138,61 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
         <div className="text-center text-xs text-gray-400 my-4">
-          {messages.length === 0 && !isLoading && (
-            <div className="text-center text-gray-400 mt-10">
-              <p>{t('chat.no_msgs')}</p>
-            </div>
-          )}
+          {new Date(messages[0]?.timestamp || Date.now()).toLocaleDateString()}
+        </div>
 
-          {messages.map((msg) => {
-            // Normalize sender ID (handle both camelCase and snake_case)
-            const senderId = msg.senderId || msg.sender_id;
-            const isMe = senderId === currentUser.id;
-            return (
-              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${isMe
-                    ? 'bg-brand-600 text-white rounded-tr-none'
-                    : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
-                    }`}
-                >
-                  <p className="leading-relaxed">{msg.text}</p>
-                  <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMe ? 'text-brand-200' : 'text-gray-400'}`}>
-                    <span>
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {isMe && <CheckCheck size={12} />}
-                  </div>
+        {messages.length === 0 && !isLoading && (
+          <div className="text-center text-gray-400 mt-10">
+            <p>{t('chat.no_msgs')}</p>
+          </div>
+        )}
+
+        {messages.map((msg) => {
+          // Normalize sender ID (handle both camelCase and snake_case)
+          const senderId = msg.senderId || msg.sender_id;
+          const isMe = senderId === currentUser.id;
+          return (
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${isMe
+                  ? 'bg-brand-600 text-white rounded-tr-none'
+                  : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                  }`}
+              >
+                <p className="leading-relaxed">{msg.text}</p>
+                <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMe ? 'text-brand-200' : 'text-gray-400'}`}>
+                  <span>
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {isMe && <CheckCheck size={12} />}
                 </div>
               </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input Area */}
-        <div className="bg-white p-3 border-t border-gray-100 safe-area-pb">
-          <form onSubmit={handleSend} className="flex gap-2 items-center">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={t('chat.type')}
-              disabled={isSending}
-              className="flex-1 bg-gray-100 text-gray-900 placeholder-gray-400 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-sm disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={!newMessage.trim() || isSending}
-              className="p-3 bg-brand-600 text-white rounded-full shadow-lg shadow-brand-200 disabled:opacity-50 disabled:shadow-none hover:bg-brand-700 transition-all active:scale-95 flex-shrink-0"
-            >
-              {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-            </button>
-          </form>
-        </div>
+            </div>
+          );
+        })}
+        <div ref={messagesEndRef} />
       </div>
-      );
+
+      {/* Input Area */}
+      <div className="bg-white p-3 border-t border-gray-100 safe-area-pb">
+        <form onSubmit={handleSend} className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder={t('chat.type')}
+            disabled={isSending}
+            className="flex-1 bg-gray-100 text-gray-900 placeholder-gray-400 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-sm disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={!newMessage.trim() || isSending}
+            className="p-3 bg-brand-600 text-white rounded-full shadow-lg shadow-brand-200 disabled:opacity-50 disabled:shadow-none hover:bg-brand-700 transition-all active:scale-95 flex-shrink-0"
+          >
+            {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 };
