@@ -16,9 +16,16 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
             status,
             is_promoted,
             seller_id,
-            sort_by = 'created_at',
-            sort_order = 'desc',
-            include_deleted = 'false'
+            sort = 'created_at',
+            order = 'desc',
+            sort_by, // 兼容旧参数
+            sort_order, // 兼容旧参数
+            include_deleted = 'false',
+            minPrice,
+            maxPrice,
+            startDate,
+            endDate,
+            promotedOnly
         } = req.query;
 
         const offset = (Number(page) - 1) * Number(limit);
@@ -37,23 +44,51 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
             query = query.or(`title.ilike.%${search}%,seller_name.ilike.%${search}%,seller_email.ilike.%${search}%`);
         }
 
-        // 筛选
-        if (category) {
+        // 基础筛选
+        if (category && category !== 'all') {
             query = query.eq('category', category);
         }
-        if (status) {
+        if (status && status !== 'all') {
             query = query.eq('status', status);
         }
-        if (is_promoted) {
-            query = query.eq('is_promoted', is_promoted === 'true');
+        if (is_promoted || promotedOnly === 'true') {
+            query = query.eq('is_promoted', true);
         }
         if (seller_id) {
             query = query.eq('seller_id', seller_id);
         }
 
-        // 排序
-        const ascending = sort_order === 'asc';
-        query = query.order(String(sort_by), { ascending });
+        // 高级筛选：价格范围
+        if (minPrice) {
+            query = query.gte('price', Number(minPrice));
+        }
+        if (maxPrice) {
+            query = query.lte('price', Number(maxPrice));
+        }
+
+        // 高级筛选：日期范围
+        if (startDate) {
+            // 开始日期的 00:00:00
+            query = query.gte('created_at', formatISOStart(String(startDate)));
+        }
+        if (endDate) {
+            // 结束日期的 23:59:59
+            query = query.lte('created_at', formatISOEnd(String(endDate)));
+        }
+
+        // 排序参数处理 (优先使用 sort/order，回退使用 sort_by/sort_order)
+        const finalSort = String(sort || sort_by || 'created_at');
+        const finalOrder = String(order || sort_order || 'desc');
+        const ascending = finalOrder === 'asc';
+
+        // 特殊排序处理
+        if (finalSort === 'views') {
+            query = query.order('views_count', { ascending });
+        } else if (finalSort === 'price') {
+            query = query.order('price', { ascending });
+        } else {
+            query = query.order('created_at', { ascending });
+        }
 
         const { data, error, count } = await query
             .range(offset, offset + Number(limit) - 1);
@@ -72,6 +107,27 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
     } catch (error) {
         console.error('获取商品列表失败:', error);
         res.status(500).json({ error: '获取商品列表失败' });
+    }
+};
+
+// 辅助函数：格式化日期
+const formatISOStart = (dateStr: string) => {
+    try {
+        const d = new Date(dateStr);
+        d.setHours(0, 0, 0, 0);
+        return d.toISOString();
+    } catch (e) {
+        return dateStr;
+    }
+};
+
+const formatISOEnd = (dateStr: string) => {
+    try {
+        const d = new Date(dateStr);
+        d.setHours(23, 59, 59, 999);
+        return d.toISOString();
+    } catch (e) {
+        return dateStr;
     }
 };
 
@@ -309,41 +365,58 @@ export const updateProductPromotion = async (req: AdminRequest, res: Response) =
  */
 export const batchUpdateProducts = async (req: AdminRequest, res: Response) => {
     try {
-        const { product_ids, action, data: updateData } = req.body;
+        // 支持两种参数格式：
+        // 1. 旧格式: product_ids, action, data
+        // 2. 新格式: productIds, updates
+        const { product_ids, action, data: updateData, productIds, updates: directUpdates } = req.body;
 
-        if (!Array.isArray(product_ids) || product_ids.length === 0) {
+        const ids = productIds || product_ids;
+
+        if (!Array.isArray(ids) || ids.length === 0) {
             return res.status(400).json({ error: '无效的商品ID列表' });
         }
 
         let updates: any = {};
 
-        switch (action) {
-            case 'delete':
-                updates = { deleted_at: new Date().toISOString(), status: 'deleted' };
-                break;
-            case 'activate':
-                updates = { status: 'active' };
-                break;
-            case 'deactivate':
-                updates = { status: 'inactive' };
-                break;
-            case 'promote':
-                updates = { is_promoted: true };
-                break;
-            case 'unpromote':
-                updates = { is_promoted: false };
-                break;
-            case 'custom':
-                updates = updateData;
-                break;
-            default:
-                return res.status(400).json({ error: '无效的操作类型' });
+        if (directUpdates) {
+            // 直接使用的是新格式的 updates 对象
+            updates = directUpdates;
+        } else {
+            // 兼容旧格式 action
+            switch (action) {
+                case 'delete':
+                    updates = { deleted_at: new Date().toISOString(), status: 'deleted' };
+                    break;
+                case 'activate':
+                    updates = { status: 'active' };
+                    break;
+                case 'deactivate':
+                    updates = { status: 'inactive' };
+                    break;
+                case 'promote':
+                    updates = { is_promoted: true };
+                    break;
+                case 'unpromote':
+                    updates = { is_promoted: false };
+                    break;
+                case 'custom':
+                    updates = updateData;
+                    break;
+                default:
+                    // 如果没有 action 且没有 directUpdates，那就是错误
+                    if (!directUpdates) {
+                        return res.status(400).json({ error: '无效的操作类型' });
+                    }
+            }
         }
 
+        // 执行批量更新
+        // 注意：Supabase JS 客户端的 update().in() 只能更新所有匹配的行为相同的值
+        // 这对于我们的场景是适用的（批量设为推荐、批量删除等）
         const { data, error } = await supabase
             .from('products')
             .update(updates)
-            .in('id', product_ids)
+            .in('id', ids)
             .select();
 
         if (error) throw error;
@@ -352,16 +425,17 @@ export const batchUpdateProducts = async (req: AdminRequest, res: Response) => {
         await logAdminAction(
             req.admin!.id,
             req.admin!.email,
-            `batch_${action}`,
+            'batch_update',
             'product',
-            product_ids.join(','),
-            { count: product_ids.length, updates },
+            ids.join(','),
+            { count: ids.length, updates },
             req.ip,
             req.get('user-agent')
         );
 
         res.json({
             message: `成功更新 ${data?.length || 0} 个商品`,
+            updated: data?.length || 0,
             products: data
         });
     } catch (error) {

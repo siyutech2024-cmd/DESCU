@@ -14,7 +14,9 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
             search,
             is_verified,
             sort_by = 'created_at',
-            sort_order = 'desc'
+            sort_order = 'desc',
+            start_date,
+            end_date
         } = req.query;
 
         const offset = (Number(page) - 1) * Number(limit);
@@ -22,7 +24,7 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
         // 从products表获取唯一的seller信息
         let query = supabase
             .from('products')
-            .select('seller_id, seller_name, seller_email, seller_avatar, seller_verified', { count: 'exact' });
+            .select('seller_id, seller_name, seller_email, seller_avatar, seller_verified, created_at', { count: 'exact' });
 
         // 搜索
         if (search) {
@@ -34,6 +36,15 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
             query = query.eq('seller_verified', is_verified === 'true');
         }
 
+        // 筛选日期（基于商品发布时间）
+        // 注意：由于没有独立的users表，这里筛选的是"在该时间段内发布过商品的用户"
+        if (start_date) {
+            query = query.gte('created_at', formatISOStart(String(start_date)));
+        }
+        if (end_date) {
+            query = query.lte('created_at', formatISOEnd(String(end_date)));
+        }
+
         const { data: sellers, error } = await query;
 
         if (error) throw error;
@@ -41,9 +52,16 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
         // 去重并聚合用户信息
         const uniqueUsers = new Map();
 
+        // 注意：这个循环的性能在数据量大时会有问题
+        // 长期方案建议同步 auth.users 到 public.users 表
         for (const seller of sellers || []) {
             if (!uniqueUsers.has(seller.seller_id)) {
-                // 获取该用户的商品数量
+                // 如果是按日期筛选的，我们只统计该时间段的活跃用户
+                // 这里的逻辑已经通过 query 过滤了
+
+                // 但我们需要统计总的商品数，而不仅仅是筛选时间段内的
+                // 所以下面获取详情时，不应该带时间筛选，除非我们要展示"该时间段内的商品数"
+                // 现在的逻辑是获取用户所有商品数
                 const { count: productCount } = await supabase
                     .from('products')
                     .select('*', { count: 'exact', head: true })
@@ -87,6 +105,27 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
     } catch (error) {
         console.error('获取用户列表失败:', error);
         res.status(500).json({ error: '获取用户列表失败' });
+    }
+};
+
+// 辅助函数：格式化日期
+const formatISOStart = (dateStr: string) => {
+    try {
+        const d = new Date(dateStr);
+        d.setHours(0, 0, 0, 0);
+        return d.toISOString();
+    } catch (e) {
+        return dateStr;
+    }
+};
+
+const formatISOEnd = (dateStr: string) => {
+    try {
+        const d = new Date(dateStr);
+        d.setHours(23, 59, 59, 999);
+        return d.toISOString();
+    } catch (e) {
+        return dateStr;
     }
 };
 
