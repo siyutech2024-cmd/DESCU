@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Send, CheckCheck, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, CheckCheck, Loader2, MoreVertical, Phone, Video } from 'lucide-react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
@@ -111,91 +111,120 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 fixed inset-0 z-40">
-      {/* Header */}
-      <div className="bg-white px-4 py-3 border-b border-gray-100 flex items-center gap-3 shadow-sm">
-        <button onClick={onBack} className="p-1 hover:bg-gray-100 rounded-full">
-          <ArrowLeft size={24} className="text-gray-600" />
+    <div className="flex flex-col h-full bg-[#f8f9fa] fixed inset-0 z-40 sm:static sm:h-full animate-fade-in-right">
+      {/* Premium Glassmorphism Header */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center gap-4 shadow-sm">
+        <button
+          onClick={onBack}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors active:scale-95"
+        >
+          <ArrowLeft size={24} className="text-gray-700" />
         </button>
 
         <div className="relative">
           <img
             src={conversation.otherUser.avatar}
             alt={conversation.otherUser.name}
-            className="w-10 h-10 rounded-full object-cover border border-gray-100"
+            className="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-white"
           />
-          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm ring-1 ring-green-100"></div>
         </div>
 
         <div className="flex-1 min-w-0">
-          <h2 className="font-bold text-gray-900 truncate">{conversation.otherUser.name}</h2>
-          <p className="text-xs text-brand-600 font-medium truncate flex items-center gap-1">
-            Regarding: {conversation.productTitle}
-          </p>
+          <h2 className="font-bold text-gray-900 truncate leading-tight">{conversation.otherUser.name}</h2>
+          <p className="text-xs text-brand-600 font-medium truncate">Online now</p>
         </div>
 
-        <img
-          src={conversation.productImage}
-          alt="Product"
-          className="w-10 h-10 rounded-md object-cover border border-gray-200"
-        />
+        <div className="flex items-center gap-1">
+          <button className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors">
+            <Phone size={20} />
+          </button>
+          <button className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors">
+            <Video size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        <div className="text-center text-xs text-gray-400 my-4">
-          {new Date(messages[0]?.timestamp || Date.now()).toLocaleDateString()}
+      <div className="flex-1 overflow-y-auto pt-20 pb-4 px-4 space-y-6 bg-gradient-to-b from-gray-50 to-[#f8f9fa]">
+
+        {/* Product Context Card */}
+        <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 mx-auto max-w-sm flex items-center gap-3 animate-slide-down">
+          <img src={conversation.productImage} className="w-12 h-12 rounded-lg object-cover" alt="Product" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Trading</p>
+            <p className="text-sm font-bold text-gray-900 truncate">{conversation.productTitle}</p>
+          </div>
+          <div className="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded-md">
+            Offer
+          </div>
+        </div>
+
+        <div className="text-center text-xs text-gray-400 font-medium">
+          {new Date(messages[0]?.timestamp || Date.now()).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
         </div>
 
         {messages.length === 0 && !isLoading && (
-          <div className="text-center text-gray-400 mt-10">
+          <div className="text-center text-gray-400 py-10 opacity-60">
             <p>{t('chat.no_msgs')}</p>
           </div>
         )}
 
-        {messages.map((msg) => {
-          // Normalize sender ID (handle both camelCase and snake_case)
+        {messages.map((msg, index) => {
           const senderId = msg.senderId || msg.sender_id;
           const isMe = senderId === currentUser.id;
+          const showAvatar = isMe ? false : (messages[index + 1]?.senderId || messages[index + 1]?.sender_id) !== senderId;
+
           return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start items-end'} gap-2 group`}>
+              {!isMe && (
+                <div className={`w-8 h-8 rounded-full flex-shrink-0 bg-gray-200 overflow-hidden ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
+                  {showAvatar && <img src={conversation.otherUser.avatar} className="w-full h-full object-cover" alt="Avatar" />}
+                </div>
+              )}
+
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${isMe
-                  ? 'bg-brand-600 text-white rounded-tr-none'
-                  : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                className={`max-w-[75%] px-5 py-3 text-[15px] shadow-sm relative transition-all duration-200 hover:shadow-md ${isMe
+                  ? 'bg-gradient-to-br from-brand-600 to-brand-500 text-white rounded-2xl rounded-tr-sm'
+                  : 'bg-white text-gray-800 border border-gray-100 rounded-2xl rounded-tl-sm'
                   }`}
               >
-                <p className="leading-relaxed">{msg.text}</p>
-                <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMe ? 'text-brand-200' : 'text-gray-400'}`}>
+                <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                <div className={`flex items-center justify-end gap-1 text-[10px] mt-1 ${isMe ? 'text-brand-100' : 'text-gray-400'}`}>
                   <span>
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
-                  {isMe && <CheckCheck size={12} />}
+                  {isMe && <CheckCheck size={14} className={msg.is_read ? "text-white" : "text-brand-200"} />}
                 </div>
               </div>
             </div>
           );
         })}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-4" />
       </div>
 
-      {/* Input Area */}
-      <div className="bg-white p-3 border-t border-gray-100 safe-area-pb">
-        <form onSubmit={handleSend} className="flex gap-2 items-center">
+      {/* Floating Input Area */}
+      <div className="bg-white/80 backdrop-blur-md p-4 border-t border-gray-100 safe-area-pb">
+        <form onSubmit={handleSend} className="max-w-4xl mx-auto relative flex gap-3 items-end bg-gray-50 p-2 rounded-[2rem] border border-gray-200 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-300 transition-all shadow-inner">
+          <button type="button" className="p-2 text-gray-400 hover:text-brand-600 hover:bg-gray-100 rounded-full transition-colors">
+            <MoreVertical size={20} />
+          </button>
+
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder={t('chat.type')}
             disabled={isSending}
-            className="flex-1 bg-gray-100 text-gray-900 placeholder-gray-400 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-sm disabled:opacity-50"
+            className="flex-1 bg-transparent text-gray-900 placeholder-gray-400 px-2 py-3 focus:outline-none text-sm min-h-[44px]"
           />
+
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}
-            className="p-3 bg-brand-600 text-white rounded-full shadow-lg shadow-brand-200 disabled:opacity-50 disabled:shadow-none hover:bg-brand-700 transition-all active:scale-95 flex-shrink-0"
+            className="p-3 bg-brand-600 text-white rounded-full shadow-lg shadow-brand-200 disabled:opacity-50 disabled:shadow-none hover:bg-brand-700 hover:scale-105 transition-all active:scale-95 flex-shrink-0"
           >
-            {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+            {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className="ml-0.5" />}
           </button>
         </form>
       </div>
