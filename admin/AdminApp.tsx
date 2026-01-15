@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminLayout } from './components/AdminLayout';
 import { Dashboard } from './pages/Dashboard';
@@ -10,20 +11,25 @@ import { UserList } from './pages/UserList';
 import { MessageMonitor } from './pages/MessageMonitor';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { AdminManagement } from './pages/AdminManagement';
 
 export const AdminApp: React.FC = () => {
     return (
-        <Routes>
-            <Route path="login" element={<AdminLogin />} />
-            <Route path="" element={<AdminLayout />}>
-                <Route index element={<Navigate to="dashboard" replace />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="products" element={<ProductList />} />
-                <Route path="users" element={<UserList />} />
-                <Route path="messages" element={<MessageMonitor />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="settings" element={<Settings />} />
-            </Route>
-        </Routes>
+        <>
+            <Toaster />
+            <Routes>
+                <Route path="login" element={<AdminLogin />} />
+                <Route path="" element={<AdminLayout />}>
+                    <Route index element={<Navigate to="dashboard" replace />} />
+                    <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="products" element={<ProductList />} />
+                    <Route path="users" element={<UserList />} />
+                    <Route path="messages" element={<MessageMonitor />} />
+                    <Route path="reports" element={<Reports />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="admins" element={<AdminManagement />} />
+                </Route>
+            </Routes>
+        </>
     );
 };

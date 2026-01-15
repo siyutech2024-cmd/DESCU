@@ -8,6 +8,21 @@ import {
     ShoppingCart,
     AlertTriangle
 } from 'lucide-react';
+import {
+    LineChart,
+    Line,
+    AreaChart,
+    Area,
+    PieChart,
+    Pie,
+    Cell,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer
+} from 'recharts';
 
 interface StatCardProps {
     title: string;
@@ -49,6 +64,8 @@ const StatCard: React.FC<StatCardProps> = ({
         </div>
     );
 };
+
+const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#6366F1', '#EC4899', '#14B8A6'];
 
 export const Dashboard: React.FC = () => {
     const [stats, setStats] = useState<any>(null);
@@ -96,6 +113,12 @@ export const Dashboard: React.FC = () => {
                         <p className="text-sm text-red-700">{error}</p>
                     </div>
                 </div>
+                <button
+                    onClick={loadDashboardData}
+                    className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                    重试
+                </button>
             </div>
         );
     }
@@ -135,6 +158,19 @@ export const Dashboard: React.FC = () => {
         }
     ];
 
+    // 准备图表数据
+    const trendData = stats?.weeklyTrend?.map((item: any) => ({
+        date: new Date(item.date).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }),
+        products: item.products_count || 0,
+        users: item.users_count || 0,
+    })) || [];
+
+    const categoryData = stats?.categoryStats?.map((cat: any, idx: number) => ({
+        name: cat.category || '其他',
+        value: cat.count || 0,
+        color: COLORS[idx % COLORS.length]
+    })) || [];
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -152,77 +188,88 @@ export const Dashboard: React.FC = () => {
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 7-Day Trend */}
+                {/* 7-Day Trend Chart */}
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg text-gray-900 mb-4">7天趋势</h3>
-                    <div className="h-64 flex items-center justify-center text-gray-400">
-                        {stats?.weeklyTrend && stats.weeklyTrend.length > 0 ? (
-                            <div className="w-full">
-                                <p className="text-sm text-gray-600 text-center">
-                                    {stats.weeklyTrend.length} 天数据
-                                </p>
-                                {/* 这里可以集成图表库，如 Recharts 或 Chart.js */}
-                                <div className="mt-4 space-y-2">
-                                    {stats.weeklyTrend.slice(0, 7).map((item: any, idx: number) => (
-                                        <div key={idx} className="flex items-center justify-between text-sm">
-                                            <span className="text-gray-600">
-                                                {new Date(item.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
-                                            </span>
-                                            <span className="font-medium text-gray-900">
-                                                {item.products_count} 商品
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                    <div className="h-64">
+                        {trendData && trendData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={trendData}>
+                                    <defs>
+                                        <linearGradient id="colorProducts" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="date" stroke="#9CA3AF" style={{ fontSize: '12px' }} />
+                                    <YAxis stroke="#9CA3AF" style={{ fontSize: '12px' }} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: '#fff',
+                                            border: '1px solid #e5e7eb',
+                                            borderRadius: '8px',
+                                        }}
+                                    />
+                                    <Legend />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="products"
+                                        stroke="#3B82F6"
+                                        fillOpacity={1}
+                                        fill="url(#colorProducts)"
+                                        name="商品"
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="users"
+                                        stroke="#10B981"
+                                        fillOpacity={1}
+                                        fill="url(#colorUsers)"
+                                        name="用户"
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
                         ) : (
-                            <p>暂无数据</p>
+                            <div className="h-full flex items-center justify-center text-gray-400">
+                                <p>暂无数据</p>
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* Category Distribution */}
+                {/* Category Distribution Pie Chart */}
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg text-gray-900 mb-4">分类分布</h3>
-                    <div className="h-64 overflow-y-auto">
-                        {stats?.categoryStats && stats.categoryStats.length > 0 ? (
-                            <div className="space-y-3">
-                                {stats.categoryStats.slice(0, 8).map((cat: any, idx: number) => {
-                                    const colors = [
-                                        'bg-blue-500',
-                                        'bg-green-500',
-                                        'bg-purple-500',
-                                        'bg-orange-500',
-                                        'bg-pink-500',
-                                        'bg-indigo-500',
-                                        'bg-red-500',
-                                        'bg-teal-500'
-                                    ];
-                                    const total = stats.categoryStats.reduce((sum: number, c: any) => sum + c.total_count, 0);
-                                    const percentage = ((cat.total_count / total) * 100).toFixed(1);
-
-                                    return (
-                                        <div key={idx}>
-                                            <div className="flex items-center justify-between text-sm mb-1">
-                                                <span className="text-gray-700 font-medium capitalize">
-                                                    {cat.category.replace('_', ' ')}
-                                                </span>
-                                                <span className="text-gray-900 font-bold">
-                                                    {cat.total_count} ({percentage}%)
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div
-                                                    className={`${colors[idx % colors.length]} h-2 rounded-full transition-all`}
-                                                    style={{ width: `${percentage}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                    <div className="h-64">
+                        {categoryData && categoryData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={categoryData}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) =>
+                                            `${name} ${(percent * 100).toFixed(0)}%`
+                                        }
+                                        outerRadius={80}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                    >
+                                        {categoryData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-gray-400">
+                            <div className="h-full flex items-center justify-center text-gray-400">
                                 <p>暂无数据</p>
                             </div>
                         )}
@@ -230,92 +277,30 @@ export const Dashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Recent Products */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                    <h3 className="font-bold text-lg text-gray-900">最新商品</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    商品
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    分类
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    价格
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    卖家
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    状态
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    发布时间
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {stats?.recentProducts && stats.recentProducts.length > 0 ? (
-                                stats.recentProducts.map((product: any) => (
-                                    <tr key={product.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <img
-                                                    src={product.images?.[0] || '/placeholder.jpg'}
-                                                    alt={product.title}
-                                                    className="w-10 h-10 rounded-lg object-cover mr-3"
-                                                />
-                                                <div className="text-sm font-medium text-gray-900 max-w-xs truncate">
-                                                    {product.title}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm text-gray-600 capitalize">
-                                                {product.category?.replace('_', ' ')}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-semibold text-gray-900">
-                                                ${product.price}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm text-gray-600">
-                                                {product.seller_name}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span
-                                                className={`px-2 py-1 text-xs font-semibold rounded-full ${product.status === 'active'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : product.status === 'inactive'
-                                                            ? 'bg-gray-100 text-gray-800'
-                                                            : 'bg-yellow-100 text-yellow-800'
-                                                    }`}
-                                            >
-                                                {product.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(product.created_at).toLocaleDateString('zh-CN')}
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
-                                        暂无商品数据
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+            {/* Recent Activity */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h3 className="font-bold text-lg text-gray-900 mb-4">最近活动</h3>
+                <div className="space-y-3">
+                    {stats?.recentProducts && stats.recentProducts.length > 0 ? (
+                        stats.recentProducts.slice(0, 5).map((product: any, idx: number) => (
+                            <div key={idx} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                                <img
+                                    src={product.images?.[0] || 'https://via.placeholder.com/40'}
+                                    alt={product.title}
+                                    className="w-10 h-10 rounded object-cover"
+                                />
+                                <div className="flex-1">
+                                    <p className="font-medium text-gray-900">{product.title}</p>
+                                    <p className="text-sm text-gray-500">
+                                        {product.seller_name} • {new Date(product.created_at).toLocaleDateString('zh-CN')}
+                                    </p>
+                                </div>
+                                <span className="text-sm font-semibold text-blue-600">¥{product.price}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center text-gray-400 py-8">暂无最近活动</p>
+                    )}
                 </div>
             </div>
         </div>
