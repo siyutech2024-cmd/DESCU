@@ -385,6 +385,8 @@ const AppContent: React.FC = () => {
     const loadConversations = async () => {
       try {
         const data = await getUserConversations(user.id);
+        // DEBUG: 临时调试弹窗，确认数据是否到达
+        // alert(`调试信息:\n用户ID: ${user.id}\n获取到 ${data.length} 条对话\nAPI地址: ${API_BASE_URL}`);
 
         // Map backend data to frontend model
         const mappedConversations: Conversation[] = data.map((c: any) => {
@@ -426,9 +428,9 @@ const AppContent: React.FC = () => {
         });
 
         setConversations(mappedConversations);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to load conversations', error);
-        alert('无法加载对话列表，请检查网络连接'); // Optional: don't annoy user if it's just empty
+        alert(`❌ 加载对话列表失败\n错误: ${error.message}\nAPI: ${API_BASE_URL}`);
       }
     };
 
