@@ -395,18 +395,21 @@ const AppContent: React.FC = () => {
 
           // Construct other user info
           let otherUser;
-          if (isBuyer && c.seller_info) {
+          // Check for sellerInfo (camelCase from new backend) or seller_info (legacy)
+          const sellerInfo = c.sellerInfo || c.seller_info;
+
+          if (isBuyer && sellerInfo) {
             // If I am buyer, other user is seller
             otherUser = {
-              id: c.seller_info.id,
-              name: c.seller_info.name,
+              id: sellerInfo.id,
+              name: sellerInfo.name,
               email: '', // Not returned by API for privacy
-              avatar: c.seller_info.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+              avatar: sellerInfo.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
               isVerified: false
             };
           } else {
             // If I am seller, other user is buyer (info not fully available yet)
-            // Or fallback if seller_info is missing
+            // Or fallback if sellerInfo is missing
             otherUser = {
               id: isBuyer ? c.user2_id : c.user1_id,
               name: isBuyer ? 'Seller' : 'Buyer', // Placeholder
@@ -419,8 +422,8 @@ const AppContent: React.FC = () => {
           return {
             id: c.id,
             productId: c.product_id,
-            productTitle: c.product_title || 'Product',
-            productImage: c.product_image || '',
+            productTitle: c.productTitle || c.product_title || 'Product',
+            productImage: c.productImage || c.product_image || '',
             otherUser,
             lastMessageTime: new Date(c.updated_at).getTime(),
             messages: []

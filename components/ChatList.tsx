@@ -98,9 +98,9 @@ export const ChatList: React.FC<ChatListProps> = ({
               {/* Product Image & Arrow */}
               <div className="flex flex-col items-end gap-2 pl-2">
                 <img
-                  src={conv.productImage}
+                  src={conv.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'}
                   alt="Product"
-                  className="w-14 h-14 rounded-xl object-cover border border-white shadow-sm group-hover:rotate-3 transition-transform duration-300"
+                  className="w-14 h-14 rounded-xl object-cover border border-white shadow-sm group-hover:rotate-3 transition-transform duration-300 bg-gray-100"
                 />
                 <ChevronRight size={16} className="text-gray-300 group-hover:text-brand-500 transition-colors group-hover:translate-x-1" />
               </div>

@@ -67,9 +67,9 @@ export const getUserConversations = async (req: Request, res: Response) => {
 
                 return {
                     ...conversation,
-                    product_title: product?.title || '未知商品',
-                    product_image: product?.images?.[0] || '',
-                    seller_info: product ? {
+                    productTitle: product?.title || '未知商品',
+                    productImage: product?.images?.[0] || '',
+                    sellerInfo: product ? {
                         id: product.seller_id,
                         name: product.seller_name,
                         avatar: product.seller_avatar

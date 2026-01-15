@@ -159,7 +159,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         {/* Product Context Card */}
         <div className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex items-center gap-3 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow">
-          <img src={conversation.productImage} className="w-12 h-12 rounded-lg object-cover shadow-sm" alt="Product" />
+          <img src={conversation.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'} className="w-12 h-12 rounded-lg object-cover shadow-sm bg-gray-100" alt="Product" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Listing</span>
