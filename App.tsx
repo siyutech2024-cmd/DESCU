@@ -665,12 +665,28 @@ const AppContent: React.FC = () => {
     }
   };
 
+  // --- DEBOUNCE HOOK ---
+  function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+    return debouncedValue;
+  }
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   // Sorting & Filtering
   const sortedProducts = useMemo(() => {
     let filtered = products;
 
-    if (searchQuery.trim()) {
-      const lowerQ = searchQuery.toLowerCase();
+    if (debouncedSearchQuery.trim()) {
+      const lowerQ = debouncedSearchQuery.toLowerCase();
       const translatedCategory = Object.values(Category).find(c => t(`cat.${c}`).toLowerCase().includes(lowerQ));
 
       filtered = products.filter(p =>
@@ -707,7 +723,7 @@ const AppContent: React.FC = () => {
       // 3. Distance ascending
       return a.distance! - b.distance!;
     });
-  }, [products, location, searchQuery, selectedCategory, t]);
+  }, [products, location, debouncedSearchQuery, selectedCategory, t]);
 
   const CATEGORIES = [
     { id: 'all', icon: RefreshCw, label: 'cat.all' },
@@ -828,14 +844,14 @@ const AppContent: React.FC = () => {
                   className={`flex flex-col items-center flex-shrink-0 gap-2 min-w-[76px] group transition-all duration-300 ${selectedCategory === cat.id ? 'opacity-100 scale-105' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
                 >
                   <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ${selectedCategory === cat.id
-                      ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/40'
-                      : 'bg-white/60 backdrop-blur-md text-gray-600 shadow-sm border border-white/60 group-hover:bg-white/80'
+                    ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/40'
+                    : 'bg-white/60 backdrop-blur-md text-gray-600 shadow-sm border border-white/60 group-hover:bg-white/80'
                     }`}>
                     <cat.icon size={26} strokeWidth={selectedCategory === cat.id ? 2.5 : 2} />
                   </div>
                   <span className={`text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full ${selectedCategory === cat.id
-                      ? 'text-brand-700 bg-brand-50/50'
-                      : 'text-gray-500 group-hover:text-gray-700'
+                    ? 'text-brand-700 bg-brand-50/50'
+                    : 'text-gray-500 group-hover:text-gray-700'
                     }`}>
                     {t(cat.label)}
                   </span>
@@ -923,14 +939,16 @@ const AppContent: React.FC = () => {
         {renderContent()}
       </div>
 
-      <BottomNav
-        currentView={currentView.type === 'product' || currentView.type === 'chat-window' ? 'home' : currentView.type}
-        onChangeView={(view) => setCurrentView({ type: view })}
-        onSellClick={handleSellClick}
-        onCartClick={() => setIsCartOpen(true)}
-        cartCount={cart.length}
-        unreadCount={unreadCount}
-      />
+      {currentView.type !== 'chat-window' && (
+        <BottomNav
+          currentView={currentView.type === 'product' ? 'home' : currentView.type}
+          onChangeView={(view) => setCurrentView({ type: view })}
+          onSellClick={handleSellClick}
+          onCartClick={() => setIsCartOpen(true)}
+          cartCount={cart.length}
+          unreadCount={unreadCount}
+        />
+      )}
 
       <SellModal
         isOpen={isSellModalOpen}

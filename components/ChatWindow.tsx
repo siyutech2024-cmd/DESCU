@@ -22,8 +22,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleAddEmoji = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+  };
 
   // Load initial messages
   useEffect(() => {
@@ -225,12 +230,52 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Floating Input Area */}
       <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/90 to-transparent z-20">
+
+        {/* Emoji Picker Popover */}
+        {showEmojiPicker && (
+          <div className="absolute bottom-20 left-4 animate-fade-in-up z-50">
+            <div className="glass-panel p-3 rounded-2xl shadow-xl border border-white/50 w-64">
+              <div className="grid grid-cols-6 gap-2">
+                {['😂', '❤️', '👍', '🔥', '😊', '😭', '😍', '🤔', '🎉', '👀', '🙏', '💯', '👋', '😅', '🙌', '😎', '😉', '😢'].map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => handleAddEmoji(emoji)}
+                    className="text-2xl hover:bg-black/5 p-1 rounded-lg transition-colors hover:scale-110 active:scale-95"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <form
           onSubmit={handleSend}
           className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50"
         >
-          <button type="button" className="p-2.5 text-gray-400 hover:text-brand-600 hover:bg-gray-100/50 rounded-full transition-colors active:scale-95">
+          <button
+            type="button"
+            onClick={() => {
+              // Image Stub
+              const toast = document.createElement('div');
+              toast.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-6 py-3 rounded-full shadow-xl animate-fade-in z-[60] backdrop-blur-md';
+              toast.innerText = '📷 Image sharing coming soon!';
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 2000);
+            }}
+            className="p-2.5 text-gray-400 hover:text-brand-600 hover:bg-gray-100/50 rounded-full transition-colors active:scale-95"
+          >
             <ImageIcon size={22} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showEmojiPicker ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+          >
+            <Smile size={22} />
           </button>
 
           <input
@@ -238,6 +283,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
+            onFocus={() => setShowEmojiPicker(false)}
             placeholder={t('chat.type')}
             disabled={isSending}
             className="flex-1 bg-transparent text-gray-900 placeholder-gray-400 px-1 py-3 focus:outline-none text-[15px] min-h-[48px]"

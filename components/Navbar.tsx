@@ -70,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Search Bar - Modern Glass Input */}
-        <div className="flex-1 relative max-w-lg ml-auto mr-auto md:mr-0">
+        <div className="flex-1 relative max-w-lg ml-auto mr-auto md:mr-0 group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
             <Search size={18} />
           </div>
@@ -79,8 +79,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('nav.search')}
-            className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2.5 pl-11 pr-4 text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
+            className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2.5 pl-11 pr-10 text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
           />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <div className="bg-gray-200/50 rounded-full p-0.5 hover:bg-gray-300/50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </div>
+            </button>
+          )}
         </div>
 
         {/* Desktop Actions */}
