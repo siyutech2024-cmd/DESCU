@@ -6,6 +6,10 @@ import { logAdminAction } from './adminController';
 /**
  * 获取用户列表
  */
+/**
+ * 获取用户列表
+ * 改为从 Auth 获取所有用户，以确保显示未发布商品的新用户
+ */
 export const getAdminUsers = async (req: AdminRequest, res: Response) => {
     try {
         const {
@@ -19,81 +23,125 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
             end_date
         } = req.query;
 
-        const offset = (Number(page) - 1) * Number(limit);
+        // 1. 获取 Auth 用户列表 (目前只能获取所有然后内存分页，因为Auth API搜索能力有限)
+        // 注意：生产环境如果用户量巨大，这里应该改用 SQL 视图或同步表
+        const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers({
+            perPage: 1000 // 临时方案：获取前1000个用户进行处理
+        });
 
-        // 从products表获取唯一的seller信息
-        let query = supabase
-            .from('products')
-            .select('seller_id, seller_name, seller_email, seller_avatar, seller_verified, created_at', { count: 'exact' });
+        if (authError) throw authError;
+
+        // 2. 内存处理：搜索、筛选
+        let processedUsers = authUsers.map(u => ({
+            id: u.id,
+            email: u.email,
+            name: u.user_metadata?.full_name || u.user_metadata?.name || 'Unknown',
+            avatar: u.user_metadata?.avatar_url || '',
+            created_at: u.created_at,
+            last_sign_in_at: u.last_sign_in_at
+        }));
 
         // 搜索
         if (search) {
-            query = query.or(`seller_name.ilike.%${search}%,seller_email.ilike.%${search}%`);
+            const lowerSearch = String(search).toLowerCase();
+            processedUsers = processedUsers.filter(u =>
+                (u.email?.toLowerCase() || '').includes(lowerSearch) ||
+                (u.name?.toLowerCase() || '').includes(lowerSearch)
+            );
         }
 
-        // 筛选认证状态
-        if (is_verified !== undefined && is_verified !== 'undefined') {
-            query = query.eq('seller_verified', is_verified === 'true');
-        }
-
-        // 筛选日期（基于商品发布时间）
-        // 注意：由于没有独立的users表，这里筛选的是"在该时间段内发布过商品的用户"
-        // 筛选日期（基于商品发布时间）
-        // 注意：由于没有独立的users表，这里筛选的是"在该时间段内发布过商品的用户"
+        // 日期筛选
         if (start_date && start_date !== 'undefined') {
-            query = query.gte('created_at', formatISOStart(String(start_date)));
+            const start = new Date(String(start_date)).getTime();
+            processedUsers = processedUsers.filter(u => new Date(u.created_at).getTime() >= start);
         }
         if (end_date && end_date !== 'undefined') {
-            query = query.lte('created_at', formatISOEnd(String(end_date)));
+            const end = new Date(String(end_date));
+            end.setHours(23, 59, 59, 999);
+            processedUsers = processedUsers.filter(u => new Date(u.created_at).getTime() <= end.getTime());
         }
 
-        const { data: sellers, error } = await query;
+        // 3. 获取附加信息 (商品数、认证状态)
+        // 这一步我们需要对筛选后的用户查询其商品信息
+        // 为了性能，我们只对当前页的用户详细查询？
+        // 不，有一个 is_verified 筛选依赖这些信息，所以必须先获取信息
 
-        if (error) throw error;
+        // 优化：批量查询所有相关用户的 stats
+        const userIds = processedUsers.map(u => u.id);
 
-        // 去重并聚合用户信息
-        const uniqueUsers = new Map();
+        const { data: userStats, error: statsError } = await supabase
+            .from('products')
+            .select('seller_id, seller_verified, id');
 
-        // 注意：这个循环的性能在数据量大时会有问题
-        // 长期方案建议同步 auth.users 到 public.users 表
-        for (const seller of sellers || []) {
-            if (!uniqueUsers.has(seller.seller_id)) {
-                // 如果是按日期筛选的，我们只统计该时间段的活跃用户
-                // 这里的逻辑已经通过 query 过滤了
+        // 聚合统计
+        const statsMap = new Map<string, { verified: boolean, productCount: number }>();
 
-                // 但我们需要统计总的商品数，而不仅仅是筛选时间段内的
-                // 所以下面获取详情时，不应该带时间筛选，除非我们要展示"该时间段内的商品数"
-                // 现在的逻辑是获取用户所有商品数
-                const { count: productCount } = await supabase
-                    .from('products')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('seller_id', seller.seller_id)
-                    .is('deleted_at', null);
+        (userStats || []).forEach(p => {
+            const current = statsMap.get(p.seller_id) || { verified: false, productCount: 0 };
+            // 只要有一个商品是 verified，用户就算 verified (或者取最新的 status，这里简化处理)
+            // 实际上我们应该查 distinct seller_verified，但这里我们假设一致
+            if (p.seller_verified) current.verified = true;
+            current.productCount++;
+            statsMap.set(p.seller_id, current);
+        });
 
-                // 获取该用户的对话数量
-                const { count: conversationCount } = await supabase
-                    .from('conversations')
-                    .select('*', { count: 'exact', head: true })
-                    .or(`user1_id.eq.${seller.seller_id},user2_id.eq.${seller.seller_id}`)
-                    .is('deleted_at', null);
+        // 合并信息
+        let finalUsers = processedUsers.map(u => {
+            const stats = statsMap.get(u.id);
+            return {
+                ...u,
+                is_verified: stats?.verified || false,
+                product_count: stats?.productCount || 0,
+                conversation_count: 0 // 暂时忽略对话数，为了性能优化，如果需要可以再查
+            };
+        });
 
-                uniqueUsers.set(seller.seller_id, {
-                    id: seller.seller_id,
-                    name: seller.seller_name,
-                    email: seller.seller_email,
-                    avatar: seller.seller_avatar,
-                    is_verified: seller.seller_verified || false,
-                    product_count: productCount || 0,
-                    conversation_count: conversationCount || 0
-                });
+        // 认证筛选
+        if (is_verified !== undefined && is_verified !== 'undefined') {
+            const wantVerified = is_verified === 'true';
+            finalUsers = finalUsers.filter(u => u.is_verified === wantVerified);
+        }
+
+        // 4. 排序
+        finalUsers.sort((a, b) => {
+            let valA, valB;
+            if (sort_by === 'product_count') {
+                valA = a.product_count;
+                valB = b.product_count;
+            } else {
+                // created_at
+                valA = a.created_at;
+                valB = b.created_at;
             }
+
+            if (valA < valB) return sort_order === 'asc' ? -1 : 1;
+            if (valA > valB) return sort_order === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // 5. 分页
+        const total = finalUsers.length;
+        const offset = (Number(page) - 1) * Number(limit);
+        const paginatedUsers = finalUsers.slice(offset, offset + Number(limit));
+
+        // 补充对话数量 (仅对当前页)
+        const paginatedIds = paginatedUsers.map(u => u.id);
+        if (paginatedIds.length > 0) {
+            const { data: convData } = await supabase
+                .from('conversations')
+                .select('user1_id, user2_id')
+                .or(`user1_id.in.(${paginatedIds.join(',')}),user2_id.in.(${paginatedIds.join(',')})`);
+
+            const convCounts = new Map<string, number>();
+            (convData || []).forEach(c => {
+                if (paginatedIds.includes(c.user1_id)) convCounts.set(c.user1_id, (convCounts.get(c.user1_id) || 0) + 1);
+                if (paginatedIds.includes(c.user2_id)) convCounts.set(c.user2_id, (convCounts.get(c.user2_id) || 0) + 1);
+            });
+
+            paginatedUsers.forEach(u => {
+                u.conversation_count = convCounts.get(u.id) || 0;
+            });
         }
-
-        const users = Array.from(uniqueUsers.values());
-        const total = users.length;
-
-        // 客户端分页
-        const paginatedUsers = users.slice(offset, offset + Number(limit));
 
         res.json({
             users: paginatedUsers,
