@@ -12,7 +12,17 @@ export const analyzeProductImage = async (base64Image: string, language: Languag
     });
 
     if (!response.ok) {
-      throw new Error(`Server error: ${response.statusText}`);
+      let errorMessage = `Server error: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+          if (errorData.details) errorMessage += ` (${errorData.details})`;
+        }
+      } catch (e) {
+        // Ignore JSON parse error if body is not JSON
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
