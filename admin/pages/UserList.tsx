@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/adminApi';
 import { AdminUserInfo } from '../types/admin';
+import { UserDetailModal } from '../components/UserDetailModal';
 
 // Simple Icons
 const SearchIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>);
@@ -116,7 +117,11 @@ export const UserList: React.FC = () => {
                             </tr>
                         ) : (
                             users.map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                <tr
+                                    key={user.id}
+                                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                    onClick={() => setSelectedUser(user)}
+                                >
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <img src={user.avatar || 'https://via.placeholder.com/40'} alt="" className="w-10 h-10 rounded-full object-cover border" />
@@ -147,8 +152,8 @@ export const UserList: React.FC = () => {
                                             <button
                                                 onClick={() => handleVerify(user.id, user.is_verified)}
                                                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${user.is_verified
-                                                        ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
-                                                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                                    ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                                                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                                                     }`}
                                             >
                                                 {user.is_verified ? '取消认证' : '通过认证'}
@@ -190,6 +195,15 @@ export const UserList: React.FC = () => {
                         下一页
                     </button>
                 </div>
+            )}
+
+            {/* User Detail Modal */}
+            {selectedUser && (
+                <UserDetailModal
+                    user={selectedUser}
+                    isOpen={!!selectedUser}
+                    onClose={() => setSelectedUser(null)}
+                />
             )}
         </div>
     );

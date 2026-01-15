@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
+import { ProductEditModal } from '../components/ProductEditModal';
 
 // Icons
 const SearchIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>);
@@ -17,6 +18,7 @@ export const ProductList: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -194,7 +196,11 @@ export const ProductList: React.FC = () => {
                             </tr>
                         ) : (
                             products.map((product) => (
-                                <tr key={product.id} className="hover:bg-gray-50 transition-colors">
+                                <tr
+                                    key={product.id}
+                                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                    onClick={() => setEditingProduct(product)}
+                                >
                                     <td className="px-4 py-3">
                                         <input
                                             type="checkbox"
@@ -247,7 +253,10 @@ export const ProductList: React.FC = () => {
                                                 <StarIcon filled={product.is_promoted} />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(product.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDelete(product.id);
+                                                }}
                                                 className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="删除"
                                             >
@@ -282,6 +291,19 @@ export const ProductList: React.FC = () => {
                         下一页
                     </button>
                 </div>
+            )}
+
+            {/* Edit Modal */}
+            {editingProduct && (
+                <ProductEditModal
+                    product={editingProduct}
+                    isOpen={!!editingProduct}
+                    onClose={() => setEditingProduct(null)}
+                    onSaved={() => {
+                        setEditingProduct(null);
+                        fetchProducts();
+                    }}
+                />
             )}
         </div>
     );
