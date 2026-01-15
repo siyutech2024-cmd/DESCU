@@ -287,16 +287,64 @@ const AppContent: React.FC = () => {
     }));
   };
 
-  // Geolocation
+  // Geolocation and Load Products
   useEffect(() => {
     const fallbackCDMX = { latitude: 19.4326, longitude: -99.1332 };
 
-    const updateProducts = (coords: Coordinates) => {
-      setProducts(prev => {
-        const userItems = prev.filter(p => p.id.startsWith('new-'));
+    const loadProductsFromAPI = async (coords: Coordinates) => {
+      try {
+        // 从数据库加载真实商品
+        const response = await fetch(`${API_BASE_URL}/api/products`);
+        if (response.ok) {
+          const dbProducts = await response.json();
+
+          // 转换数据库格式到应用格式
+          const convertedProducts: Product[] = dbProducts.map((p: any) => ({
+            id: p.id,
+            seller: {
+              id: p.seller_id,
+              name: p.seller_name,
+              email: p.seller_email,
+              avatar: p.seller_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.seller_id}`,
+              isVerified: p.seller_verified || false,
+            },
+            title: p.title,
+            description: p.description,
+            price: p.price,
+            currency: p.currency,
+            images: p.images || [],
+            category: p.category,
+            deliveryType: p.delivery_type,
+            location: {
+              latitude: p.latitude || coords.latitude,
+              longitude: p.longitude || coords.longitude,
+            },
+            locationName: p.location_name || 'Unknown',
+            createdAt: new Date(p.created_at).getTime(),
+            isPromoted: p.is_promoted || false,
+          }));
+
+          // 生成一些mock商品填充列表
+          const mocks = generateMockProducts(coords, language);
+
+          // 合并数据库商品和mock商品
+          setProducts([...convertedProducts, ...mocks]);
+        } else {
+          // 如果API失败，只使用mock数据
+          const mocks = generateMockProducts(coords, language);
+          setProducts(mocks);
+        }
+      } catch (error) {
+        console.error('加载商品失败:', error);
+        // 失败时使用mock数据
         const mocks = generateMockProducts(coords, language);
-        return [...userItems, ...mocks];
-      });
+        setProducts(mocks);
+      }
+    };
+
+    const updateProducts = (coords: Coordinates) => {
+      setLocation(coords);
+      loadProductsFromAPI(coords);
     };
 
     if ('geolocation' in navigator) {
