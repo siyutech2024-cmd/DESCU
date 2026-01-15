@@ -90,8 +90,10 @@ app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
 
 // Payment Endpoints
-import { createPaymentIntent, handleStripeWebhook } from './controllers/paymentController';
+import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink } from './controllers/paymentController';
 app.post('/api/payment/create-intent', createPaymentIntent);
+app.post('/api/payment/connect', createConnectAccount);
+app.get('/api/payment/dashboard/:userId', getLoginLink);
 // Webhook needs raw body for signature verification if using constructEvent, 
 // using express.raw() middleware specifically for this route is best practice or handle in controller with JSON for logic.
 // For now, assuming standard JSON handling or adding middleware if strictly needed later.

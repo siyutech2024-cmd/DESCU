@@ -3,8 +3,94 @@ import Stripe from 'stripe';
 import { supabase } from '../db/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-    apiVersion: '2024-12-18.acacia' as any, // Cast to any to avoid strict version mismatch if types are ahead/behind during dev
+    apiVersion: '2024-12-18.acacia' as any,
 });
+
+// --- CONNECT: ONBOARDING ---
+
+export const createConnectAccount = async (req: Request, res: Response) => {
+    try {
+        const { userId, email } = req.body;
+
+        if (!userId || !email) {
+            return res.status(400).json({ error: 'Missing userId or email' });
+        }
+
+        // 1. Check if seller record exists
+        let { data: seller, error: fetchError } = await supabase
+            .from('sellers')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+        let accountId = seller?.stripe_connect_id;
+
+        // 2. If not, create Stripe Account
+        if (!accountId) {
+            const account = await stripe.accounts.create({
+                type: 'express',
+                country: 'MX', // Defaulting to Mexico
+                email: email,
+                capabilities: {
+                    card_payments: { requested: true },
+                    transfers: { requested: true },
+                },
+            });
+            accountId = account.id;
+
+            // Save to DB
+            const { error: upsertError } = await supabase
+                .from('sellers')
+                .upsert({
+                    user_id: userId,
+                    stripe_connect_id: accountId,
+                    onboarding_complete: false
+                });
+
+            if (upsertError) throw upsertError;
+        }
+
+        // 3. Create Account Link (for onboarding)
+        const accountLink = await stripe.accountLinks.create({
+            account: accountId,
+            refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`, // Frontend handling
+            return_url: `${req.headers.origin}/profile?onboarding_success=true`,   // Frontend handling
+            type: 'account_onboarding',
+        });
+
+        res.json({ url: accountLink.url });
+
+    } catch (error: any) {
+        console.error('Error creating connect account:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getLoginLink = async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+
+        // Fetch seller
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller || !seller.stripe_connect_id) {
+            return res.status(404).json({ error: 'Seller account not found' });
+        }
+
+        const loginLink = await stripe.accounts.createLoginLink(seller.stripe_connect_id);
+        res.json({ url: loginLink.url });
+
+    } catch (error: any) {
+        console.error('Error creating login link:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// --- PAYMENTS ---
 
 export const createPaymentIntent = async (req: Request, res: Response) => {
     try {
@@ -29,24 +115,46 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Product already sold' });
         }
 
-        // 2. Calculate Amount (You might add platform fees or shipping here)
-        const amount = Math.round(product.price * 100); // Stripe expects cents/lowest currency unit
+        // 2. Fetch Seller Connect ID
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id, onboarding_complete')
+            .eq('user_id', product.seller_id)
+            .single();
 
-        // 3. Create Stripe Payment Intent
-        const paymentIntent = await stripe.paymentIntents.create({
+        const sellerStripeId = seller?.stripe_connect_id;
+
+        // 3. Calculate Amount
+        const amount = Math.round(product.price * 100);
+        // Platform Fee: 5% (Example)
+        const platformFee = Math.round(amount * 0.05);
+
+        // 4. Create Payment Intent Params
+        const paymentParams: Stripe.PaymentIntentCreateParams = {
             amount,
             currency: product.currency || 'mxn',
-            automatic_payment_methods: {
-                enabled: true,
-            },
+            automatic_payment_methods: { enabled: true },
             metadata: {
                 productId,
                 buyerId,
                 sellerId: product.seller_id,
             },
-        });
+        };
 
-        // 4. Create Order Record (Pending Payment)
+        // If seller is connected and capable, split payment
+        if (sellerStripeId && seller.onboarding_complete) {
+            paymentParams.application_fee_amount = platformFee;
+            paymentParams.transfer_data = {
+                destination: sellerStripeId,
+            };
+        } else {
+            // Fallback: Funds stay in platform account (Escrow manually later)
+            // or reject depending on policy. Here we proceed to platform account.
+        }
+
+        const paymentIntent = await stripe.paymentIntents.create(paymentParams);
+
+        // 5. Create Order Record
         const { data: order, error: orderError } = await supabase
             .from('orders')
             .insert({
@@ -85,9 +193,7 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
 
     try {
         if (!endpointSecret || !sig) {
-            // If strictly enforcing webhook security, throw/return here.
-            // For dev/test without local listener setup, we might skip signature verif or just parse body.
-            // But production MUST verify.
+            // For dev/test simplification
             event = req.body;
         } else {
             event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
@@ -97,29 +203,34 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    // Handle the event
-    switch (event.type) {
-        case 'payment_intent.succeeded':
-            const paymentIntent = event.data.object;
-            const { productId } = paymentIntent.metadata;
-
-            console.log('Payment succeeded for product:', productId);
-
-            // Update Order Status
+    // Handle account updates (User finished onboarding)
+    if (event.type === 'account.updated') {
+        const account = event.data.object as Stripe.Account;
+        if (account.charges_enabled && account.payouts_enabled) {
             await supabase
-                .from('orders')
-                .update({ status: 'paid', updated_at: new Date() })
-                .eq('payment_intent_id', paymentIntent.id);
+                .from('sellers')
+                .update({ onboarding_complete: true })
+                .eq('stripe_connect_id', account.id);
+            console.log(`Seller ${account.id} onboarding complete.`);
+        }
+    }
 
-            // Update Product Status
-            await supabase
-                .from('products')
-                .update({ status: 'sold' })
-                .eq('id', productId);
+    // Handle payments
+    if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const { productId } = paymentIntent.metadata;
 
-            break;
-        default:
-            console.log(`Unhandled event type ${event.type}`);
+        console.log('Payment succeeded for product:', productId);
+
+        await supabase
+            .from('orders')
+            .update({ status: 'paid', updated_at: new Date() })
+            .eq('payment_intent_id', paymentIntent.id);
+
+        await supabase
+            .from('products')
+            .update({ status: 'sold' })
+            .eq('id', productId);
     }
 
     res.send();
