@@ -112,8 +112,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  const [showMenu, setShowMenu] = useState(false);
+
+  // ... (existing handlers)
+
   return (
-    <div className="flex flex-col h-screen fixed inset-0 z-50 bg-[#f8f9fa] sm:static sm:h-full sm:rounded-2xl sm:overflow-hidden sm:border sm:border-gray-200 animate-fade-in">
+    <div className="flex flex-col h-full fixed inset-0 z-50 bg-[#f8f9fa] sm:static sm:h-full sm:rounded-2xl sm:overflow-hidden sm:border sm:border-gray-200 animate-fade-in">
 
       {/* Header - Glassmorphism */}
       <div className="absolute top-0 left-0 right-0 z-20 glass-panel border-b border-white/40 px-4 py-3 flex items-center gap-3">
@@ -141,21 +145,45 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 relative">
           <button className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors hidden sm:block">
             <Phone size={20} />
           </button>
           <button className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors hidden sm:block">
             <Video size={20} />
           </button>
-          <button className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors"
+          >
             <MoreVertical size={20} />
           </button>
+
+          {/* Action Menu Breakdown */}
+          {showMenu && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
+              <div className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 z-40 overflow-hidden animate-fade-in-up origin-top-right">
+                <button
+                  onClick={() => { setShowMenu(false); alert('User reported'); }}
+                  className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-500 text-sm font-medium transition-colors border-b border-gray-100"
+                >
+                  Report User
+                </button>
+                <button
+                  onClick={() => { setShowMenu(false); alert('User blocked'); }}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
+                >
+                  Block User
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Messages Area - with modern background */}
-      <div className="flex-1 overflow-y-auto pt-[72px] pb-[80px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto pt-[72px] pb-[90px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
 
         {/* Product Context Card */}
         <div className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex items-center gap-3 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow">
@@ -187,7 +215,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           const senderId = msg.senderId || msg.sender_id;
           const isMe = senderId === currentUser.id;
           const showAvatar = isMe ? false : (messages[index + 1]?.senderId || messages[index + 1]?.sender_id) !== senderId;
-          const isLast = index === messages.length - 1;
 
           return (
             <div
@@ -228,12 +255,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      {/* Floating Input Area */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/90 to-transparent z-20">
+      {/* Floating Input Area - FIXED TO VIEWPORT BOTTOM */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 to-transparent z-[60] sm:absolute sm:bottom-0 sm:left-0 sm:right-0">
 
         {/* Emoji Picker Popover */}
         {showEmojiPicker && (
-          <div className="absolute bottom-20 left-4 animate-fade-in-up z-50">
+          <div className="absolute bottom-20 left-4 animate-fade-in-up z-50 mb-safe">
             <div className="glass-panel p-3 rounded-2xl shadow-xl border border-white/50 w-64">
               <div className="grid grid-cols-6 gap-2">
                 {['😂', '❤️', '👍', '🔥', '😊', '😭', '😍', '🤔', '🎉', '👀', '🙏', '💯', '👋', '😅', '🙌', '😎', '😉', '😢'].map(emoji => (
@@ -253,14 +280,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         <form
           onSubmit={handleSend}
-          className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50"
+          className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50 mb-safe"
         >
           <button
             type="button"
             onClick={() => {
               // Image Stub
               const toast = document.createElement('div');
-              toast.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-6 py-3 rounded-full shadow-xl animate-fade-in z-[60] backdrop-blur-md';
+              toast.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-6 py-3 rounded-full shadow-xl animate-fade-in z-[80] backdrop-blur-md';
               toast.innerText = '📷 Image sharing coming soon!';
               document.body.appendChild(toast);
               setTimeout(() => toast.remove(), 2000);
