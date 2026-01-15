@@ -67,11 +67,11 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
         }
 
         // 高级筛选：日期范围
-        if (startDate) {
+        if (startDate && startDate !== 'undefined') {
             // 开始日期的 00:00:00
             query = query.gte('created_at', formatISOStart(String(startDate)));
         }
-        if (endDate) {
+        if (endDate && endDate !== 'undefined') {
             // 结束日期的 23:59:59
             query = query.lte('created_at', formatISOEnd(String(endDate)));
         }

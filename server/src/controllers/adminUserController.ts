@@ -38,10 +38,12 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
 
         // 筛选日期（基于商品发布时间）
         // 注意：由于没有独立的users表，这里筛选的是"在该时间段内发布过商品的用户"
-        if (start_date) {
+        // 筛选日期（基于商品发布时间）
+        // 注意：由于没有独立的users表，这里筛选的是"在该时间段内发布过商品的用户"
+        if (start_date && start_date !== 'undefined') {
             query = query.gte('created_at', formatISOStart(String(start_date)));
         }
-        if (end_date) {
+        if (end_date && end_date !== 'undefined') {
             query = query.lte('created_at', formatISOEnd(String(end_date)));
         }
 

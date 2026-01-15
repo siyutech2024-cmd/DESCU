@@ -15,7 +15,7 @@ export const getAdminConversations = async (req: AdminRequest, res: Response) =>
             product_id,
             user_id,
             include_deleted = 'false',
-            sort_by = 'last_message_time',
+            sort_by = 'updated_at',
             sort_order = 'desc'
         } = req.query;
 
@@ -40,7 +40,9 @@ export const getAdminConversations = async (req: AdminRequest, res: Response) =>
 
         // 排序
         const ascending = sort_order === 'asc';
-        query = query.order(String(sort_by), { ascending });
+        // 映射前端可能传过来的 last_message_time 为数据库实际存在的 updated_at
+        const dbSortBy = String(sort_by) === 'last_message_time' ? 'updated_at' : String(sort_by);
+        query = query.order(dbSortBy, { ascending });
 
         const { data, error, count } = await query
             .range(offset, offset + Number(limit) - 1);

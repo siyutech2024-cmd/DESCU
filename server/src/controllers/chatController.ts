@@ -42,7 +42,7 @@ export const getUserConversations = async (req: Request, res: Response) => {
             .from('conversations')
             .select('*')
             .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-            .order('last_message_time', { ascending: false });
+            .order('updated_at', { ascending: false });
 
         if (error) throw error;
         res.json(data || []);
@@ -70,10 +70,11 @@ export const sendMessage = async (req: Request, res: Response) => {
 
         if (msgError) throw msgError;
 
-        // 更新对话的最后消息时间
+        // 更新对话的新消息时间 (利用 trigger 或 显式更新 updated_at)
+        // 注意：数据库中没有 last_message_time 字段，使用 updated_at 代替
         const { error: convError } = await supabase
             .from('conversations')
-            .update({ last_message_time: new Date().toISOString() })
+            .update({ updated_at: new Date().toISOString() })
             .eq('id', conversation_id);
 
         if (convError) console.error('Error updating conversation:', convError);
