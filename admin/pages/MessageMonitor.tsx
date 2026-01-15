@@ -82,7 +82,7 @@ export const MessageMonitor: React.FC = () => {
 
     const handleSendAdminMessage = async () => {
         if (!adminMessage.trim()) {
-            show Toast.error('请输入消息内容');
+            showToast.error('请输入消息内容');
             return;
         }
 

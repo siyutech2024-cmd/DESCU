@@ -17,7 +17,7 @@ export const ProductList: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [editing Product, setEditingProduct] = useState<AdminProduct | null>(null);
+    const [editingProduct, setEditingProduct] = useState<AdminProduct | null>(null);
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues>({});
     const [sortBy, setSortBy] = useState<string>('created_at');
@@ -356,8 +356,8 @@ export const ProductList: React.FC = () => {
                                         </td>
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 text-xs rounded-full ${product.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                    product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                                                        'bg-yellow-100 text-yellow-800'
+                                                product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                                                    'bg-yellow-100 text-yellow-800'
                                                 }`}>
                                                 {product.status === 'active' ? '在售' :
                                                     product.status === 'inactive' ? '下架' : '待审'}
@@ -368,8 +368,8 @@ export const ProductList: React.FC = () => {
                                                 <button
                                                     onClick={() => handlePromote(product.id, product.is_promoted)}
                                                     className={`p-1.5 rounded transition-colors ${product.is_promoted
-                                                            ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
-                                                            : 'text-gray-400 hover:bg-gray-100'
+                                                        ? 'bg-yellow-100 text-yellow-600 hover:bg-yellow-200'
+                                                        : 'text-gray-400 hover:bg-gray-100'
                                                         }`}
                                                     title={product.is_promoted ? '取消推荐' : '推荐'}
                                                 >
