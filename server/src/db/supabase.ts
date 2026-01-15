@@ -13,7 +13,24 @@ if (!supabaseUrl || !supabaseKey) {
     console.error('Current KEY:', supabaseKey ? 'Set' : 'Missing');
     console.warn('⚠️  Without SUPABASE_SERVICE_ROLE_KEY, admin user management features will NOT work.');
 } else {
-    console.log('✅ Supabase client initialized with Service Role Key.');
+    try {
+        // 简单的JWT解码检查 (无需引入额外库)
+        const parts = supabaseKey.split('.');
+        if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+            console.log(`🔑 Supabase Key Role: [${payload.role}]`);
+
+            if (payload.role !== 'service_role') {
+                console.error('❌ CRITICAL CONFIG ERROR: The configured key is NOT a service_role key!');
+                console.error(`   Detected Role: ${payload.role}`);
+                console.error('   Please update SUPABASE_SERVICE_ROLE_KEY in Railway with the "service_role" secret from Supabase.');
+            } else {
+                console.log('✅ Service Role Key confirmed. Admin privileges active.');
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ Could not decode Supabase Key to verify role.');
+    }
 }
 
 export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
