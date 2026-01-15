@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../index';
+import { supabase } from '../db/supabase';
 
 // 创建新对话
 export const createConversation = async (req: Request, res: Response) => {

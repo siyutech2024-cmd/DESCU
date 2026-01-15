@@ -28,15 +28,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' })); // Increase limit for image uploads
 
-// Supabase Client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-    console.warn('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.');
-}
-
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+import { supabase } from './db/supabase';
 
 // Routes
 import { analyzeImage } from './controllers/aiController';

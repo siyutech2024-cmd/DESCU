@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../index';
+import { supabase } from '../db/supabase';
 
 export const createProduct = async (req: Request, res: Response) => {
     try {

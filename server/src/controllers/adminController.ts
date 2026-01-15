@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AdminRequest } from '../middleware/adminAuth';
-import { supabase } from '../index';
+import { supabase } from '../db/supabase';
 
 /**
  * 记录管理员操作日志
