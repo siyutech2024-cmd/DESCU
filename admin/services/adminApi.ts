@@ -43,6 +43,17 @@ async function apiRequest<T>(
 
 // ==================== 认证 ====================
 
+// 辅助函数：清理无效参数
+const cleanParams = (params: any) => {
+    const cleaned: any = {};
+    Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+            cleaned[key] = params[key];
+        }
+    });
+    return cleaned;
+};
+
 export const adminApi = {
     // 获取当前管理员信息
     getAdminInfo: async () => {
@@ -79,7 +90,7 @@ export const adminApi = {
         endDate?: string;
         promotedOnly?: boolean | null;
     }) => {
-        const queryString = new URLSearchParams(params as any).toString();
+        const queryString = new URLSearchParams(cleanParams(params || {})).toString();
         return apiRequest<{
             products: AdminTypes.AdminProduct[];
             pagination: AdminTypes.Pagination;
@@ -146,7 +157,7 @@ export const adminApi = {
         start_date?: string;
         end_date?: string;
     }) => {
-        const queryString = new URLSearchParams(params as any).toString();
+        const queryString = new URLSearchParams(cleanParams(params || {})).toString();
         return apiRequest<{
             users: AdminTypes.AdminUserInfo[];
             pagination: AdminTypes.Pagination;
@@ -184,7 +195,7 @@ export const adminApi = {
         user_id?: string;
         include_deleted?: string;
     }) => {
-        const queryString = new URLSearchParams(params as any).toString();
+        const queryString = new URLSearchParams(cleanParams(params || {})).toString();
         return apiRequest<{
             conversations: AdminTypes.AdminConversation[];
             pagination: AdminTypes.Pagination;
@@ -228,7 +239,7 @@ export const adminApi = {
         target_type?: string;
         admin_id?: string;
     }) => {
-        const queryString = new URLSearchParams(params as any).toString();
+        const queryString = new URLSearchParams(cleanParams(params || {})).toString();
         return apiRequest<{
             logs: AdminTypes.AdminLog[];
             pagination: AdminTypes.Pagination;
@@ -238,7 +249,7 @@ export const adminApi = {
     // ==================== 数据报表 ====================
 
     getReports: async (params?: { timeRange?: string }) => {
-        const queryString = new URLSearchParams(params as any).toString();
+        const queryString = new URLSearchParams(cleanParams(params || {})).toString();
         return apiRequest<{
             salesTrend: any[];
             userGrowth: any[];
