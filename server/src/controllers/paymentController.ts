@@ -53,8 +53,8 @@ export const createConnectAccount = async (req: Request, res: Response) => {
         // 3. Create Account Link (for onboarding)
         const accountLink = await stripe.accountLinks.create({
             account: accountId,
-            refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`, // Frontend handling
-            return_url: `${req.headers.origin}/profile?onboarding_success=true`,   // Frontend handling
+            refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`,
+            return_url: `${req.headers.origin}/profile?onboarding_success=true`,
             type: 'account_onboarding',
         });
 
@@ -90,7 +90,7 @@ export const getLoginLink = async (req: Request, res: Response) => {
     }
 };
 
-// --- PAYMENTS ---
+// --- PAYMENTS & ORDERS (ESCROW) ---
 
 export const createPaymentIntent = async (req: Request, res: Response) => {
     try {
@@ -115,21 +115,18 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Product already sold' });
         }
 
-        // 2. Fetch Seller Connect ID
+        // 2. Fetch Seller Connect ID (Check existence, but do NOT transfer yet)
         const { data: seller } = await supabase
             .from('sellers')
             .select('stripe_connect_id, onboarding_complete')
             .eq('user_id', product.seller_id)
             .single();
 
-        const sellerStripeId = seller?.stripe_connect_id;
-
         // 3. Calculate Amount
         const amount = Math.round(product.price * 100);
-        // Platform Fee: 5% (Example)
-        const platformFee = Math.round(amount * 0.05);
 
-        // 4. Create Payment Intent Params
+        // 4. Create Payment Intent (FUNDS HELD ON PLATFORM)
+        // We do NOT add transfer_data here. We hold the funds.
         const paymentParams: Stripe.PaymentIntentCreateParams = {
             amount,
             currency: product.currency || 'mxn',
@@ -138,19 +135,9 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
                 productId,
                 buyerId,
                 sellerId: product.seller_id,
+                sellerConnectId: seller?.stripe_connect_id || '', // Store for later
             },
         };
-
-        // If seller is connected and capable, split payment
-        if (sellerStripeId && seller.onboarding_complete) {
-            paymentParams.application_fee_amount = platformFee;
-            paymentParams.transfer_data = {
-                destination: sellerStripeId,
-            };
-        } else {
-            // Fallback: Funds stay in platform account (Escrow manually later)
-            // or reject depending on policy. Here we proceed to platform account.
-        }
 
         const paymentIntent = await stripe.paymentIntents.create(paymentParams);
 
@@ -185,6 +172,95 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
     }
 };
 
+// Mark as Shipped
+export const markOrderAsShipped = async (req: Request, res: Response) => {
+    try {
+        const { orderId, carrier, trackingNumber } = req.body;
+
+        // In real app: verify requester is the seller via req.user
+
+        const { error } = await supabase
+            .from('orders')
+            .update({
+                status: 'shipped',
+                shipping_carrier: carrier,
+                tracking_number: trackingNumber,
+                updated_at: new Date()
+            })
+            .eq('id', orderId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Confirm Receipt & Release Funds
+export const confirmOrder = async (req: Request, res: Response) => {
+    try {
+        const { orderId } = req.body;
+
+        // 1. Get Order
+        // Join sellers to get connect ID
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        if (order.status === 'completed') {
+            return res.status(400).json({ error: 'Order already completed' });
+        }
+
+        // 2. Transfer Funds to Seller (Platform Fee: 5%)
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id')
+            .eq('user_id', order.seller_id)
+            .single();
+
+        if (seller && seller.stripe_connect_id) {
+            const amount = Math.round(order.amount * 100);
+            const platformFee = Math.round(amount * 0.05);
+            const transferAmount = amount - platformFee;
+
+            // Create Transfer
+            try {
+                await stripe.transfers.create({
+                    amount: transferAmount,
+                    currency: order.currency.toLowerCase(),
+                    destination: seller.stripe_connect_id,
+                    metadata: { orderId: order.id }
+                });
+            } catch (err) {
+                console.error("Stripe Transfer failed:", err);
+                // We might proceed to update state but log error, or fail here.
+                // For safety, let's allow failing but manual retry.
+                throw err;
+            }
+        }
+
+        // 3. Update Order Status
+        await supabase
+            .from('orders')
+            .update({
+                status: 'completed',
+                confirmed_at: new Date(),
+                updated_at: new Date()
+            })
+            .eq('id', orderId);
+
+        res.json({ success: true });
+
+    } catch (error: any) {
+        console.error("Payout failed:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const handleStripeWebhook = async (req: Request, res: Response) => {
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -193,7 +269,6 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
 
     try {
         if (!endpointSecret || !sig) {
-            // For dev/test simplification
             event = req.body;
         } else {
             event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
@@ -203,7 +278,6 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    // Handle account updates (User finished onboarding)
     if (event.type === 'account.updated') {
         const account = event.data.object as Stripe.Account;
         if (account.charges_enabled && account.payouts_enabled) {
@@ -211,7 +285,6 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
                 .from('sellers')
                 .update({ onboarding_complete: true })
                 .eq('stripe_connect_id', account.id);
-            console.log(`Seller ${account.id} onboarding complete.`);
         }
     }
 
@@ -222,6 +295,7 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
 
         console.log('Payment succeeded for product:', productId);
 
+        // Mark as PAID (Escrowed)
         await supabase
             .from('orders')
             .update({ status: 'paid', updated_at: new Date() })

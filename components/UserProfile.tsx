@@ -33,6 +33,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [avatar, setAvatar] = useState(user.avatar);
   const [isSaved, setIsSaved] = useState(false);
   const [isUploadingID, setIsUploadingID] = useState(false);
+  const [activeTab, setActiveTab] = useState<'listings' | 'buying' | 'selling'>('listings');
+  const [orders, setOrders] = useState<any[]>([]);
+  // orders would be fetched based on tab. Simplification: fetching in useEffect when tab changes.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
