@@ -782,6 +782,7 @@ const AppContent: React.FC = () => {
             onAddToCart={addToCart}
             onContactSeller={handleContactSeller}
             isInCart={cart.some(p => p.id === product.id)}
+            user={user}
           />
         );
       case 'chat-list':

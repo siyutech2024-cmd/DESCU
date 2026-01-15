@@ -4,6 +4,8 @@ import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Hands
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ReportModal } from './ReportModal';
+import { CheckoutModal } from './CheckoutModal';
+import { User } from '../types';
 
 interface ProductDetailsProps {
   product: Product;
@@ -11,11 +13,13 @@ interface ProductDetailsProps {
   onAddToCart: (product: Product) => void;
   onContactSeller: (product: Product) => void;
   isInCart: boolean;
+  user: User | null;
 }
 
-export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddToCart, onContactSeller, isInCart }) => {
+export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddToCart, onContactSeller, isInCart, user }) => {
   const { t, formatPrice } = useLanguage();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
   const getRelativeTime = (timestamp: number) => {
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
@@ -144,6 +148,14 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                     </>
                   )}
                 </button>
+                <button
+                  onClick={() => setIsCheckoutOpen(true)}
+                  disabled={!user}
+                  className="col-span-2 py-4 rounded-2xl font-bold text-lg bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck size={22} className="text-brand-400" />
+                  {t('card.buy_now') || 'Buy Now'}
+                </button>
               </div>
             </div>
           </div>
@@ -186,6 +198,14 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
         </div>
       </div>
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} targetId={product.id} />
+      {user && (
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+          product={product}
+          user={user}
+        />
+      )}
     </div>
   );
 };

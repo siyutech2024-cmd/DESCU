@@ -86,7 +86,16 @@ app.post('/api/conversations', createConversation);
 app.get('/api/conversations/:userId', getUserConversations);
 app.post('/api/messages', sendMessage);
 app.get('/api/messages/:conversationId', getMessages);
+app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
+
+// Payment Endpoints
+import { createPaymentIntent, handleStripeWebhook } from './controllers/paymentController';
+app.post('/api/payment/create-intent', createPaymentIntent);
+// Webhook needs raw body for signature verification if using constructEvent, 
+// using express.raw() middleware specifically for this route is best practice or handle in controller with JSON for logic.
+// For now, assuming standard JSON handling or adding middleware if strictly needed later.
+app.post('/api/payment/webhook', handleStripeWebhook);
 
 // Admin Endpoints - All require admin authentication
 // Dashboard
