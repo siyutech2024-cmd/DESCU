@@ -822,17 +822,17 @@ const AppContent: React.FC = () => {
             {/* DESCU Brand Header with Updated Logo */}
             <div className="flex flex-col items-center justify-center pt-10 pb-8">
               <div className="flex items-center gap-3 animate-fade-in-up">
-                <div className="w-16 h-16 bg-brand-600 text-white flex items-center justify-center rounded-2xl shadow-xl shadow-brand-500/30 transform hover:scale-105 transition-transform backdrop-blur-sm bg-opacity-90">
-                  <svg viewBox="0 0 100 100" className="w-10 h-10 fill-none stroke-white" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-brand-600 text-white flex items-center justify-center rounded-2xl shadow-xl shadow-brand-500/30 transform hover:scale-105 transition-transform backdrop-blur-sm bg-opacity-90">
+                  <svg viewBox="0 0 100 100" className="w-8 h-8 md:w-10 md:h-10 fill-none stroke-white" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
                     {/* Stylized 'D' + Tag hook */}
                     <path d="M30 20 H50 C70 20 85 35 85 50 C85 65 70 80 50 80 H30 Z" />
                     <circle cx="45" cy="40" r="5" fill="white" stroke="none" />
                     <path d="M30 20 V80" />
                   </svg>
                 </div>
-                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 tracking-tighter drop-shadow-sm">DESCU</h1>
+                <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 tracking-tighter drop-shadow-sm">DESCU</h1>
               </div>
-              <p className="text-gray-500 text-base font-medium mt-3 tracking-wide bg-white/40 px-4 py-1 rounded-full backdrop-blur-sm border border-white/40">{t('hero.subtitle')}</p>
+              <p className="text-gray-500 text-xs md:text-base font-medium mt-3 tracking-wide bg-white/40 px-4 py-1 rounded-full backdrop-blur-sm border border-white/40 text-center">{t('hero.subtitle')}</p>
             </div>
 
             {/* Category Filter - Glass Pills */}
