@@ -25,11 +25,17 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
 
         // 1. 获取 Auth 用户列表 (目前只能获取所有然后内存分页，因为Auth API搜索能力有限)
         // 注意：生产环境如果用户量巨大，这里应该改用 SQL 视图或同步表
+        console.log('Fetching users from Supabase Auth admin API...');
         const { data: { users: authUsers }, error: authError } = await supabase.auth.admin.listUsers({
             perPage: 1000 // 临时方案：获取前1000个用户进行处理
         });
 
-        if (authError) throw authError;
+        if (authError) {
+            console.error('Supabase Auth API Error:', authError);
+            throw authError;
+        }
+
+        console.log(`Successfully fetched ${authUsers?.length} users from Auth API.`);
 
         // 2. 内存处理：搜索、筛选
         let processedUsers = authUsers.map(u => ({
