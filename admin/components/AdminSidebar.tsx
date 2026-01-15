@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -13,6 +13,8 @@ import {
     Shield,
     CheckCircle
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { adminApi } from '../services/adminApi';
 
 interface AdminSidebarProps {
     isCollapsed: boolean;
@@ -26,10 +28,34 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     onLogout
 }) => {
     const location = useLocation();
+    const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
 
     const isActive = (path: string) => {
         return location.pathname.startsWith(`/admin/${path}`);
     };
+
+    // 获取待审核商品数量
+    useEffect(() => {
+        const fetchPendingCount = async () => {
+            try {
+                const response = await adminApi.getProducts({
+                    status: 'pending_review',
+                    limit: 1,
+                    page: 1
+                });
+
+                if (response.data && response.data.pagination) {
+                    setPendingReviewsCount(response.data.pagination.total);
+                }
+            } catch (error) {
+                console.error('获取待审核数量失败', error);
+            }
+        };
+
+        fetchPendingCount();
+        const interval = setInterval(fetchPendingCount, 60000); // 每分钟刷新
+        return () => clearInterval(interval);
+    }, []);
 
     const menuItems = [
         {
@@ -64,7 +90,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     icon: CheckCircle,
                     label: '商品审核',
                     color: 'text-yellow-600',
-                    badge: '23'
+                    badge: pendingReviewsCount > 0 ? String(pendingReviewsCount) : undefined
                 },
             ]
         },
@@ -143,8 +169,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                                         key={item.path}
                                         to={`/admin/${item.path}`}
                                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${active
-                                                ? 'bg-gradient-to-r from-orange-50 to-pink-50 text-orange-600 font-medium shadow-sm'
-                                                : 'text-gray-700 hover:bg-gray-50'
+                                            ? 'bg-gradient-to-r from-orange-50 to-pink-50 text-orange-600 font-medium shadow-sm'
+                                            : 'text-gray-700 hover:bg-gray-50'
                                             }`}
                                     >
                                         <Icon
