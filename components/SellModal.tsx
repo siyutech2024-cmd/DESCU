@@ -5,6 +5,7 @@ import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from
 import { analyzeProductImage } from '../services/geminiService';
 import { fileToBase64, getFullDataUrl } from '../services/utils';
 import { useLanguage } from '../contexts/LanguageContext';
+import { GlassToast, ToastType } from './GlassToast';
 
 interface SellModalProps {
   isOpen: boolean;
@@ -19,6 +20,18 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Toast State
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
+    show: false,
+    message: '',
+    type: 'success'
+  });
+
+  const showToast = (message: string, type: ToastType = 'success') => {
+    setToast({ show: true, message, type });
+  };
+
   const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; deliveryType: DeliveryType }>({
     title: '',
     description: '',
@@ -35,6 +48,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
       setImagePreview(null);
       setFormData({ title: '', description: '', category: Category.Other, price: '', deliveryType: DeliveryType.Both });
       setIsAnalyzing(false);
+      setToast(prev => ({ ...prev, show: false }));
     }
   }, [isOpen]);
 
@@ -61,8 +75,8 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         }));
       } catch (error: any) {
         console.error("AI Analysis failed", error);
-        // Show user-friendly error
-        alert(t('modal.ai_error') || `AI Analysis Failed: ${error.message}`);
+        // Custom Toast Error
+        showToast(t('modal.ai_error') || `AI Analysis Failed: ${error.message}`, 'error');
       } finally {
         setIsAnalyzing(false);
       }
@@ -93,6 +107,13 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      <GlassToast
+        isVisible={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+      />
 
       <div className="relative bg-white w-full max-w-lg h-[92vh] md:h-auto md:max-h-[85vh] md:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
