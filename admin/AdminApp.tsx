@@ -12,6 +12,7 @@ import { MessageMonitor } from './pages/MessageMonitor';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { AdminManagement } from './pages/AdminManagement';
+import { RolePermissions } from './pages/RolePermissions';
 
 export const AdminApp: React.FC = () => {
     return (
@@ -28,6 +29,7 @@ export const AdminApp: React.FC = () => {
                     <Route path="reports" element={<Reports />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="admins" element={<AdminManagement />} />
+                    <Route path="roles" element={<RolePermissions />} />
                 </Route>
             </Routes>
         </>

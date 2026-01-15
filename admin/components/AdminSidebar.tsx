@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     Package,
@@ -9,7 +9,9 @@ import {
     Settings,
     LogOut,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Shield,
+    CheckCircle
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -23,36 +25,94 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     onToggleCollapse,
     onLogout
 }) => {
+    const location = useLocation();
+
+    const isActive = (path: string) => {
+        return location.pathname.startsWith(`/admin/${path}`);
+    };
+
     const menuItems = [
-        { path: '/admin/dashboard', icon: LayoutDashboard, label: '仪表板' },
-        { path: '/admin/products', icon: Package, label: '商品管理' },
-        { path: '/admin/users', icon: Users, label: '用户管理' },
-        { path: '/admin/messages', icon: MessageSquare, label: '消息监控' },
-        { path: '/admin/reports', icon: BarChart3, label: '数据报表' },
-        { path: '/admin/settings', icon: Settings, label: '设置' },
+        {
+            section: '内容管理',
+            items: [
+                {
+                    path: 'dashboard',
+                    icon: LayoutDashboard,
+                    label: '仪表板',
+                    color: 'text-blue-600'
+                },
+                {
+                    path: 'products',
+                    icon: Package,
+                    label: '商品管理',
+                    color: 'text-purple-600'
+                },
+                {
+                    path: 'users',
+                    icon: Users,
+                    label: '用户管理',
+                    color: 'text-green-600'
+                },
+                {
+                    path: 'messages',
+                    icon: MessageSquare,
+                    label: '对话监控',
+                    color: 'text-orange-600'
+                },
+                {
+                    path: 'reviews',
+                    icon: CheckCircle,
+                    label: '商品审核',
+                    color: 'text-yellow-600',
+                    badge: '23'
+                },
+            ]
+        },
+        {
+            section: '系统管理',
+            items: [
+                {
+                    path: 'reports',
+                    icon: BarChart3,
+                    label: '数据报表',
+                    color: 'text-indigo-600'
+                },
+                {
+                    path: 'admins',
+                    icon: Shield,
+                    label: '管理员',
+                    color: 'text-red-600'
+                },
+                {
+                    path: 'settings',
+                    icon: Settings,
+                    label: '系统设置',
+                    color: 'text-gray-600'
+                },
+            ]
+        }
     ];
 
     return (
-        <div
+        <aside
             className={`${isCollapsed ? 'w-20' : 'w-64'
-                } bg-slate-900 min-h-screen text-white transition-all duration-300 flex flex-col`}
+                } bg-white border-r border-gray-200 flex flex-col transition-all duration-300`}
         >
             {/* Logo */}
-            <div className="p-6 flex items-center justify-between border-b border-slate-800">
+            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
                 {!isCollapsed && (
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-orange-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">D</span>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-pink-600 rounded-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">D</span>
                         </div>
-                        <div>
-                            <h2 className="font-bold text-lg">DESCU</h2>
-                            <p className="text-xs text-slate-400">管理后台</p>
-                        </div>
+                        <span className="text-xl font-black bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
+                            DESCU
+                        </span>
                     </div>
                 )}
                 <button
                     onClick={onToggleCollapse}
-                    className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                     {isCollapsed ? (
                         <ChevronRight className="w-5 h-5" />
@@ -63,34 +123,60 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 p-4 space-y-2">
-                {menuItems.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            `flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${isActive
-                                ? 'bg-orange-600 text-white shadow-lg'
-                                : 'text-slate-300 hover:bg-slate-800'
-                            }`
-                        }
-                    >
-                        <item.icon className="w-5 h-5 flex-shrink-0" />
-                        {!isCollapsed && <span className="font-medium">{item.label}</span>}
-                    </NavLink>
+            <nav className="flex-1 overflow-y-auto py-4">
+                {menuItems.map((section, sectionIndex) => (
+                    <div key={sectionIndex} className="mb-6">
+                        {!isCollapsed && (
+                            <div className="px-4 mb-2">
+                                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                    {section.section}
+                                </span>
+                            </div>
+                        )}
+                        <div className="space-y-1 px-3">
+                            {section.items.map((item) => {
+                                const Icon = item.icon;
+                                const active = isActive(item.path);
+
+                                return (
+                                    <Link
+                                        key={item.path}
+                                        to={`/admin/${item.path}`}
+                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all group ${active
+                                                ? 'bg-gradient-to-r from-orange-50 to-pink-50 text-orange-600 font-medium shadow-sm'
+                                                : 'text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <Icon
+                                            className={`w-5 h-5 ${active ? 'text-orange-600' : item.color
+                                                } group-hover:scale-110 transition-transform`}
+                                        />
+                                        {!isCollapsed && (
+                                            <span className="flex-1">{item.label}</span>
+                                        )}
+                                        {!isCollapsed && item.badge && (
+                                            <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                                                {item.badge}
+                                            </span>
+                                        )}
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    </div>
                 ))}
             </nav>
 
-            {/* Logout */}
-            <div className="p-4 border-t border-slate-800">
+            {/* Logout Button */}
+            <div className="p-4 border-t border-gray-200">
                 <button
                     onClick={onLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                    <LogOut className="w-5 h-5 flex-shrink-0" />
-                    {!isCollapsed && <span className="font-medium">退出登录</span>}
+                    <LogOut className="w-5 h-5" />
+                    {!isCollapsed && <span>退出登录</span>}
                 </button>
             </div>
-        </div>
+        </aside>
     );
 };
