@@ -6,6 +6,12 @@ export const createConversation = async (req: Request, res: Response) => {
     try {
         const { product_id, user1_id, user2_id } = req.body;
 
+        // 严格验证 ID
+        if (!user1_id || user1_id === 'undefined' || !user2_id || user2_id === 'undefined') {
+            console.error('Invalid user IDs for conversation:', { user1_id, user2_id });
+            return res.status(400).json({ error: '无效的用户ID (Invalid user IDs)' });
+        }
+
         // 检查对话是否已存在
         const { data: existing } = await supabase
             .from('conversations')
@@ -38,13 +44,20 @@ export const getUserConversations = async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
 
+        console.log(`[Chat] Fetching conversations for user: ${userId}`);
+
         const { data, error } = await supabase
             .from('conversations')
             .select('*')
             .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
             .order('updated_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.error('[Chat] DB Error:', error);
+            throw error;
+        }
+
+        console.log(`[Chat] Found ${data?.length || 0} conversations for user: ${userId}`);
         res.json(data || []);
     } catch (error) {
         console.error('Error fetching conversations:', error);
