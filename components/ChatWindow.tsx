@@ -1,3 +1,7 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Send, CheckCheck, Loader2 } from 'lucide-react';
+import { Conversation, User } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 
 interface ChatWindowProps {
