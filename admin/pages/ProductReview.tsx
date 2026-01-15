@@ -40,17 +40,22 @@ export const ProductReview: React.FC = () => {
         setProcessing(true);
         try {
             // 更新商品状态
-            await adminApi.updateProduct(productId, {
+            const res = await adminApi.updateProduct(productId, {
                 status: approve ? 'active' : 'inactive',
                 review_note: reviewNote || (approve ? '审核通过' : '审核未通过')
             });
+
+            if (res.error) {
+                throw new Error(res.error);
+            }
 
             showToast.success(approve ? '商品已通过审核' : '商品已拒绝');
             setReviewNote('');
             setSelectedProduct(null);
             fetchPendingProducts();
-        } catch (error) {
-            showToast.error('审核操作失败');
+        } catch (error: any) {
+            console.error('审核失败:', error);
+            showToast.error(error.message || '审核操作失败');
         } finally {
             setProcessing(false);
         }
@@ -61,16 +66,24 @@ export const ProductReview: React.FC = () => {
 
         setProcessing(true);
         try {
-            for (const product of products) {
-                await adminApi.updateProduct(product.id, {
+            // 使用 Promise.all 并行处理，且检查每个结果
+            const results = await Promise.all(products.map(product =>
+                adminApi.updateProduct(product.id, {
                     status: 'active',
                     review_note: '批量审核通过'
-                });
+                })
+            ));
+
+            const errors = results.filter(r => r.error);
+            if (errors.length > 0) {
+                console.error('部分审核失败:', errors);
+                throw new Error(`有 ${errors.length} 个商品审核失败`);
             }
+
             showToast.success(`已批量通过 ${products.length} 个商品`);
             fetchPendingProducts();
-        } catch (error) {
-            showToast.error('批量审核失败');
+        } catch (error: any) {
+            showToast.error(error.message || '批量审核失败');
         } finally {
             setProcessing(false);
         }

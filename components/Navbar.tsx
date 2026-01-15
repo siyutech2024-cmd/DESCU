@@ -47,51 +47,51 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-3">
+    <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-glass-sm transition-all duration-300">
+      <div className="max-w-5xl mx-auto px-4 h-18 flex items-center gap-4">
 
         {/* Brand Logo - Added for brand consistency */}
         <div
           onClick={onLogoClick}
-          className="flex items-center gap-2 cursor-pointer group"
+          className="flex items-center gap-2 cursor-pointer group flex-shrink-0"
         >
-          <div className="w-9 h-9 bg-brand-600 text-white flex items-center justify-center rounded-lg shadow-md transform group-hover:rotate-6 transition-transform">
+          <div className="w-10 h-10 bg-gradient-to-br from-brand-600 to-brand-500 text-white flex items-center justify-center rounded-xl shadow-lg shadow-brand-500/20 transform group-hover:rotate-6 transition-transform">
             <svg viewBox="0 0 100 100" className="w-6 h-6 fill-none stroke-white" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round">
               <path d="M30 20 H50 C70 20 85 35 85 50 C85 65 70 80 50 80 H30 Z" />
             </svg>
           </div>
-          <span className="hidden lg:block text-xl font-black text-gray-900 tracking-tighter">DESCU</span>
+          <span className="hidden lg:block text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-700 tracking-tighter">DESCU</span>
         </div>
 
-        {/* Location Indicator */}
-        <div className="flex items-center gap-1 text-gray-500 text-sm font-medium bg-gray-50 px-3 py-2 rounded-full cursor-pointer hover:bg-gray-100 transition-colors whitespace-nowrap ml-1">
-          <MapPin size={14} className="text-brand-600" />
-          <span className="hidden sm:inline">CDMX</span>
+        {/* Location Indicator - Pill */}
+        <div className="hidden sm:flex items-center gap-1.5 text-gray-600 text-xs font-bold bg-white/50 border border-white/40 px-3 py-1.5 rounded-full cursor-pointer hover:bg-white hover:shadow-sm transition-all whitespace-nowrap">
+          <MapPin size={12} className="text-brand-600" />
+          <span>CDMX</span>
         </div>
 
-        {/* Search Bar - Expanded */}
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-            <Search size={16} />
+        {/* Search Bar - Modern Glass Input */}
+        <div className="flex-1 relative max-w-lg ml-auto mr-auto md:mr-0">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+            <Search size={18} />
           </div>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('nav.search')}
-            className="w-full bg-gray-100/80 border-transparent focus:bg-white focus:border-brand-300 border focus:ring-4 focus:ring-brand-50 rounded-full py-2.5 pl-10 pr-4 text-sm outline-none transition-all placeholder:text-gray-400"
+            className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2.5 pl-11 pr-4 text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
           />
         </div>
 
         {/* Desktop Actions */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-5">
           {/* Language */}
-          <div className="flex items-center text-gray-500">
-            <Globe size={18} className="mr-1" />
+          <div className="flex items-center text-gray-500/80 hover:text-gray-800 transition-colors">
+            <Globe size={18} className="mr-1.5" />
             <select
               value={language}
               onChange={handleLanguageChange}
-              className="bg-transparent text-sm font-medium outline-none cursor-pointer hover:text-brand-600 transition-colors"
+              className="bg-transparent text-xs font-bold outline-none cursor-pointer uppercase tracking-wider"
             >
               <option value="es">Español</option>
               <option value="en">English</option>
@@ -99,68 +99,81 @@ export const Navbar: React.FC<NavbarProps> = ({
             </select>
           </div>
 
-          <div className="h-6 w-px bg-gray-200"></div>
+          <div className="h-6 w-px bg-gray-200/60"></div>
 
-          <button onClick={onLogoClick} className="font-medium text-gray-600 hover:text-brand-600" title={t('nav.home')}>
-            <Home size={20} />
+          <button onClick={onLogoClick} className="text-gray-500 hover:text-brand-600 hover:bg-brand-50 p-2 rounded-full transition-all" title={t('nav.home')}>
+            <Home size={22} strokeWidth={2} />
           </button>
 
           {user && (
-            <button onClick={onChatClick} className="font-medium text-gray-600 hover:text-brand-600 relative" title={t('nav.chat')}>
-              <MessageCircle size={20} />
+            <button onClick={onChatClick} className="text-gray-500 hover:text-brand-600 hover:bg-brand-50 p-2 rounded-full transition-all relative" title={t('nav.chat')}>
+              <MessageCircle size={22} strokeWidth={2} />
               {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-brand-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-white">
+                <span className="absolute top-1 right-1 bg-brand-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-white shadow-sm animate-pulse">
                   {unreadCount}
                 </span>
               )}
             </button>
           )}
 
-          <button onClick={onCartClick} className="font-medium text-gray-600 hover:text-brand-600">
-            {t('nav.cart')} {cartCount > 0 && `(${cartCount})`}
+          <button onClick={onCartClick} className="text-gray-500 hover:text-brand-600 hover:bg-brand-50 p-2 rounded-full transition-all relative" title={t('nav.cart')}>
+            <div className="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
+              {cartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-white shadow-sm">
+                  {cartCount}
+                </span>
+              )}
+            </div>
           </button>
 
           {user ? (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className="w-8 h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-brand-300 transition-all"
-                  onClick={onProfileClick}
-                  title={t('nav.profile')}
-                />
+            <div className="flex items-center gap-4 pl-2">
+              <div className="flex items-center gap-3">
+                <div className="relative group/profile">
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-10 h-10 rounded-full cursor-pointer border-2 border-white shadow-md hover:scale-105 transition-transform object-cover"
+                    onClick={onProfileClick}
+                    title={t('nav.profile')}
+                  />
+                  <div className="absolute top-full right-0 mt-2 py-1 px-2 bg-black/80 backdrop-blur-md text-white text-xs rounded-lg opacity-0 group-hover/profile:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                    {user.name}
+                  </div>
+                </div>
+
                 <button
                   onClick={handleLogout}
-                  className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+                  className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full text-gray-400 transition-colors"
                   title="退出登录"
                 >
-                  <LogOut size={18} />
+                  <LogOut size={20} />
                 </button>
               </div>
               <button
                 onClick={onSellClick}
-                className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-full font-bold shadow-md shadow-brand-200 transition-all active:scale-95"
+                className="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-brand-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
               >
-                {t('nav.sell')}
+                <span>{t('nav.sell')}</span>
               </button>
             </div>
           ) : (
             <button
               onClick={onLogin}
-              className="font-bold text-brand-600 hover:bg-brand-50 px-4 py-2 rounded-full transition-colors"
+              className="font-bold text-brand-600 bg-brand-50 hover:bg-brand-100 px-6 py-2.5 rounded-full transition-colors"
             >
               {t('nav.login')}
             </button>
           )}
         </div>
 
-        {/* Mobile Language Switcher (Icon only) */}
+        {/* Mobile Language Switcher */}
         <div className="md:hidden">
           <select
             value={language}
             onChange={handleLanguageChange}
-            className="bg-transparent text-xs font-bold text-gray-500 outline-none p-1"
+            className="bg-white/50 backdrop-blur-md rounded-lg text-xs font-bold text-gray-500 outline-none py-1.5 px-1 border border-white/40"
           >
             <option value="es">ES</option>
             <option value="en">EN</option>

@@ -68,213 +68,236 @@ export const ProductEditModal: React.FC<ProductEditModalProps> = ({ product, isO
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b">
-                    <h2 className="text-2xl font-bold text-gray-800">编辑商品</h2>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="glass-panel w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl rounded-[2rem] border border-white/60">
+                {/* Header - Glass Gradient */}
+                <div className="flex items-center justify-between px-8 py-6 border-b border-white/20 bg-gradient-to-r from-white/40 to-white/10">
+                    <div>
+                        <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600">编辑商品详情</h2>
+                        <p className="text-sm text-gray-500 font-medium mt-1">ID: {product.id}</p>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-2 hover:bg-white/50 rounded-full transition-all duration-200 group border border-transparent hover:border-white/40"
                     >
                         <XIcon />
                     </button>
                 </div>
 
                 {/* Body */}
-                <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                            {error}
+                        <div className="mb-6 p-4 bg-red-50/90 backdrop-blur-sm border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2 shadow-sm animate-fade-in">
+                            <span className="font-bold">Error:</span> {error}
                         </div>
                     )}
 
-                    {/* Product ID */}
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">商品ID</label>
-                        <div className="text-sm text-gray-500 bg-gray-50 p-2 rounded">{product.id}</div>
-                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Left Column: Images & Seller */}
+                        <div className="space-y-6">
+                            {/* Images Card */}
+                            <div className="bg-white/40 backdrop-blur-md rounded-2xl p-5 border border-white/50 shadow-sm">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">商品图集</label>
+                                {product.images && product.images.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {product.images.map((img, idx) => (
+                                            <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden cursor-pointer shadow-sm border border-white/50">
+                                                <img
+                                                    src={img}
+                                                    alt={`Product ${idx + 1}`}
+                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-300">
+                                        无图片数据
+                                    </div>
+                                )}
+                            </div>
 
-                    {/* Image Preview */}
-                    {product.images && product.images.length > 0 && (
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">商品图片</label>
-                            <div className="flex gap-2 overflow-x-auto">
-                                {product.images.map((img, idx) => (
-                                    <img
-                                        key={idx}
-                                        src={img}
-                                        alt={`Product ${idx + 1}`}
-                                        className="w-20 h-20 object-cover rounded-lg border"
-                                    />
-                                ))}
+                            {/* Seller Card */}
+                            <div className="bg-gradient-to-br from-blue-50/80 to-indigo-50/80 backdrop-blur-md rounded-2xl p-5 border border-blue-100 shadow-sm">
+                                <label className="block text-xs font-bold text-blue-400 uppercase tracking-wider mb-4">卖家信息</label>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                                        {product.seller_name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="overflow-hidden">
+                                        <div className="font-bold text-gray-800 truncate">{product.seller_name}</div>
+                                        <div className="text-xs text-gray-500 truncate">{product.seller_email}</div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                    <div className="bg-white/60 rounded-lg p-2 text-center">
+                                        <div className="text-xs text-gray-400 uppercase">浏览量</div>
+                                        <div className="font-bold text-gray-700">{product.views_count || 0}</div>
+                                    </div>
+                                    <div className="bg-white/60 rounded-lg p-2 text-center">
+                                        <div className="text-xs text-gray-400 uppercase">被举报</div>
+                                        <div className="font-bold text-red-500">{product.reported_count || 0}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    )}
 
-                    {/* Title */}
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">标题 *</label>
-                        <input
-                            type="text"
-                            required
-                            value={formData.title}
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                    </div>
+                        {/* Right Column: Edit Form */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* Main Info */}
+                            <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-sm space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">商品标题</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.title}
+                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                        className="glass-input w-full px-5 py-3 rounded-xl text-gray-800 font-medium placeholder-gray-400 focus:ring-4 focus:ring-blue-500/10"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">商品描述</label>
+                                    <textarea
+                                        value={formData.description}
+                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                        rows={4}
+                                        className="glass-input w-full px-5 py-3 rounded-xl text-gray-600 resize-none focus:ring-4 focus:ring-blue-500/10"
+                                    />
+                                </div>
+                            </div>
 
-                    {/* Description */}
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
-                        <textarea
-                            value={formData.description}
-                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            rows={3}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        />
-                    </div>
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">价格</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">$</span>
+                                        <input
+                                            type="number"
+                                            required
+                                            min="0"
+                                            step="0.01"
+                                            value={formData.price}
+                                            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                                            className="glass-input w-full pl-8 pr-5 py-3 rounded-xl font-bold text-gray-800"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">币种</label>
+                                    <select
+                                        value={formData.currency}
+                                        onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                                        className="glass-input w-full px-5 py-3 rounded-xl text-gray-700 font-medium cursor-pointer appearance-none"
+                                    >
+                                        <option value="MXN">MXN (墨西哥比索)</option>
+                                        <option value="USD">USD (美元)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">分类</label>
+                                    <select
+                                        required
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        className="glass-input w-full px-5 py-3 rounded-xl text-gray-700 font-medium cursor-pointer appearance-none"
+                                    >
+                                        <option value="">选择分类</option>
+                                        <option value="electronics">电子产品</option>
+                                        <option value="furniture">家具</option>
+                                        <option value="clothing">服装</option>
+                                        <option value="books">图书</option>
+                                        <option value="sports">运动</option>
+                                        <option value="vehicles">车辆</option>
+                                        <option value="real_estate">房产</option>
+                                        <option value="services">服务</option>
+                                        <option value="other">其他</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">配送方式</label>
+                                    <select
+                                        value={formData.delivery_type}
+                                        onChange={(e) => setFormData({ ...formData, delivery_type: e.target.value })}
+                                        className="glass-input w-full px-5 py-3 rounded-xl text-gray-700 font-medium cursor-pointer appearance-none"
+                                    >
+                                        <option value="meetup">见面交易</option>
+                                        <option value="shipping">快递配送</option>
+                                        <option value="both">两者皆可</option>
+                                    </select>
+                                </div>
+                            </div>
 
-                    {/* Price and Currency */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">价格 *</label>
-                            <input
-                                type="number"
-                                required
-                                min="0"
-                                step="0.01"
-                                value={formData.price}
-                                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">币种</label>
-                            <select
-                                value={formData.currency}
-                                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            >
-                                <option value="MXN">MXN</option>
-                                <option value="USD">USD</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Category */}
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">分类 *</label>
-                        <select
-                            required
-                            value={formData.category}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        >
-                            <option value="">选择分类</option>
-                            <option value="electronics">电子产品</option>
-                            <option value="furniture">家具</option>
-                            <option value="clothing">服装</option>
-                            <option value="books">图书</option>
-                            <option value="sports">运动</option>
-                            <option value="vehicles">车辆</option>
-                            <option value="real_estate">房产</option>
-                            <option value="services">服务</option>
-                            <option value="other">其他</option>
-                        </select>
-                    </div>
-
-                    {/* Delivery Type */}
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">配送方式</label>
-                        <select
-                            value={formData.delivery_type}
-                            onChange={(e) => setFormData({ ...formData, delivery_type: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        >
-                            <option value="meetup">见面交易</option>
-                            <option value="shipping">快递配送</option>
-                            <option value="both">两者皆可</option>
-                        </select>
-                    </div>
-
-                    {/* Location */}
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">位置</label>
-                        <input
-                            type="text"
-                            value={formData.location_name}
-                            onChange={(e) => setFormData({ ...formData, location_name: e.target.value })}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            placeholder="例如: CDMX, Mexico"
-                        />
-                    </div>
-
-                    {/* Status */}
-                    <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">状态</label>
-                        <div className="flex gap-4">
-                            <label className="flex items-center">
-                                <input
-                                    type="radio"
-                                    value="active"
-                                    checked={formData.status === 'active'}
-                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                    className="mr-2"
-                                />
-                                <span className="text-sm">在售</span>
-                            </label>
-                            <label className="flex items-center">
-                                <input
-                                    type="radio"
-                                    value="inactive"
-                                    checked={formData.status === 'inactive'}
-                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                    className="mr-2"
-                                />
-                                <span className="text-sm">已下架</span>
-                            </label>
-                            <label className="flex items-center">
-                                <input
-                                    type="radio"
-                                    value="pending_review"
-                                    checked={formData.status === 'pending_review'}
-                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                    className="mr-2"
-                                />
-                                <span className="text-sm">待审核</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    {/* Seller Info (Read-only) */}
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <div className="text-sm text-gray-600 mb-1">卖家信息</div>
-                        <div className="text-sm">
-                            <span className="font-medium">{product.seller_name}</span> ({product.seller_email})
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                            浏览: {product.views_count || 0} | 举报: {product.reported_count || 0}
+                            {/* Location & Status */}
+                            <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-sm space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">所在位置</label>
+                                    <input
+                                        type="text"
+                                        value={formData.location_name}
+                                        onChange={(e) => setFormData({ ...formData, location_name: e.target.value })}
+                                        className="glass-input w-full px-5 py-3 rounded-xl text-gray-700"
+                                        placeholder="例如: CDMX, Mexico"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">当前状态</label>
+                                    <div className="flex flex-wrap gap-4">
+                                        {[
+                                            { value: 'active', label: '在售', color: 'bg-green-100 text-green-700 border-green-200' },
+                                            { value: 'inactive', label: '已下架', color: 'bg-gray-100 text-gray-700 border-gray-200' },
+                                            { value: 'pending_review', label: '待审核', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' }
+                                        ].map((statusOption) => (
+                                            <label
+                                                key={statusOption.value}
+                                                className={`
+                                                    cursor-pointer px-4 py-2 rounded-xl border flex items-center gap-2 transition-all duration-200
+                                                    ${formData.status === statusOption.value
+                                                        ? `${statusOption.color} ring-2 ring-offset-2 ring-blue-500/20 shadow-sm scale-105`
+                                                        : 'bg-white/50 border-gray-200 text-gray-500 hover:bg-white hover:border-gray-300'
+                                                    }
+                                                `}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    value={statusOption.value}
+                                                    checked={formData.status === statusOption.value}
+                                                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                                    className="hidden"
+                                                />
+                                                <span className="font-bold text-sm">{statusOption.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
 
-                {/* Footer */}
-                <div className="flex justify-end gap-3 p-6 border-t bg-gray-50">
+                {/* Footer - Sticky Glass */}
+                <div className="flex justify-end gap-3 px-8 py-5 border-t border-white/40 bg-white/40 backdrop-blur-md">
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={saving}
-                        className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        className="px-6 py-2.5 text-gray-600 font-bold hover:bg-white/50 rounded-xl transition-all disabled:opacity-50"
                     >
                         取消
                     </button>
                     <button
                         onClick={handleSubmit}
                         disabled={saving}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {saving ? '保存中...' : '保存修改'}
+                        {saving ? (
+                            <span className="flex items-center gap-2">
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                保存中...
+                            </span>
+                        ) : '保存修改'}
                     </button>
                 </div>
             </div>

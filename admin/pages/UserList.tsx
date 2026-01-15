@@ -129,15 +129,15 @@ export const UserList: React.FC = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-24 animate-fade-in-up">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-black text-gray-900">用户管理</h1>
+                <h1 className="text-3xl font-black text-gray-900 bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">用户管理</h1>
                 <p className="text-gray-600 mt-1">管理平台所有用户</p>
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-xl shadow-sm border p-4">
+            <div className="glass-panel p-4 rounded-xl">
                 <div className="flex flex-wrap gap-3 items-center">
                     {/* Search */}
                     <div className="flex-1 min-w-[200px]">
@@ -148,7 +148,7 @@ export const UserList: React.FC = () => {
                                 placeholder="搜索用户..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full pl-10 pr-4 py-2 glass-input rounded-lg focus:outline-none"
                             />
                         </div>
                     </div>
@@ -157,7 +157,7 @@ export const UserList: React.FC = () => {
                     <select
                         value={filterVerified}
                         onChange={(e) => setFilterVerified(e.target.value)}
-                        className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        className="px-4 py-2 glass-input rounded-lg focus:outline-none cursor-pointer"
                     >
                         <option value="all">全部用户</option>
                         <option value="true">已认证</option>
@@ -167,7 +167,8 @@ export const UserList: React.FC = () => {
                     {/* Advanced Filters Toggle */}
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                        className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-all ${showFilters ? 'bg-brand-50 border-brand-200 text-brand-700' : 'hover:bg-gray-50 border-gray-200 text-gray-600'
+                            }`}
                     >
                         <Filter className="w-4 h-4" />
                         日期筛选
@@ -176,7 +177,7 @@ export const UserList: React.FC = () => {
                     {/* Export */}
                     <button
                         onClick={handleExport}
-                        className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                        className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-all active:scale-95"
                     >
                         <Download className="w-4 h-4" />
                         导出
@@ -185,7 +186,7 @@ export const UserList: React.FC = () => {
 
                 {/* Advanced Filters Panel */}
                 {showFilters && (
-                    <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4">
+                    <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4 animate-slide-down">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 注册开始日期
@@ -194,7 +195,7 @@ export const UserList: React.FC = () => {
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full px-3 py-2 glass-input rounded-lg focus:outline-none"
                             />
                         </div>
                         <div>
@@ -205,7 +206,7 @@ export const UserList: React.FC = () => {
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full px-3 py-2 glass-input rounded-lg focus:outline-none"
                             />
                         </div>
                     </div>
@@ -214,20 +215,21 @@ export const UserList: React.FC = () => {
 
             {/* Batch Actions Bar */}
             {selectedIds.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-                    <span className="text-blue-900 font-medium">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between shadow-sm animate-fade-in">
+                    <span className="text-blue-900 font-bold flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-blue-500" />
                         已选择 {selectedIds.length} 个用户
                     </span>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setShowBatchModal(true)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all active:scale-95"
                         >
                             批量操作
                         </button>
                         <button
                             onClick={() => setSelectedIds([])}
-                            className="px-4 py-2 border rounded-lg hover:bg-white"
+                            className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-all"
                         >
                             取消选择
                         </button>
@@ -236,44 +238,47 @@ export const UserList: React.FC = () => {
             )}
 
             {/* User Table */}
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="glass-panel rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gray-50 border-b">
+                        <thead className="bg-gray-50/50 border-b border-gray-100">
                             <tr>
-                                <th className="px-4 py-3 text-left">
+                                <th className="px-4 py-3 text-left w-12">
                                     <input
                                         type="checkbox"
                                         checked={selectedIds.length === users.length && users.length > 0}
                                         onChange={toggleSelectAll}
-                                        className="rounded"
+                                        className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                                     />
                                 </th>
-                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">用户</th>
-                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">邮箱</th>
-                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">认证状态</th>
-                                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">统计</th>
-                                <th className="px-6 py-4 text-right text-sm font-semibold text-gray-600">操作</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">用户</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">邮箱</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">认证状态</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">统计</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">操作</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y">
+                        <tbody className="divide-y divide-gray-50">
                             {loading ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                                        加载中...
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                                            <p className="text-sm">加载数据中...</p>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : users.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                                        暂无用户数据
+                                        <p className="text-lg font-medium text-gray-400">暂无用户数据</p>
                                     </td>
                                 </tr>
                             ) : (
                                 users.map((user) => (
                                     <tr
                                         key={user.id}
-                                        className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                        className={`group transition-all hover:bg-gray-50/80 cursor-pointer ${selectedIds.includes(user.id) ? 'bg-blue-50/30' : ''}`}
                                         onClick={() => setSelectedUser(user)}
                                     >
                                         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -281,52 +286,65 @@ export const UserList: React.FC = () => {
                                                 type="checkbox"
                                                 checked={selectedIds.includes(user.id)}
                                                 onChange={() => toggleSelect(user.id)}
-                                                className="rounded"
+                                                className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                                             />
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <img
-                                                    src={user.avatar || 'https://via.placeholder.com/40'}
-                                                    alt=""
-                                                    className="w-10 h-10 rounded-full object-cover border"
-                                                />
+                                                <div className="relative">
+                                                    <img
+                                                        src={user.avatar || 'https://via.placeholder.com/40'}
+                                                        alt=""
+                                                        className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                                                    />
+                                                    {user.is_verified && (
+                                                        <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-0.5 border border-white">
+                                                            <CheckCircle size={10} />
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 <div>
-                                                    <div className="font-medium text-gray-900">
+                                                    <div className="font-bold text-gray-900 group-hover:text-brand-600 transition-colors">
                                                         {user.name || '未命名用户'}
                                                     </div>
-                                                    <div className="text-xs text-gray-500">ID: {user.id.slice(0, 8)}...</div>
+                                                    <div className="text-xs text-gray-400 font-mono">ID: {user.id.slice(0, 8)}...</div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-sm text-gray-600">{user.email}</span>
+                                            <span className="text-sm text-gray-600 font-medium">{user.email}</span>
                                         </td>
                                         <td className="px-6 py-4">
                                             {user.is_verified ? (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-100">
                                                     <CheckCircle className="w-3 h-3" />
                                                     已认证
                                                 </span>
                                             ) : (
-                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                                <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">
                                                     未认证
                                                 </span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-xs text-gray-600 space-y-1">
-                                                <div>商品: {user.product_count || 0}</div>
-                                                <div>对话: {user.conversation_count || 0}</div>
+                                            <div className="flex items-center gap-4 text-xs font-medium text-gray-500">
+                                                <div title="发布商品" className="flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                                    {user.product_count || 0} 商品
+                                                </div>
+                                                <div title="参与对话" className="flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                                    {user.conversation_count || 0} 对话
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                            <div className="flex items-center justify-end gap-2">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => handleVerify(user.id, user.is_verified)}
                                                     className={`p-2 rounded-lg transition-colors ${user.is_verified
-                                                            ? 'text-gray-400 hover:bg-gray-100'
-                                                            : 'text-green-600 hover:bg-green-50'
+                                                        ? 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                                                        : 'text-green-600 hover:bg-green-50'
                                                         }`}
                                                     title={user.is_verified ? '取消认证' : '认证用户'}
                                                 >
@@ -334,7 +352,7 @@ export const UserList: React.FC = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(user.id)}
-                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="删除用户"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -350,22 +368,22 @@ export const UserList: React.FC = () => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
+                    <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between">
+                        <span className="text-sm text-gray-500 font-medium">
                             第 {page} 页，共 {totalPages} 页
                         </span>
                         <div className="flex gap-2">
                             <button
                                 disabled={page === 1}
                                 onClick={() => setPage(p => p - 1)}
-                                className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
                             >
                                 上一页
                             </button>
                             <button
                                 disabled={page === totalPages}
                                 onClick={() => setPage(p => p + 1)}
-                                className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
                             >
                                 下一页
                             </button>

@@ -1,3 +1,81 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Scrollbar */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20 shadow-glass;
+  }
+
+  .glass-input {
+    @apply bg-white/50 backdrop-blur-md border border-gray-200 focus:bg-white/80 focus:border-brand-300 transition-all duration-300;
+  }
+
+  /* Modern Scrollbar for Webkit */
+  .modern-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .modern-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .modern-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+  }
+
+  .glass-card {
+    @apply bg-white/40 backdrop-blur-md border border-white/50 shadow-sm hover:shadow-lg transition-all duration-300;
+  }
+
+  .glass-pill {
+    @apply bg-white/30 backdrop-blur-sm border border-white/40 shadow-sm;
+  }
+}
+
+@keyframes gradient-xy {
+
+  0%,
+  100% {
+    background-size: 400% 400%;
+    background-position: 0% 0%;
+  }
+
+  25% {
+    background-size: 400% 400%;
+    background-position: 100% 0%;
+  }
+
+  50% {
+    background-size: 400% 400%;
+    background-position: 100% 100%;
+  }
+
+  75% {
+    background-size: 400% 400%;
+    background-position: 0% 100%;
+  }
+}
+
+.animate-gradient-xy {
+  animation: gradient-xy 15s ease infinite;
+}
+
+/* Base styles for smooth touches */
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}

@@ -764,12 +764,16 @@ const AppContent: React.FC = () => {
           return <div className="p-4 text-center">Loading chat...</div>;
         }
         return (
-          <ChatWindow
-            conversation={activeConv}
-            currentUser={user}
-            onBack={() => setCurrentView({ type: 'chat-list' })}
-            onSendMessage={handleSendMessage}
-          />
+          <div className="flex-1 sm:py-8 sm:px-4 flex justify-center bg-gray-50">
+            <div className="w-full max-w-4xl h-full sm:h-[85vh] bg-white sm:rounded-2xl shadow-xl overflow-hidden">
+              <ChatWindow
+                conversation={activeConv}
+                currentUser={user}
+                onBack={() => setCurrentView({ type: 'chat-list' })}
+                onSendMessage={handleSendMessage}
+              />
+            </div>
+          </div>
         );
       case 'profile':
         if (!user) return (
@@ -799,11 +803,10 @@ const AppContent: React.FC = () => {
       default:
         return (
           <main className="max-w-5xl mx-auto px-4 pb-24">
-
             {/* DESCU Brand Header with Updated Logo */}
-            <div className="flex flex-col items-center justify-center pt-8 pb-6">
+            <div className="flex flex-col items-center justify-center pt-10 pb-8">
               <div className="flex items-center gap-3 animate-fade-in-up">
-                <div className="w-14 h-14 bg-brand-600 text-white flex items-center justify-center rounded-2xl shadow-xl shadow-brand-200 transform hover:scale-105 transition-transform">
+                <div className="w-16 h-16 bg-brand-600 text-white flex items-center justify-center rounded-2xl shadow-xl shadow-brand-500/30 transform hover:scale-105 transition-transform backdrop-blur-sm bg-opacity-90">
                   <svg viewBox="0 0 100 100" className="w-10 h-10 fill-none stroke-white" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
                     {/* Stylized 'D' + Tag hook */}
                     <path d="M30 20 H50 C70 20 85 35 85 50 C85 65 70 80 50 80 H30 Z" />
@@ -811,61 +814,71 @@ const AppContent: React.FC = () => {
                     <path d="M30 20 V80" />
                   </svg>
                 </div>
-                <h1 className="text-4xl font-black text-gray-900 tracking-tighter">DESCU</h1>
+                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 tracking-tighter drop-shadow-sm">DESCU</h1>
               </div>
-              <p className="text-gray-400 text-sm font-medium mt-2">{t('hero.subtitle')}</p>
+              <p className="text-gray-500 text-base font-medium mt-3 tracking-wide bg-white/40 px-4 py-1 rounded-full backdrop-blur-sm border border-white/40">{t('hero.subtitle')}</p>
             </div>
 
-            {/* Category Filter - Horizontal Scroll */}
-            <div className="flex gap-4 overflow-x-auto pb-4 mb-4 no-scrollbar">
+            {/* Category Filter - Glass Pills */}
+            <div className="flex gap-4 overflow-x-auto pb-6 mb-6 no-scrollbar px-1">
               {CATEGORIES.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`flex flex-col items-center flex-shrink-0 gap-2 min-w-[70px] ${selectedCategory === cat.id ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}
+                  className={`flex flex-col items-center flex-shrink-0 gap-2 min-w-[76px] group transition-all duration-300 ${selectedCategory === cat.id ? 'opacity-100 scale-105' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
                 >
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${selectedCategory === cat.id ? 'bg-brand-600 text-white shadow-md' : 'bg-gray-100 text-gray-600'}`}>
-                    <cat.icon size={24} />
+                  <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ${selectedCategory === cat.id
+                      ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/40'
+                      : 'bg-white/60 backdrop-blur-md text-gray-600 shadow-sm border border-white/60 group-hover:bg-white/80'
+                    }`}>
+                    <cat.icon size={26} strokeWidth={selectedCategory === cat.id ? 2.5 : 2} />
                   </div>
-                  <span className={`text-xs font-medium whitespace-nowrap ${selectedCategory === cat.id ? 'text-brand-600' : 'text-gray-500'}`}>
+                  <span className={`text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full ${selectedCategory === cat.id
+                      ? 'text-brand-700 bg-brand-50/50'
+                      : 'text-gray-500 group-hover:text-gray-700'
+                    }`}>
                     {t(cat.label)}
                   </span>
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
+            <div className="flex items-center justify-between mb-6 px-1">
+              <h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
                 {selectedCategory === 'all' ? t('list.header') : t(`cat.${selectedCategory}`)}
+                <span className="text-sm font-normal text-gray-400 bg-white/50 px-2 py-0.5 rounded-full backdrop-blur-xs border border-white/40">{sortedProducts.length}</span>
               </h2>
 
-              <div className="flex items-center gap-2 text-xs text-gray-500 bg-white px-2 py-1 rounded-lg border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-2 text-xs text-gray-600 bg-white/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/50 shadow-sm transition-all hover:bg-white/80 cursor-pointer">
                 {isLoadingLoc ? (
-                  <span className="flex items-center gap-1"><RefreshCw size={12} className="animate-spin" /> {t('list.loading_loc')}</span>
+                  <span className="flex items-center gap-1.5"><RefreshCw size={12} className="animate-spin text-brand-500" /> {t('list.loading_loc')}</span>
                 ) : permissionDenied ? (
-                  <span className="flex items-center gap-1 text-orange-500"><MapPinOff size={12} /> {t('list.loc_denied')}</span>
+                  <span className="flex items-center gap-1.5 text-orange-500 font-bold"><MapPinOff size={12} /> {t('list.loc_denied')}</span>
                 ) : (
-                  <span className="flex items-center gap-1 text-brand-600 font-medium"><RefreshCw size={12} /> {t('list.loc_success')}</span>
+                  <span className="flex items-center gap-1.5 text-brand-600 font-bold"><RefreshCw size={12} /> {t('list.loc_success')}</span>
                 )}
               </div>
             </div>
 
             {sortedProducts.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="bg-gray-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                  {searchQuery ? <SearchX size={40} /> : <Package size={40} />}
+              <div className="text-center py-24 glass-panel rounded-[2.5rem] flex flex-col items-center justify-center">
+                <div className="bg-gray-50/50 w-28 h-28 rounded-full flex items-center justify-center mb-6 text-gray-300 border-2 border-dashed border-gray-200">
+                  {searchQuery ? <SearchX size={48} /> : <Package size={48} />}
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
                   {searchQuery ? t('list.no_results') : t('list.empty')}
                 </h3>
+                <p className="text-gray-400 max-w-xs mx-auto mb-6 leading-relaxed">
+                  {searchQuery ? 'Suggestions: check spelling or try broader terms.' : 'Be the first to list an item in this category!'}
+                </p>
                 {!searchQuery && (
-                  <button onClick={handleSellClick} className="text-brand-600 font-bold hover:underline mt-2">
+                  <button onClick={handleSellClick} className="px-8 py-3 bg-brand-600 text-white font-bold rounded-full shadow-lg shadow-brand-200 hover:scale-105 active:scale-95 transition-all">
                     {t('nav.sell')}
                   </button>
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                 {sortedProducts.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -878,9 +891,12 @@ const AppContent: React.FC = () => {
               </div>
             )}
 
-            <div className="text-center py-8 text-gray-300 text-sm">
-              {t('list.items_count').replace('{0}', sortedProducts.length.toString())}
-              <div className="mt-2 text-xs">DESCU Marketplace © 2024</div>
+            <div className="text-center py-12">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/30 backdrop-blur-sm border border-white/20 text-gray-400 text-xs font-medium">
+                <span>DESCU Marketplace © 2024</span>
+                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                <span>Premium Resale</span>
+              </div>
             </div>
           </main>
         );
@@ -888,7 +904,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white md:bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
       <Navbar
         user={user}
         onLogin={handleLogin}
@@ -903,7 +919,9 @@ const AppContent: React.FC = () => {
         unreadCount={unreadCount}
       />
 
-      {renderContent()}
+      <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden">
+        {renderContent()}
+      </div>
 
       <BottomNav
         currentView={currentView.type === 'product' || currentView.type === 'chat-window' ? 'home' : currentView.type}

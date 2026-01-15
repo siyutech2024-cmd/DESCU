@@ -14,7 +14,7 @@ interface ProductDetailsProps {
 }
 
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddToCart, onContactSeller, isInCart }) => {
-  const { t } = useLanguage();
+  const { t, formatPrice } = useLanguage();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const getRelativeTime = (timestamp: number) => {
@@ -28,114 +28,118 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 pt-4">
+    <div className="min-h-screen bg-transparent pb-32 pt-4 animate-fade-in">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header Actions */}
         <div className="flex items-center justify-between mb-6">
-            <button 
-                onClick={onBack}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
-            >
-                <ArrowLeft size={20} />
-                {t('detail.back')}
-            </button>
-            <button 
-                onClick={() => setIsReportModalOpen(true)}
-                className="flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-wider bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
-            >
-                <Flag size={14} />
-                {t('detail.report')}
-            </button>
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+          >
+            <ArrowLeft size={20} />
+            {t('detail.back')}
+          </button>
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-wider bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
+          >
+            <Flag size={14} />
+            {t('detail.report')}
+          </button>
         </div>
 
-        <div className={`bg-white rounded-2xl shadow-sm overflow-hidden ${product.isPromoted ? 'border-2 border-yellow-400 shadow-yellow-100' : 'border border-gray-100'}`}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-8">
-            {/* Image Section */}
-            <div className="aspect-square bg-gray-100 relative">
-              <img 
-                src={product.images[0]} 
-                alt={product.title} 
-                className="w-full h-full object-cover"
-              />
+        <div className="glass-panel rounded-[2.5rem] p-1 md:p-8 shadow-2xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-10">
+            {/* Image Section - Framed Glass */}
+            <div className="relative group">
+              <div className="aspect-square rounded-[2rem] overflow-hidden bg-white/20 shadow-inner border border-white/30 relative z-10">
+                <img
+                  src={product.images[0]}
+                  alt={product.title}
+                  className="w-full h-full object-cover transform transition-transform duration-700 hover:scale-105"
+                />
+              </div>
+              {/* Decorative Blur blob behind image */}
+              <div className="absolute -inset-4 bg-brand-500/20 blur-3xl rounded-full opacity-50 z-0"></div>
+
               {product.distance !== undefined && product.distance <= 5 && (
-                <div className="absolute top-4 left-4 bg-brand-500 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-                  <MapPin size={14} />
+                <div className="absolute top-6 left-6 z-20 bg-white/80 backdrop-blur-md text-gray-800 text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border border-white/50">
+                  <MapPin size={14} className="text-brand-600" />
                   {t('card.nearby')} {product.distance}km
                 </div>
               )}
               {product.isPromoted && (
-                <div className="absolute top-4 right-4 bg-yellow-400 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-                   <Zap size={14} fill="currentColor" />
-                   {t('card.promoted')}
+                <div className="absolute top-6 right-6 z-20 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
+                  <Zap size={14} fill="currentColor" />
+                  {t('card.promoted')}
                 </div>
               )}
             </div>
 
             {/* Info Section */}
-            <div className="p-6 md:p-8 flex flex-col">
+            <div className="p-6 md:p-2 flex flex-col justify-center">
               <div className="mb-auto">
-                <div className="flex items-start justify-between mb-2">
-                    <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md text-xs font-semibold uppercase tracking-wide">
-                        {t(`cat.${product.category}`)}
-                    </span>
-                    <span className="flex items-center gap-1 text-gray-400 text-xs">
-                        <Clock size={12} />
-                        {getRelativeTime(product.createdAt)}
-                    </span>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="glass-pill px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider text-brand-700">
+                    {t(`cat.${product.category}`)}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-gray-500 text-xs font-medium bg-white/30 px-2 py-1 rounded-full">
+                    <Clock size={12} />
+                    {getRelativeTime(product.createdAt)}
+                  </span>
                 </div>
-                
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 leading-tight">
+
+                <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 leading-tight tracking-tight">
                   {product.title}
                 </h1>
-                
-                <div className="text-3xl font-bold text-red-500 mb-4">
-                  ¥{product.price.toLocaleString()}
+
+                <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-400 mb-6 drop-shadow-sm">
+                  {formatPrice(product.price)}
                 </div>
 
                 {/* Delivery Method Info */}
-                <div className="bg-blue-50/50 rounded-lg p-3 mb-6 flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-full text-blue-600 mt-0.5">
-                    {product.deliveryType === DeliveryType.Shipping ? <Truck size={18} /> : <Handshake size={18} />}
+                <div className="glass-card rounded-2xl p-4 mb-8 flex items-center gap-4 bg-white/40">
+                  <div className={`p-3 rounded-full ${product.deliveryType === DeliveryType.Shipping ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
+                    {product.deliveryType === DeliveryType.Shipping ? <Truck size={24} /> : <Handshake size={24} />}
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-gray-800 mb-0.5">{t('detail.delivery')}</h4>
-                    <p className="text-sm text-gray-600">{getDeliveryLabel(product.deliveryType)}</p>
+                    <h4 className="text-sm font-bold text-gray-800 mb-0.5 uppercase tracking-wide opacity-70">{t('detail.delivery')}</h4>
+                    <p className="text-lg font-bold text-gray-900">{getDeliveryLabel(product.deliveryType)}</p>
                   </div>
                 </div>
 
-                <div className="prose prose-sm text-gray-600 mb-8">
-                  <h3 className="text-gray-900 font-semibold mb-2">{t('detail.desc_title')}</h3>
-                  <p className="whitespace-pre-wrap leading-relaxed">{product.description}</p>
+                <div className="prose prose-sm text-gray-600 mb-8 bg-white/30 p-6 rounded-2xl border border-white/40 backdrop-blur-sm">
+                  <h3 className="text-gray-900 font-bold mb-2 text-lg">{t('detail.desc_title')}</h3>
+                  <p className="whitespace-pre-wrap leading-relaxed font-medium">{product.description}</p>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-6 pt-6 border-t border-gray-100 grid grid-cols-2 gap-3">
+              <div className="pt-2 grid grid-cols-2 gap-4">
                 <button
-                    onClick={() => onContactSeller(product)}
-                    className="flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-lg bg-white border-2 border-brand-100 text-brand-600 hover:bg-brand-50 transition-all"
+                  onClick={() => onContactSeller(product)}
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm transition-all"
                 >
-                    <MessageCircle size={20} />
-                    {t('detail.contact')}
+                  <MessageCircle size={22} />
+                  {t('detail.contact')}
                 </button>
 
                 <button
                   onClick={() => onAddToCart(product)}
                   disabled={isInCart}
-                  className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-lg transition-all ${
-                    isInCart 
-                      ? 'bg-gray-100 text-gray-400 cursor-default' 
-                      : 'bg-brand-600 text-white hover:bg-brand-700 shadow-lg shadow-brand-200 hover:shadow-brand-300 active:scale-[0.98]'
-                  }`}
+                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${isInCart
+                    ? 'bg-gray-200 text-gray-400 cursor-default shadow-none'
+                    : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
+                    }`}
                 >
                   {isInCart ? (
                     <>
-                      <Check size={20} />
+                      <Check size={22} />
                       {t('card.in_cart')}
                     </>
                   ) : (
                     <>
-                      <ShoppingBag size={20} />
+                      <ShoppingBag size={22} />
                       {t('card.add_cart')}
                     </>
                   )}
@@ -146,41 +150,38 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
         </div>
 
         {/* Seller & Location Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 pb-8">
           {/* Seller Card */}
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                 {t('detail.seller')}
-             </h3>
-             <div className="flex items-center gap-4">
-                <img src={product.seller.avatar} alt={product.seller.name} className="w-14 h-14 rounded-full border border-gray-100" />
-                <div>
-                    <div className="font-bold text-lg text-gray-800 flex items-center gap-1">
-                        {product.seller.name}
-                        {product.seller.isVerified && (
-                             <ShieldCheck size={18} className="text-blue-500 fill-blue-50" />
-                        )}
-                    </div>
-                    {product.seller.isVerified && (
-                        <div className="text-xs text-blue-500 font-medium">{t('detail.verified')}</div>
-                    )}
-                    <div className="text-sm text-gray-500">{product.seller.email}</div>
+          <div className="glass-card p-6 rounded-[2rem] flex items-center gap-5">
+            <div className="relative">
+              <img src={product.seller.avatar} alt={product.seller.name} className="w-16 h-16 rounded-full border-2 border-white shadow-md object-cover" />
+              {product.seller.isVerified && (
+                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white p-1 rounded-full border-2 border-white">
+                  <ShieldCheck size={12} />
                 </div>
-             </div>
+              )}
+            </div>
+            <div>
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('detail.seller')}</div>
+              <div className="font-bold text-xl text-gray-900 flex items-center gap-1">
+                {product.seller.name}
+              </div>
+              <div className="text-sm text-gray-500 font-medium">{product.seller.email}</div>
+            </div>
           </div>
 
           {/* Location Card */}
-          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                 <MapPin size={18} className="text-gray-400" />
-                 {t('detail.location')}
-             </h3>
-             <div className="bg-gray-50 rounded-lg h-24 flex items-center justify-center text-gray-400 text-sm">
-                 <span>Map View Placeholder</span>
-             </div>
-             <p className="mt-3 text-sm text-gray-600">
-                 {t('list.loc_success')} ({product.distance}km away)
-             </p>
+          <div className="glass-card p-6 rounded-[2rem] flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-green-600 border-2 border-white shadow-sm">
+              <MapPin size={28} />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('detail.location')}</div>
+              <div className="font-bold text-xl text-gray-900">{product.locationName || 'Unknown'}</div>
+              <p className="text-sm text-gray-500 font-medium">
+                {product.distance !== undefined ? `${product.distance}km away` : t('list.loc_success')}
+              </p>
+            </div>
           </div>
         </div>
       </div>
