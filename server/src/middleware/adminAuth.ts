@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabase } from '../index';
+import { supabase } from '../db/supabase';
 
 export interface AdminRequest extends Request {
     admin?: {
