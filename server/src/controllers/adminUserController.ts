@@ -32,7 +32,7 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
         }
 
         // 筛选认证状态
-        if (is_verified !== undefined) {
+        if (is_verified !== undefined && is_verified !== 'undefined') {
             query = query.eq('seller_verified', is_verified === 'true');
         }
 

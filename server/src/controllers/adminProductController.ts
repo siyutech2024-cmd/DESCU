@@ -45,10 +45,10 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
         }
 
         // 基础筛选
-        if (category && category !== 'all') {
+        if (category && category !== 'all' && category !== 'undefined') {
             query = query.eq('category', category);
         }
-        if (status && status !== 'all') {
+        if (status && status !== 'all' && status !== 'undefined') {
             query = query.eq('status', status);
         }
         if (is_promoted || promotedOnly === 'true') {
