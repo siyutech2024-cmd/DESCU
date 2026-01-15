@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/adminApi';
 import { AdminUserInfo } from '../types/admin';
 import { UserDetailModal } from '../components/UserDetailModal';
+import { showToast } from '../utils/toast';
 
 // Simple Icons
 const SearchIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>);
@@ -46,15 +47,25 @@ export const UserList: React.FC = () => {
 
     const handleVerify = async (userId: string, currentStatus: boolean) => {
         if (confirm(`确定要${currentStatus ? '取消' : '通过'}该用户的实名认证吗？`)) {
-            await adminApi.updateUserVerification(userId, !currentStatus);
-            fetchUsers();
+            try {
+                await adminApi.updateUserVerification(userId, !currentStatus);
+                showToast.success(currentStatus ? '已取消认证' : '认证成功');
+                fetchUsers();
+            } catch (error) {
+                showToast.error('操作失败');
+            }
         }
     };
 
     const handleDelete = async (userId: string) => {
         if (prompt('请输入 "delete" 确认删除该用户（此操作不可恢复）') === 'delete') {
-            await adminApi.deleteUser(userId, true);
-            fetchUsers();
+            try {
+                await adminApi.deleteUser(userId, true);
+                showToast.success('用户已删除');
+                fetchUsers();
+            } catch (error) {
+                showToast.error('删除失败');
+            }
         }
     };
 
