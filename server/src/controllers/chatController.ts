@@ -57,8 +57,29 @@ export const getUserConversations = async (req: Request, res: Response) => {
             throw error;
         }
 
+        const conversationsWithDetails = await Promise.all(
+            (data || []).map(async (conversation) => {
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('title, images, seller_id, seller_name, seller_avatar')
+                    .eq('id', conversation.product_id)
+                    .single();
+
+                return {
+                    ...conversation,
+                    product_title: product?.title || '未知商品',
+                    product_image: product?.images?.[0] || '',
+                    seller_info: product ? {
+                        id: product.seller_id,
+                        name: product.seller_name,
+                        avatar: product.seller_avatar
+                    } : null
+                };
+            })
+        );
+
         console.log(`[Chat] Found ${data?.length || 0} conversations for user: ${userId}`);
-        res.json(data || []);
+        res.json(conversationsWithDetails);
     } catch (error) {
         console.error('Error fetching conversations:', error);
         res.status(500).json({ error: 'Failed to fetch conversations' });

@@ -15,7 +15,7 @@ import { calculateDistance } from './services/utils';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { supabase } from './services/supabase';
 import { API_BASE_URL } from './services/apiConfig';
-import { createOrGetConversation, sendMessage as sendMessageApi } from './services/chatService';
+import { createOrGetConversation, sendMessage as sendMessageApi, getUserConversations, subscribeToConversations } from './services/chatService';
 
 
 // --- EXPANDED MOCK DATA TEMPLATES ---
@@ -373,6 +373,72 @@ const AppContent: React.FC = () => {
       updateProducts(fallbackCDMX);
     }
   }, [language]);
+
+  // Load conversations and subscribe to updates
+  useEffect(() => {
+    if (!user) {
+      setConversations([]);
+      return;
+    }
+
+    // 1. Load initial conversations
+    const loadConversations = async () => {
+      try {
+        const data = await getUserConversations(user.id);
+        // Map backend data to frontend model if necessary
+        // Assuming backend returns matching structure or we need mapping
+        // Backend returns snake_case, frontend uses camelCase/User object?
+        // Let's check getUserConversations implementation in chatService.
+        // chatService returns result of fetch, which is json. 
+        // Backend returns snake_case columns.
+        // We need to map it to Conversation type.
+
+        const mappedConversations: Conversation[] = data.map((c: any) => ({
+          id: c.id,
+          productId: c.product_id,
+          productTitle: c.product_title || 'Product', // Backend needs to join product info
+          productImage: c.product_image || '',
+          otherUser: { // This is tricky. Backend doesn't return full otherUser object by default unless joined.
+            id: user.id === c.user1_id ? c.user2_id : c.user1_id,
+            name: 'User', // Placeholder if not joined
+            email: '',
+            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+            isVerified: false
+          },
+          lastMessageTime: new Date(c.updated_at).getTime(),
+          messages: [] // Initial load might not have messages? Or we fetch them separately?
+        }));
+
+        // Wait, getUserConversations in chatService calls API /api/conversations/:userId
+        // chatController.getUserConversations returns `select('*')` from conversations table.
+        // It DOES NOT join product or user info!
+        // This is another backend issue. The frontend needs Enrichment.
+        // But for now, let's at least load the raw list so it's not empty.
+
+        // However, looking at the code, I see ChatList attempts to render `conv.otherUser.avatar`.
+        // If we don't have that data, it will crash or look bad.
+        // The Admin API did join product info manually. The Chat Controller does NOT.
+
+        // Let's implement the basic fetch first.
+        setConversations(mappedConversations);
+      } catch (error) {
+        console.error('Failed to load conversations', error);
+      }
+    };
+
+    loadConversations();
+
+    // 2. Subscribe to real-time updates
+    const unsubscribe = subscribeToConversations(user.id, (payload) => {
+      // Handle update
+      console.log('Conversation update:', payload);
+      loadConversations(); // Simplest strategy: reload list
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
 
   // Handlers
   const handleSellClick = () => {
