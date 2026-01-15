@@ -889,10 +889,6 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white md:bg-gray-50 flex flex-col font-sans">
-      {/* 调试横幅 - 确认代码已更新 */}
-      <div className="bg-yellow-100 p-2 text-center text-xs text-yellow-800 border-b border-yellow-200">
-        调试模式: API={API_BASE_URL} | 用户={user?.id || '未登录'} | 对话数={conversations.length}
-      </div>
       <Navbar
         user={user}
         onLogin={handleLogin}
