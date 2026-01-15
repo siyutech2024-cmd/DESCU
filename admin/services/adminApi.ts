@@ -71,6 +71,13 @@ export const adminApi = {
         is_promoted?: string;
         seller_id?: string;
         include_deleted?: string;
+        sort?: string;
+        order?: 'asc' | 'desc';
+        minPrice?: number;
+        maxPrice?: number;
+        startDate?: string;
+        endDate?: string;
+        promotedOnly?: boolean | null;
     }) => {
         const queryString = new URLSearchParams(params as any).toString();
         return apiRequest<{
@@ -122,10 +129,10 @@ export const adminApi = {
         });
     },
 
-    batchUpdateProducts: async (product_ids: string[], action: string, data?: any) => {
-        return apiRequest(`/api/admin/products/batch`, {
+    batchUpdateProducts: async (productIds: string[], updates: any) => {
+        return apiRequest<{ updated: number }>(`/api/admin/products/batch`, {
             method: 'POST',
-            body: JSON.stringify({ product_ids, action, data }),
+            body: JSON.stringify({ productIds, updates }),
         });
     },
 
@@ -136,6 +143,8 @@ export const adminApi = {
         limit?: number;
         search?: string;
         is_verified?: string;
+        start_date?: string;
+        end_date?: string;
     }) => {
         const queryString = new URLSearchParams(params as any).toString();
         return apiRequest<{
