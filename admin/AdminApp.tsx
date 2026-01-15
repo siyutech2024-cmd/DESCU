@@ -4,8 +4,6 @@ import { Toaster } from 'react-hot-toast';
 import { AdminLogin } from './pages/AdminLogin';
 import { AdminLayout } from './components/AdminLayout';
 import { Dashboard } from './pages/Dashboard';
-
-// 占位组件，后续可以扩展
 import { ProductList } from './pages/ProductList';
 import { UserList } from './pages/UserList';
 import { MessageMonitor } from './pages/MessageMonitor';
@@ -13,6 +11,7 @@ import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
 import { AdminManagement } from './pages/AdminManagement';
 import { RolePermissions } from './pages/RolePermissions';
+import { ProductReview } from './pages/ProductReview';
 
 export const AdminApp: React.FC = () => {
     return (
@@ -30,6 +29,7 @@ export const AdminApp: React.FC = () => {
                     <Route path="settings" element={<Settings />} />
                     <Route path="admins" element={<AdminManagement />} />
                     <Route path="roles" element={<RolePermissions />} />
+                    <Route path="reviews" element={<ProductReview />} />
                 </Route>
             </Routes>
         </>
