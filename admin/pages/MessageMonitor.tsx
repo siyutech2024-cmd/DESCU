@@ -100,7 +100,7 @@ export const MessageMonitor: React.FC = () => {
                     conversation_id: selectedConv,
                     sender_id: 'system',
                     sender_email: 'system@descu.ai',
-                    content: `【系统消息】${adminMessage}`,
+                    text: `【系统消息】${adminMessage}`,
                 }),
             });
 
