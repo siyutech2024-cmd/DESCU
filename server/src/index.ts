@@ -187,6 +187,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     });
 });
 
+// ZERO DEPENDENCY TEST ROUTE
+app.get('/api/test_ping', (req, res) => {
+    console.log('Test Ping received');
+    res.json({ pong: true, time: new Date().toISOString() });
+});
+
 // Only start the server if running directly (Local Dev)
 // On Vercel, we export 'app' and it's handled by api/index.ts
 if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
