@@ -353,24 +353,55 @@ export const getUserOrders = async (req: Request, res: Response) => {
 
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
+        // 1. Fetch Orders (Raw) - Only join products (public schema)
         let query = supabase
             .from('orders')
-            .select('*, products(*), buyer:buyer_id(email), seller:seller_id(email)');
+            .select('*, products(*)'); // Removed buyer:buyer_id...
 
         if (role === 'seller') {
             query = query.eq('seller_id', userId);
         } else if (role === 'buyer') {
             query = query.eq('buyer_id', userId);
         } else {
-            // Fetch both (OR condition not straightforward in basic supabase-js chain without .or(), using specific logic)
-            // Simpler: use .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+            // Fetch both
             query = query.or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
         }
 
         const { data: orders, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
-        res.json({ orders });
+
+        if (!orders || orders.length === 0) {
+            return res.json({ orders: [] });
+        }
+
+        // 2. Manual Data Joining for User Emails
+        const userIds = new Set<string>();
+        orders.forEach(o => {
+            if (o.buyer_id) userIds.add(o.buyer_id);
+            if (o.seller_id) userIds.add(o.seller_id);
+        });
+
+        const userMap = new Map<string, string>();
+        const uniqueIds = Array.from(userIds);
+
+        // Fetch emails in parallel
+        const userPromises = uniqueIds.map(async (uid) => {
+            const { data: { user } } = await supabase.auth.admin.getUserById(uid);
+            return { id: uid, email: user?.email || 'Unknown' };
+        });
+
+        const users = await Promise.all(userPromises);
+        users.forEach(u => userMap.set(u.id, u.email));
+
+        // 3. Enrich Orders
+        const enrichedOrders = orders.map(o => ({
+            ...o,
+            buyer: { email: userMap.get(o.buyer_id) || 'Unknown' },
+            seller: { email: userMap.get(o.seller_id) || 'Unknown' }
+        }));
+
+        res.json({ orders: enrichedOrders });
 
     } catch (error: any) {
         console.error('Error fetching orders:', error);
