@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../server/src/db/supabase'; // Using supabase client for auth session check only if needed, but we use API
+import { supabase } from '../services/supabase';
 // import { useAuth } from '../contexts/AuthContext'; // Removed unused context
 import { Package, Truck, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { DisputeModal } from './DisputeModal';

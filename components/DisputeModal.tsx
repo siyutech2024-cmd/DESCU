@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { supabase } from '../server/src/db/supabase'; // Using supabase for auth session if needed or just api call
+import { supabase } from '../services/supabase';
 import { AlertTriangle, X, Upload } from 'lucide-react';
 import { API_BASE_URL } from '../services/apiConfig';
-import { supabase as supabaseClient } from '../services/supabase';
 
 interface DisputeModalProps {
     isOpen: boolean;

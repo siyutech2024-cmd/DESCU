@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../server/src/db/supabase'; // Or generic fetch
+import { supabase } from '../../services/supabase';
 import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 const DisputeList = () => {
