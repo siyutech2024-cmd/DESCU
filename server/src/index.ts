@@ -112,7 +112,7 @@ app.post('/api/payment/bank-info', requireAuth, updateSellerBankInfo); // NEW Ro
 app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink); // userId param checked in controller against req.user
 app.post('/api/orders/ship', requireAuth, markOrderAsShipped);
 app.post('/api/orders/confirm', requireAuth, confirmOrder);
-app.get('/api/orders/health', getUserOrders); // Temporary hack: Oops, I meant to use ordersHealthCheck. 
+app.get('/api/orders/health', ordersHealthCheck);
 // Wait, I need to import it first. 
 // Let's rely on the next step to fix the import.
 // Actually, I can add the route and update the import in one go if I edit the import block first?
