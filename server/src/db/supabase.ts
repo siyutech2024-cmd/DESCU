@@ -17,4 +17,9 @@ if (!supabaseUrl || !supabaseKey) {
     }
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+// Use safe placeholders to prevent startup crash if env vars are missing
+// This allows the server to start and return 500 JSON errors instead of crashing hard
+const safeUrl = supabaseUrl || 'https://placeholder.supabase.co';
+const safeKey = supabaseKey || 'placeholder-key';
+
+export const supabase = createClient(safeUrl, safeKey);
