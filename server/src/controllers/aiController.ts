@@ -43,7 +43,7 @@ export const analyzeImage = async (req: Request, res: Response) => {
 
         try {
             const response = await ai.models.generateContent({
-                model: "gemini-2.0-flash-exp", // User requested experimental model
+                model: "gemini-1.5-flash", // Switch to stable, fast model for Vercel
                 contents: {
                     parts: [
                         {
@@ -70,15 +70,19 @@ export const analyzeImage = async (req: Request, res: Response) => {
                 },
             });
 
-            // Fix: response.text is a getter in the new GoogleGenAI SDK, not a function
-            let text = response.text;
+            // Verify response structure for @google/genai SDK
+            // TypeScript says response.text is a String (getter), so use it directly.
+            const text = response.text;
 
-            if (!text) throw new Error("No response from Gemini");
+            if (!text) {
+                console.error("Gemini Empty Response:", JSON.stringify(response, null, 2));
+                throw new Error("No text returned from Gemini");
+            }
 
             // Clean markdown code blocks if present (e.g. ```json ... ```)
-            text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+            const cleanText = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 
-            const data = JSON.parse(text);
+            const data = JSON.parse(cleanText);
             res.json(data);
 
         } catch (error: any) {
