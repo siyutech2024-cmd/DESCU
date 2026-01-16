@@ -1,6 +1,11 @@
 import { Response } from 'express';
 import { AdminRequest } from '../middleware/adminAuth';
 import { supabase } from '../db/supabase';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+    apiVersion: '2024-12-18.acacia' as any,
+});
 
 /**
  * 记录管理员操作日志
@@ -435,5 +440,153 @@ export const batchUpdateSettings = async (req: AdminRequest, res: Response) => {
     } catch (error) {
         console.error('批量更新设置失败:', error);
         res.status(500).json({ error: '批量更新设置失败' });
+    }
+};
+
+/**
+ * 获取订单列表 (Transactions)
+ */
+export const getAdminOrders = async (req: AdminRequest, res: Response) => {
+    try {
+        const { page = 1, limit = 20, status } = req.query;
+        const offset = (Number(page) - 1) * Number(limit);
+
+        let query = supabase
+            .from('orders')
+            .select('*, products(title, images), buyer:buyer_id(email), seller:seller_id(email)', { count: 'exact' });
+
+        if (status) {
+            query = query.eq('status', status);
+        }
+
+        const { data, error, count } = await query
+            .order('created_at', { ascending: false })
+            .range(offset, offset + Number(limit) - 1);
+
+        if (error) throw error;
+
+        res.json({
+            orders: data,
+            total: count || 0,
+            page: Number(page),
+            totalPages: Math.ceil((count || 0) / Number(limit))
+        });
+    } catch (error) {
+        console.error('获取订单列表失败:', error);
+        res.status(500).json({ error: '获取订单列表失败' });
+    }
+};
+
+/**
+ * 获取纠纷列表 (Disputes)
+ */
+export const getAdminDisputes = async (req: AdminRequest, res: Response) => {
+    try {
+        const { page = 1, limit = 20, status = 'open' } = req.query;
+        const offset = (Number(page) - 1) * Number(limit);
+
+        let query = supabase
+            .from('disputes')
+            .select('*, order:order_id(*)', { count: 'exact' });
+
+        if (status) {
+            query = query.eq('status', status);
+        }
+
+        const { data, error, count } = await query
+            .order('created_at', { ascending: false })
+            .range(offset, offset + Number(limit) - 1);
+
+        if (error) throw error;
+
+        res.json({
+            disputes: data,
+            total: count || 0
+        });
+    } catch (error) {
+        console.error('获取纠纷列表失败:', error);
+        res.status(500).json({ error: '获取纠纷列表失败' });
+    }
+};
+
+/**
+ * 裁决纠纷 (Resolve Dispute)
+ * action: 'refund' (退款给买家) | 'release' (放款给卖家)
+ */
+export const resolveDispute = async (req: AdminRequest, res: Response) => {
+    try {
+        const { disputeId, action, adminNote } = req.body;
+
+        // 1. Fetch Dispute & Order
+        const { data: dispute } = await supabase
+            .from('disputes')
+            .select('*, order:order_id(*)')
+            .eq('id', disputeId)
+            .single();
+
+        if (!dispute || !dispute.order) {
+            return res.status(404).json({ error: 'Dispute or Order not found' });
+        }
+
+        const order = dispute.order;
+        const paymentIntentId = order.payment_intent_id;
+
+        if (action === 'refund') {
+            // A. Refund to Buyer
+            // Assume full refund for simplicity
+            await stripe.refunds.create({
+                payment_intent: paymentIntentId,
+            });
+
+            // Update DB
+            await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
+            await supabase.from('disputes').update({ status: 'resolved_refund', description: adminNote }).eq('id', disputeId);
+
+        } else if (action === 'release') {
+            // B. Release to Seller
+            // Similar logic to confirmOrder in paymentController
+
+            // Fetch seller connect ID
+            const { data: seller } = await supabase
+                .from('sellers')
+                .select('stripe_connect_id')
+                .eq('user_id', order.seller_id)
+                .single();
+
+            if (seller?.stripe_connect_id) {
+                const amount = Math.round(order.amount * 100);
+                const platformFee = Math.round(amount * 0.05);
+                const transferAmount = amount - platformFee;
+
+                await stripe.transfers.create({
+                    amount: transferAmount,
+                    currency: order.currency.toLowerCase(),
+                    destination: seller.stripe_connect_id,
+                    metadata: { orderId: order.id, disputeId }
+                });
+            }
+
+            // Update DB
+            await supabase.from('orders').update({ status: 'completed' }).eq('id', order.id);
+            await supabase.from('disputes').update({ status: 'resolved_release', description: adminNote }).eq('id', disputeId);
+
+        } else {
+            return res.status(400).json({ error: 'Invalid action' });
+        }
+
+        // Log Action
+        if (req.admin) {
+            await logAdminAction(
+                req.admin.id, req.admin.email,
+                'resolve_dispute', 'dispute', disputeId,
+                { action, adminNote }
+            );
+        }
+
+        res.json({ success: true, action });
+
+    } catch (error: any) {
+        console.error('裁决失败:', error);
+        res.status(500).json({ error: error.message });
     }
 };

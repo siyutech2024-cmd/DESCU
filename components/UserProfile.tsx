@@ -1,8 +1,5 @@
-
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink } from 'lucide-react';
-import { User, Product } from '../types';
-import { useLanguage } from '../contexts/LanguageContext';
+import OrderList from './OrderList';
 import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -235,46 +232,69 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           </div>
         </div>
 
-        {/* User Listings */}
-        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 px-1">
-          <Grid size={18} />
-          {t('profile.listings')}
-        </h2>
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-6">
+          <button
+            onClick={() => setActiveTab('listings')}
+            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'listings' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            {t('profile.listings')}
+          </button>
+          <button
+            onClick={() => setActiveTab('buying')}
+            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'buying' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            My Orders
+          </button>
+          <button
+            onClick={() => setActiveTab('selling')}
+            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'selling' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Sales
+          </button>
+        </div>
 
-        {userProducts.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4">
-            {userProducts.map(product => (
-              <div
-                key={product.id}
-                className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all relative ${product.isPromoted ? 'border-yellow-400' : 'border-gray-100'}`}
-              >
-                <div onClick={() => onProductClick(product)} className="aspect-square bg-gray-100 cursor-pointer">
-                  <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
-                </div>
-                <div className="p-3">
-                  <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="font-bold text-red-500">¥{product.price}</p>
-                    {!product.isPromoted && onBoostProduct && (
-                      <button
-                        onClick={() => onBoostProduct(product.id)}
-                        className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition-colors flex items-center gap-1"
-                      >
-                        <Zap size={10} />
-                        {t('profile.boost')}
-                      </button>
-                    )}
+        {/* Content Area */}
+        {activeTab === 'listings' && (
+          userProducts.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4">
+              {userProducts.map(product => (
+                <div
+                  key={product.id}
+                  className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all relative ${product.isPromoted ? 'border-yellow-400' : 'border-gray-100'}`}
+                >
+                  <div onClick={() => onProductClick(product)} className="aspect-square bg-gray-100 cursor-pointer">
+                    <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="font-bold text-red-500">¥{product.price}</p>
+                      {!product.isPromoted && onBoostProduct && (
+                        <button
+                          onClick={() => onBoostProduct(product.id)}
+                          className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition-colors flex items-center gap-1"
+                        >
+                          <Zap size={10} />
+                          {t('profile.boost')}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400">
-            <ShoppingBag size={48} className="mx-auto mb-3 opacity-20" />
-            <p>{t('profile.no_listings')}</p>
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400">
+              <ShoppingBag size={48} className="mx-auto mb-3 opacity-20" />
+              <p>{t('profile.no_listings')}</p>
+            </div>
+          )
         )}
+
+        {/* New Order Lists */}
+        {activeTab === 'buying' && <div className="min-h-[200px]"><OrderList role="buyer" /></div>}
+        {activeTab === 'selling' && <div className="min-h-[200px]"><OrderList role="seller" /></div>}
 
       </div>
     </div>

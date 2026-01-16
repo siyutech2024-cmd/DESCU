@@ -11,7 +11,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Shield,
-    CheckCircle
+    CheckCircle,
+    ShoppingBag
 } from 'lucide-react';
 
 import { adminApi } from '../services/adminApi';
@@ -92,6 +93,23 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     color: 'text-yellow-600',
                     badge: pendingReviewsCount > 0 ? String(pendingReviewsCount) : undefined
                 },
+            ]
+        },
+        {
+            section: '交易管理',
+            items: [
+                {
+                    path: 'orders',
+                    icon: ShoppingBag,
+                    label: '全部订单',
+                    color: 'text-blue-600'
+                },
+                {
+                    path: 'disputes',
+                    icon: Shield,
+                    label: '交易纠纷',
+                    color: 'text-red-600'
+                }
             ]
         },
         {

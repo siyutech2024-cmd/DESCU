@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { supabase } from '../db/supabase';
+import { AuthenticatedRequest } from '../middleware/userAuth'; // Import interface
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
     apiVersion: '2024-12-18.acacia' as any,
@@ -10,11 +11,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 
 export const createConnectAccount = async (req: Request, res: Response) => {
     try {
-        const { userId, email } = req.body;
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id; // Use authenticated ID
+        const email = authReq.user?.email || req.body.email; // Fallback to body email if auth email missing, but ID must be auth
 
-        if (!userId || !email) {
-            return res.status(400).json({ error: 'Missing userId or email' });
-        }
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         // 1. Check if seller record exists
         let { data: seller, error: fetchError } = await supabase
@@ -68,7 +69,14 @@ export const createConnectAccount = async (req: Request, res: Response) => {
 
 export const getLoginLink = async (req: Request, res: Response) => {
     try {
-        const { userId } = req.params;
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
+        const paramId = req.params.userId;
+
+        // Security check: only allow own dashboard link
+        if (!userId || userId !== paramId) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
 
         // Fetch seller
         const { data: seller } = await supabase
@@ -94,10 +102,12 @@ export const getLoginLink = async (req: Request, res: Response) => {
 
 export const createPaymentIntent = async (req: Request, res: Response) => {
     try {
-        const { productId, buyerId } = req.body;
+        const authReq = req as AuthenticatedRequest;
+        const buyerId = authReq.user?.id; // TRUSTED ID
+        const { productId } = req.body;
 
         if (!productId || !buyerId) {
-            return res.status(400).json({ error: 'Missing productId or buyerId' });
+            return res.status(400).json({ error: 'Missing productId or not authenticated' });
         }
 
         // 1. Fetch Product Details
@@ -115,7 +125,12 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Product already sold' });
         }
 
-        // 2. Fetch Seller Connect ID (Check existence, but do NOT transfer yet)
+        // Prevent buying own product
+        if (product.seller_id === buyerId) {
+            return res.status(400).json({ error: 'Cannot buy your own product' });
+        }
+
+        // 2. Fetch Seller Connect ID
         const { data: seller } = await supabase
             .from('sellers')
             .select('stripe_connect_id, onboarding_complete')
@@ -126,7 +141,6 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
         const amount = Math.round(product.price * 100);
 
         // 4. Create Payment Intent (FUNDS HELD ON PLATFORM)
-        // We do NOT add transfer_data here. We hold the funds.
         const paymentParams: Stripe.PaymentIntentCreateParams = {
             amount,
             currency: product.currency || 'mxn',
@@ -135,7 +149,7 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
                 productId,
                 buyerId,
                 sellerId: product.seller_id,
-                sellerConnectId: seller?.stripe_connect_id || '', // Store for later
+                sellerConnectId: seller?.stripe_connect_id || '',
             },
         };
 
@@ -152,6 +166,8 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
                 currency: product.currency || 'MXN',
                 status: 'pending_payment',
                 payment_intent_id: paymentIntent.id,
+                shipping_carrier: null, // Init
+                tracking_number: null
             })
             .select()
             .single();
@@ -175,9 +191,21 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
 // Mark as Shipped
 export const markOrderAsShipped = async (req: Request, res: Response) => {
     try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
         const { orderId, carrier, trackingNumber } = req.body;
 
-        // In real app: verify requester is the seller via req.user
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // 1. Verify Ownership (Must be SELLER)
+        const { data: order } = await supabase
+            .from('orders')
+            .select('seller_id')
+            .eq('id', orderId)
+            .single();
+
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+        if (order.seller_id !== userId) return res.status(403).json({ error: 'Only seller can mark shipped' });
 
         const { error } = await supabase
             .from('orders')
@@ -199,10 +227,13 @@ export const markOrderAsShipped = async (req: Request, res: Response) => {
 // Confirm Receipt & Release Funds
 export const confirmOrder = async (req: Request, res: Response) => {
     try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
         const { orderId } = req.body;
 
-        // 1. Get Order
-        // Join sellers to get connect ID
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // 1. Get Order & Verify Ownership (Must be BUYER)
         const { data: order, error: orderError } = await supabase
             .from('orders')
             .select('*')
@@ -210,6 +241,7 @@ export const confirmOrder = async (req: Request, res: Response) => {
             .single();
 
         if (!order) return res.status(404).json({ error: 'Order not found' });
+        if (order.buyer_id !== userId) return res.status(403).json({ error: 'Only buyer can confirm receipt' });
 
         if (order.status === 'completed') {
             return res.status(400).json({ error: 'Order already completed' });
@@ -238,7 +270,6 @@ export const confirmOrder = async (req: Request, res: Response) => {
             } catch (err) {
                 console.error("Stripe Transfer failed:", err);
                 // We might proceed to update state but log error, or fail here.
-                // For safety, let's allow failing but manual retry.
                 throw err;
             }
         }
@@ -257,6 +288,92 @@ export const confirmOrder = async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error("Payout failed:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Create Dispute
+export const createDispute = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
+        const { orderId, reason, description } = req.body;
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // 1. Verify Ownership & Eligibility
+        const { data: order } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single();
+
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        // Only buyer (or seller?) usually buyer.
+        if (order.buyer_id !== userId && order.seller_id !== userId) {
+            return res.status(403).json({ error: 'Not authorized for this order' });
+        }
+
+        // 2. Create Dispute
+        const { data: dispute, error: disputeError } = await supabase
+            .from('disputes')
+            .insert({
+                order_id: orderId,
+                status: 'open',
+                reason,
+                description, // Assuming table has description or metadata
+                created_by: userId
+            })
+            .select()
+            .single();
+
+        if (disputeError) throw disputeError;
+
+        // 3. Update Order Status
+        await supabase
+            .from('orders')
+            .update({ status: 'disputed' })
+            .eq('id', orderId);
+
+        res.json({ success: true, disputeId: dispute.id });
+
+    } catch (error: any) {
+        console.error('Error creating dispute:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Get User Orders (Buyer or Seller)
+export const getUserOrders = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
+        const { role } = req.query; // 'buyer' | 'seller' | undefined (all)
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        let query = supabase
+            .from('orders')
+            .select('*, products(*), buyer:buyer_id(email), seller:seller_id(email)');
+
+        if (role === 'seller') {
+            query = query.eq('seller_id', userId);
+        } else if (role === 'buyer') {
+            query = query.eq('buyer_id', userId);
+        } else {
+            // Fetch both (OR condition not straightforward in basic supabase-js chain without .or(), using specific logic)
+            // Simpler: use .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+            query = query.or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
+        }
+
+        const { data: orders, error } = await query.order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ orders });
+
+    } catch (error: any) {
+        console.error('Error fetching orders:', error);
         res.status(500).json({ error: error.message });
     }
 };

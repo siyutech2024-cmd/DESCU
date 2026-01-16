@@ -6,27 +6,29 @@ import { createClient } from '@supabase/supabase-js';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
+// Middleware for CORS
 app.use(cors({
     origin: [
-        // 本地开发
         'http://localhost:5173',
         'http://localhost:5174',
         'http://localhost:3000',
-        // 生产环境
         'https://descu.ai',
         'https://www.descu.ai',
-        // Vercel预览部署
-        /https:\/\/.*\.vercel\.app$/,
-        // 或者允许所有域名（仅用于测试）
-        // '*'
+        /https:\/\/.*\.vercel\.app$/
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '10mb' })); // Increase limit for image uploads
+
+// SPECIAL HANDLING: Stripe Webhook requires RAW body.
+// This MUST come before express.json() for global routes.
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+
+// Standard JSON parsing for everything else
+app.use(express.json({ limit: '10mb' }));
 
 import { supabase } from './db/supabase';
 
@@ -41,8 +43,11 @@ import {
     markMessagesAsRead
 } from './controllers/chatController';
 
-// Admin imports
+// Middleware Imports
 import { requireAdmin } from './middleware/adminAuth';
+import { requireAuth } from './middleware/userAuth'; // New User Auth
+
+// Admin Controller Imports...
 import {
     getDashboardStats,
     getAdminInfo,
@@ -50,7 +55,10 @@ import {
     getReportsData,
     getSystemSettings,
     updateSystemSettings,
-    batchUpdateSettings
+    batchUpdateSettings,
+    getAdminOrders,
+    getAdminDisputes,
+    resolveDispute
 } from './controllers/adminController';
 import {
     getAdminProducts,
@@ -86,27 +94,33 @@ app.post('/api/conversations', createConversation);
 app.get('/api/conversations/:userId', getUserConversations);
 app.post('/api/messages', sendMessage);
 app.get('/api/messages/:conversationId', getMessages);
-app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
 
 // Payment Endpoints
-import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder } from './controllers/paymentController';
-app.post('/api/payment/create-intent', createPaymentIntent);
-app.post('/api/payment/connect', createConnectAccount);
-app.get('/api/payment/dashboard/:userId', getLoginLink);
-// Order Actions
-app.post('/api/orders/ship', markOrderAsShipped);
-app.post('/api/orders/confirm', confirmOrder);
-// Webhook needs raw body for signature verification if using constructEvent, 
-// using express.raw() middleware specifically for this route is best practice or handle in controller with JSON for logic.
-// For now, assuming standard JSON handling or adding middleware if strictly needed later.
+import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute } from './controllers/paymentController';
+
+// Webhook (No Auth required, uses Signature)
 app.post('/api/payment/webhook', handleStripeWebhook);
+
+// Protected Payment & Order Routes (REQUIRE AUTH)
+app.post('/api/payment/create-intent', requireAuth, createPaymentIntent);
+app.post('/api/payment/connect', requireAuth, createConnectAccount);
+app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink); // userId param checked in controller against req.user
+app.post('/api/orders/ship', requireAuth, markOrderAsShipped);
+app.post('/api/orders/confirm', requireAuth, confirmOrder);
+app.get('/api/orders', requireAuth, getUserOrders);
+app.post('/api/disputes', requireAuth, createDispute);
 
 // Admin Endpoints - All require admin authentication
 // Dashboard
 app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);
 app.get('/api/admin/auth/me', requireAdmin, getAdminInfo);
 app.get('/api/admin/logs', requireAdmin, getAdminLogs);
+
+// Admin Transaction & Dispute Routes
+app.get('/api/admin/orders', requireAdmin, getAdminOrders);
+app.get('/api/admin/disputes', requireAdmin, getAdminDisputes);
+app.post('/api/admin/disputes/resolve', requireAdmin, resolveDispute);
 
 // Product Management
 app.get('/api/admin/products', requireAdmin, getAdminProducts);
@@ -144,8 +158,8 @@ app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');
 });
 
-app.listen(Number(port), () => {
+app.listen(Number(PORT), () => {
     console.log(`Server starting...`);
     console.log(`env.PORT currently is: ${process.env.PORT}`);
-    console.log(`Server explicitly listening on port ${port}`);
+    console.log(`Server explicitly listening on port ${PORT}`);
 });

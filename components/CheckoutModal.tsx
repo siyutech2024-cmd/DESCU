@@ -10,9 +10,10 @@ import { X, Lock, CreditCard } from 'lucide-react';
 import { Product, User } from '../types';
 import { API_BASE_URL } from '../services/apiConfig';
 import { GlassToast } from './GlassToast';
+import { supabase } from '../services/supabase';
 
-// Replace with your publishable key
-const stripePromise = loadStripe('pk_test_placeholder_key_replace_me');
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder';
+const stripePromise = loadStripe(STRIPE_KEY);
 
 interface CheckoutFormProps {
     product: Product;
@@ -120,24 +121,36 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
             setIsLoading(true);
             setInitError(null);
 
-            fetch(`${API_BASE_URL}/api/payment/create-intent`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ productId: product.id, buyerId: user.id }),
-            })
-                .then(async (res) => {
-                    if (!res.ok) throw new Error(await res.text());
-                    return res.json();
-                })
-                .then((data) => {
+            const initPayment = async () => {
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) throw new Error('Authentication required');
+
+                    const res = await fetch(`${API_BASE_URL}/api/payment/create-intent`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`
+                        },
+                        body: JSON.stringify({ productId: product.id, buyerId: user.id }),
+                    });
+
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        throw new Error(errText);
+                    }
+
+                    const data = await res.json();
                     setClientSecret(data.clientSecret);
-                    setIsLoading(false);
-                })
-                .catch((err) => {
+                } catch (err: any) {
                     console.error("Payment init error", err);
-                    setInitError("Failed to initialize payment. Please try again.");
+                    setInitError(err.message || "Failed to initialize payment.");
+                } finally {
                     setIsLoading(false);
-                });
+                }
+            };
+
+            initPayment();
         }
     }, [isOpen, product, user]);
 

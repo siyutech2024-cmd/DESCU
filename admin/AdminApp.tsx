@@ -12,6 +12,7 @@ import { Settings } from './pages/Settings';
 import { AdminManagement } from './pages/AdminManagement';
 import { RolePermissions } from './pages/RolePermissions';
 import { ProductReview } from './pages/ProductReview';
+import DisputeList from './pages/DisputeList';
 
 export const AdminApp: React.FC = () => {
     return (
@@ -30,6 +31,7 @@ export const AdminApp: React.FC = () => {
                     <Route path="admins" element={<AdminManagement />} />
                     <Route path="roles" element={<RolePermissions />} />
                     <Route path="reviews" element={<ProductReview />} />
+                    <Route path="disputes" element={<DisputeList />} />
                 </Route>
             </Routes>
         </>

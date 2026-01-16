@@ -147,6 +147,25 @@ export const adminApi = {
         });
     },
 
+    // ==================== 交易管理 ====================
+
+    getOrders: async (params?: any) => {
+        const queryString = new URLSearchParams(cleanParams(params || {})).toString();
+        return apiRequest(`/api/admin/orders?${queryString}`);
+    },
+
+    getDisputes: async (params?: any) => {
+        const queryString = new URLSearchParams(cleanParams(params || {})).toString();
+        return apiRequest(`/api/admin/disputes?${queryString}`);
+    },
+
+    resolveDispute: async (data: any) => {
+        return apiRequest(`/api/admin/disputes/resolve`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    },
+
     // ==================== 用户管理 ====================
 
     getUsers: async (params?: {
