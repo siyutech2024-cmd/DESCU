@@ -28,14 +28,14 @@ app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 // Standard JSON parsing for everything else
 app.use(express.json({ limit: '10mb' }));
 
-import { supabase } from './db/supabase';
+// import { supabase } from './db/supabase';
 
 // Routes
-import { analyzeImage } from './controllers/aiController';
-import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
+// import { analyzeImage } from './controllers/aiController';
+// import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
 // import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController';
 
-import { requireAuth } from './middleware/userAuth'; // Keep for products
+// import { requireAuth } from './middleware/userAuth'; // Keep for products
 // import { requireAdmin } from './middleware/adminAuth';
 
 /* TEMPORARILY DISABLED FOR DEBUGGING - SAFETY MODE */
@@ -90,11 +90,11 @@ import {
 */
 
 // API Endpoints
-app.post('/api/analyze', analyzeImage);
-app.get('/api/products/health', productsHealthCheck);
-app.post('/api/products', requireAuth, createProduct);
-app.get('/api/products', getProducts);
-app.get('/api/products/:id', getProductById);
+// app.post('/api/analyze', analyzeImage);
+// app.get('/api/products/health', productsHealthCheck);
+// app.post('/api/products', requireAuth, createProduct);
+// app.get('/api/products', getProducts);
+// app.get('/api/products/:id', getProductById);
 
 
 /*
@@ -166,12 +166,12 @@ app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 */
 
 // SEO
-import { generateSitemap } from './controllers/seoController';
-app.get('/sitemap.xml', generateSitemap);
+// import { generateSitemap } from './controllers/seoController';
+// app.get('/sitemap.xml', generateSitemap);
 
 // Location Proxy
-import { reverseGeocodeProxy } from './controllers/locationController';
-app.get('/api/location/reverse', reverseGeocodeProxy);
+// import { reverseGeocodeProxy } from './controllers/locationController';
+// app.get('/api/location/reverse', reverseGeocodeProxy);
 
 app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');
