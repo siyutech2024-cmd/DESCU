@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 
+// Imports from Server Logic
+import { analyzeImage } from '../server/src/controllers/aiController';
+import { createProduct, getProducts, getProductById, productsHealthCheck } from '../server/src/controllers/productController';
+import { requireAuth } from '../server/src/middleware/userAuth';
+
 const app = express();
 
 // Middleware
@@ -18,7 +23,14 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Feature Routes
+app.post('/api/analyze', analyzeImage);
+app.get('/api/products/health', productsHealthCheck);
+app.post('/api/products', requireAuth, createProduct);
+app.get('/api/products', getProducts);
+app.get('/api/products/:id', getProductById);
 
 // Test Route
 app.get('/api/test_ping', (req, res) => {
