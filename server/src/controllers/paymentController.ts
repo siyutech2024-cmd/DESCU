@@ -174,7 +174,7 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
 
         if (orderError) {
             console.error('Error creating order:', orderError);
-            return res.status(500).json({ error: 'Failed to create order record' });
+            return res.status(500).json({ error: `Failed to create order record: ${orderError.message}`, details: orderError });
         }
 
         res.json({
