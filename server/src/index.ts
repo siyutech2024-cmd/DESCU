@@ -35,13 +35,9 @@ import { supabase } from './db/supabase';
 // Routes
 import { analyzeImage } from './controllers/aiController';
 import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
-// ...
-// API Endpoints
-app.post('/api/analyze', analyzeImage);
-app.get('/api/products/health', productsHealthCheck); // Check Env Vars
-app.post('/api/products', requireAuth, createProduct);
-app.get('/api/products', getProducts);
-getUserConversations,
+import {
+    createConversation,
+    getUserConversations,
     sendMessage,
     getMessages,
     markMessagesAsRead
