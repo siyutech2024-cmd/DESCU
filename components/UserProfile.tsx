@@ -51,6 +51,41 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 
   const [isPayoutLoading, setIsPayoutLoading] = useState(false);
 
+  const [bankDetails, setBankDetails] = useState({ bankName: '', accountNumber: '', holderName: '' });
+  const [isSavingBank, setIsSavingBank] = useState(false);
+
+  const handleSaveBankDetails = async () => {
+    setIsSavingBank(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/payment/bank-info`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bankDetails),
+      });
+
+      if (response.ok) {
+        alert("Bank details saved successfully! You can now receive payouts manually.");
+        // Optionally update local user state if needed
+      } else {
+        const err = await response.json();
+        alert("Failed to save: " + (err.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error("Error saving bank details", error);
+      alert("Error saving details");
+    } finally {
+      setIsSavingBank(false);
+    }
+  };
+
   const handleSetupPayouts = async () => {
     setIsPayoutLoading(true);
     try {

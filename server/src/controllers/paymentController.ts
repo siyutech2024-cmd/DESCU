@@ -98,7 +98,33 @@ export const getLoginLink = async (req: Request, res: Response) => {
     }
 };
 
-// --- PAYMENTS & ORDERS (ESCROW) ---
+// Update Seller Bank Info (Manual Payout)
+export const updateSellerBankInfo = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
+        const { bankName, accountNumber, holderName } = req.body;
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { error } = await supabase
+            .from('sellers')
+            .upsert({
+                user_id: userId,
+                bank_name: bankName,
+                account_number: accountNumber,
+                account_holder_name: holderName,
+                onboarding_complete: true // Mark as ready since they provided bank info
+            });
+
+        if (error) throw error;
+
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Error updating bank info:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
 
 export const createPaymentIntent = async (req: Request, res: Response) => {
     try {
@@ -254,6 +280,8 @@ export const confirmOrder = async (req: Request, res: Response) => {
             .eq('user_id', order.seller_id)
             .single();
 
+        let newStatus = 'completed';
+
         if (seller && seller.stripe_connect_id) {
             const amount = Math.round(order.amount * 100);
             const platformFee = Math.round(amount * 0.05);
@@ -269,22 +297,25 @@ export const confirmOrder = async (req: Request, res: Response) => {
                 });
             } catch (err) {
                 console.error("Stripe Transfer failed:", err);
-                // We might proceed to update state but log error, or fail here.
                 throw err;
             }
+        } else {
+            // Manual Payout Mode: Funds stay in Platform Account
+            // Admin must manually pay the seller later.
+            newStatus = 'completed_pending_payout';
         }
 
         // 3. Update Order Status
         await supabase
             .from('orders')
             .update({
-                status: 'completed',
+                status: newStatus,
                 confirmed_at: new Date(),
                 updated_at: new Date()
             })
             .eq('id', orderId);
 
-        res.json({ success: true });
+        res.json({ success: true, status: newStatus });
 
     } catch (error: any) {
         console.error("Payout failed:", error);

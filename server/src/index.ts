@@ -98,7 +98,7 @@ app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
 
 // Payment Endpoints
-import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment } from './controllers/paymentController';
+import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo } from './controllers/paymentController';
 
 // Webhook (No Auth required, uses Signature)
 app.post('/api/payment/webhook', handleStripeWebhook);
@@ -106,6 +106,7 @@ app.post('/api/payment/webhook', handleStripeWebhook);
 // Protected Payment & Order Routes (REQUIRE AUTH)
 app.post('/api/payment/create-intent', requireAuth, createPaymentIntent);
 app.post('/api/payment/connect', requireAuth, createConnectAccount);
+app.post('/api/payment/bank-info', requireAuth, updateSellerBankInfo); // NEW Route
 app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink); // userId param checked in controller against req.user
 app.post('/api/orders/ship', requireAuth, markOrderAsShipped);
 app.post('/api/orders/confirm', requireAuth, confirmOrder);
