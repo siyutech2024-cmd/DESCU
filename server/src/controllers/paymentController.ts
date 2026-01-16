@@ -119,7 +119,7 @@ export const getLoginLink = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Seller account not found' });
         }
 
-        const loginLink = await stripe.accounts.createLoginLink(seller.stripe_connect_id);
+        const loginLink = await getStripe().accounts.createLoginLink(seller.stripe_connect_id);
         res.json({ url: loginLink.url });
 
     } catch (error: any) {
@@ -209,7 +209,7 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
             },
         };
 
-        const paymentIntent = await stripe.paymentIntents.create(paymentParams);
+        const paymentIntent = await getStripe().paymentIntents.create(paymentParams);
 
         // 5. Create Order Record
         const { data: order, error: orderError } = await supabase
@@ -319,7 +319,7 @@ export const confirmOrder = async (req: Request, res: Response) => {
 
             // Create Transfer
             try {
-                await stripe.transfers.create({
+                await getStripe().transfers.create({
                     amount: transferAmount,
                     currency: order.currency.toLowerCase(),
                     destination: seller.stripe_connect_id,
@@ -512,7 +512,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
         if (!order) return res.status(404).json({ error: 'Order not found' });
 
         // Check Stripe
-        const paymentIntent = await stripe.paymentIntents.retrieve(order.payment_intent_id);
+        const paymentIntent = await getStripe().paymentIntents.retrieve(order.payment_intent_id);
 
         if (paymentIntent.status === 'succeeded') {
             // Update DB
@@ -550,7 +550,7 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         if (!endpointSecret || !sig) {
             event = req.body;
         } else {
-            event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+            event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
         }
     } catch (err: any) {
         console.error(`Webhook Error: ${err.message}`);
