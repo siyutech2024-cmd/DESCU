@@ -4,6 +4,17 @@ import { supabase } from '../db/supabase';
 import { AuthenticatedRequest } from '../middleware/userAuth';
 import { getAuthClient } from '../utils/supabaseHelper';
 
+export const ordersHealthCheck = (req: Request, res: Response) => {
+    res.json({
+        status: 'ok',
+        message: 'Payment controller loaded',
+        env: {
+            hasStripe: !!process.env.STRIPE_SECRET_KEY,
+            hasSupabase: !!process.env.SUPABASE_URL
+        }
+    });
+};
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
     apiVersion: '2024-12-18.acacia' as any,
 });
