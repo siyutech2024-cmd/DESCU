@@ -78,8 +78,8 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
             supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('created_at', todayStr),
             // 3. Active Products
             supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'active'),
-            // 4. Total Users (proxy via products table for now to maintain existing behavior)
-            supabase.from('products').select('seller_id', { count: 'exact', head: true }),
+            // 4. Total Users (Detailed count via RPC)
+            supabase.rpc('get_total_users'),
             // 5. Total Messages
             supabase.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null),
             // 6. Messages Today
@@ -117,7 +117,7 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
                 totalProducts: productStats.count || 0,
                 productsToday: productsToday.count || 0,
                 activeProducts: productsActive.count || 0,
-                totalUsers: usersStats.count || 0,
+                totalUsers: usersStats.data || 0,
                 totalMessages: messageStats.count || 0,
                 messagesToday: messagesToday.count || 0,
                 totalConversations: conversationStats.count || 0

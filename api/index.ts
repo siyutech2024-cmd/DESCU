@@ -67,7 +67,6 @@ import {
     createDispute,
     verifyPayment,
     updateSellerBankInfo,
-    updateSellerBankInfo,
     ordersHealthCheck,
     getUserOrders
 } from './_lib/controllers/paymentController.js';
