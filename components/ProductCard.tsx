@@ -25,75 +25,75 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
   return (
     <div
       onClick={handleCardClick}
-      className={`glass-card rounded-2xl overflow-hidden group cursor-pointer relative flex flex-col h-full ${product.isPromoted ? 'ring-2 ring-yellow-400 shadow-yellow-200/50' : 'hover:border-white/80'}`}
+      className={`glass-card rounded-xl md:rounded-2xl overflow-hidden group cursor-pointer relative flex flex-col h-full active:scale-[0.98] transition-all duration-200 ${product.isPromoted ? 'ring-2 ring-yellow-400/50 shadow-brand-500/10' : 'border border-white/40'}`}
     >
       {/* Promoted Badge */}
       {product.isPromoted && (
-        <div className="absolute top-0 right-0 z-10 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-[10px] font-bold px-2.5 py-1 rounded-bl-xl uppercase tracking-wider shadow-md flex items-center gap-1">
-          <Zap size={10} fill="currentColor" />
+        <div className="absolute top-0 right-0 z-10 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-[9px] md:text-[10px] font-bold px-2 py-0.5 md:px-2.5 md:py-1 rounded-bl-xl uppercase tracking-wider shadow-md flex items-center gap-1">
+          <Zap size={8} fill="currentColor" className="md:w-[10px] md:h-[10px]" />
           {t('card.promoted')}
         </div>
       )}
 
-      {/* Image Container - Aspect Square (1:1) with subtle overlay */}
-      <div className="relative aspect-square w-full overflow-hidden bg-white/20">
+      {/* Image Container - Aspect Square (1:1) */}
+      <div className="relative aspect-square w-full overflow-hidden bg-gray-100">
         <img
           src={product.images[0]}
           alt={product.title}
-          className="object-cover w-full h-full transform group-hover:scale-110 transition-transform duration-700 ease-in-out"
+          loading="lazy"
+          className="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out"
         />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Location Badge - Floating Glass Pill */}
+        {/* Location Badge - Compact for Mobile */}
         {isNearby && (
-          <div className="absolute bottom-2 left-2 bg-white/70 backdrop-blur-md text-gray-800 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm border border-white/50">
-            <MapPin size={10} className="text-brand-600" />
+          <div className="absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 bg-white/80 backdrop-blur-md text-gray-800 text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full flex items-center gap-0.5 shadow-sm border border-white/50">
+            <MapPin size={8} className="text-brand-600 md:w-[10px] md:h-[10px]" />
             {product.distance}km
           </div>
         )}
       </div>
 
-      <div className="p-4 flex flex-col flex-grow relative bg-white/30 backdrop-blur-sm group-hover:bg-white/40 transition-colors">
-        {/* Title */}
-        <h4 className="text-sm font-bold text-gray-800 line-clamp-2 leading-snug mb-2 min-h-[2.5em] group-hover:text-brand-700 transition-colors">
+      {/* Content */}
+      <div className="p-2.5 md:p-4 flex flex-col flex-grow relative bg-white/40 backdrop-blur-sm group-hover:bg-white/60 transition-colors">
+        {/* Title - 2 lines max */}
+        <h4 className="text-xs md:text-sm font-bold text-gray-800 line-clamp-2 leading-tight mb-2 min-h-[2.5em] group-hover:text-brand-700 transition-colors">
           {product.title}
         </h4>
 
-        {/* Price & Category */}
         <div className="mt-auto">
-          <div className="flex items-center justify-between mb-2.5">
-            <span className={`text-xl font-black tracking-tight ${product.isPromoted ? 'text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-orange-600' : 'text-gray-900'}`}>
-              {formatPrice(product.price)}
+          {/* Price */}
+          <div className="flex items-end justify-between mb-2">
+            <span className={`text-base md:text-lg font-black tracking-tight ${product.isPromoted ? 'text-orange-600' : 'text-gray-900'}`}>
+              <span className="text-[10px] md:text-xs mr-0.5 font-bold text-gray-500">$</span>
+              {product.price.toLocaleString()}
             </span>
 
-            {/* Delivery Icons */}
-            <div className="flex gap-1.5 opacity-60">
+            {/* Delivery Icons (Hidden on very small screens if crowded, or simplified) */}
+            <div className="flex gap-1 opacity-70">
               {(product.deliveryType === DeliveryType.Shipping || product.deliveryType === DeliveryType.Both) && (
-                <div className="bg-blue-100 p-1 rounded-full"><Truck size={12} className="text-blue-600" /></div>
-              )}
-              {(product.deliveryType === DeliveryType.Meetup || product.deliveryType === DeliveryType.Both) && (
-                <div className="bg-orange-100 p-1 rounded-full"><Handshake size={12} className="text-orange-600" /></div>
+                <div className="bg-blue-100 p-0.5 md:p-1 rounded-full"><Truck size={10} className="text-blue-600 md:w-3 md:h-3" /></div>
               )}
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100/50">
-            <span className="text-[10px] font-semibold text-gray-500 bg-white/50 px-2 py-1 rounded-md border border-white/30">
+          <div className="flex items-center justify-between pt-2 border-t border-gray-200/50">
+            <span className="text-[9px] md:text-[10px] font-medium text-gray-500 bg-white/60 px-1.5 py-0.5 rounded border border-white/40 truncate max-w-[60%]">
               {t(`cat.${product.category}`)}
             </span>
 
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Critical: prevent card navigation
+                e.stopPropagation();
                 onAddToCart(product);
               }}
               disabled={isInCart}
-              className={`p-2 rounded-full transition-all duration-300 z-10 relative ${isInCart
-                  ? 'bg-gray-100 text-gray-300 shadow-inner'
-                  : 'bg-white text-brand-600 shadow-md hover:bg-brand-600 hover:text-white hover:scale-110'
+              className={`p-1.5 md:p-2 rounded-full transition-all duration-300 z-10 ${isInCart
+                ? 'bg-gray-100 text-gray-300'
+                : 'bg-white text-brand-600 shadow-sm border border-gray-100 hover:bg-brand-600 hover:text-white active:scale-90'
                 }`}
             >
-              <ShoppingBag size={16} fill={isInCart ? "currentColor" : "none"} strokeWidth={2.5} />
+              <ShoppingBag size={14} fill={isInCart ? "currentColor" : "none"} className="md:w-4 md:h-4" />
             </button>
           </div>
         </div>
