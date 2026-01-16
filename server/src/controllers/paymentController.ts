@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { supabase } from '../db/supabase';
-import { createClient } from '@supabase/supabase-js';
-import { AuthenticatedRequest } from '../middleware/userAuth'; // Import interface
+import { AuthenticatedRequest } from '../middleware/userAuth';
+import { getAuthClient } from '../utils/supabaseHelper';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
     apiVersion: '2024-12-18.acacia' as any,
@@ -388,19 +388,11 @@ export const getUserOrders = async (req: Request, res: Response) => {
         if (!userId || !authHeader) return res.status(401).json({ error: 'Unauthorized' });
 
         // Use Authenticated Client to pass RLS
-        const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-        const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+        // ... (imports)
 
-        if (!sbUrl || !sbKey) {
-            console.error("Missing Supabase Env Vars in paymentController", { sbUrl: !!sbUrl, sbKey: !!sbKey });
-            return res.status(500).json({ error: "Server Configuration Error: Missing API Keys" });
-        }
-
-        const client = Number(process.env.SUPABASE_SERVICE_ROLE_KEY?.length) > 0
-            ? supabase // Use admin client if available
-            : createClient(sbUrl, sbKey, {
-                global: { headers: { Authorization: authHeader } }
-            });
+        // inside getUserOrders
+        // Use Authenticated Client
+        const client = getAuthClient(authHeader);
 
         // 1. Fetch Orders (Raw) - Only join products (public schema)
         let query = client
