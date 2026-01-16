@@ -35,8 +35,14 @@ import { supabase } from './db/supabase';
 // Routes
 import { analyzeImage } from './controllers/aiController';
 import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
+// import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController';
 
-/* TEMPORARILY DISABLED FOR DEBUGGING
+import { requireAuth } from './middleware/userAuth'; // Keep for products
+// import { requireAdmin } from './middleware/adminAuth';
+
+/* TEMPORARILY DISABLED FOR DEBUGGING - SAFETY MODE */
+/*
+// Chat Controller Imports
 import {
     createConversation,
     getUserConversations,
@@ -45,19 +51,20 @@ import {
     markMessagesAsRead
 } from './controllers/chatController';
 
-// Admin Controller Imports...
+
+// Admin Controller Imports
 import {
     getDashboardStats,
     getAdminInfo,
     getAdminLogs,
-    getReportsData,
-    getSystemSettings,
-    updateSystemSettings,
-    batchUpdateSettings,
     getAdminOrders,
     getAdminDisputes,
     resolveDispute,
-    markOrderAsPaid
+    markOrderAsPaid,
+    getReportsData,
+    getSystemSettings,
+    updateSystemSettings,
+    batchUpdateSettings
 } from './controllers/adminController';
 import {
     getAdminProducts,
@@ -83,13 +90,6 @@ import {
     flagAdminMessage
 } from './controllers/adminMessageController';
 */
-// Payment Endpoints
-import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController';
-
-
-// Middleware Imports
-import { requireAdmin } from './middleware/adminAuth';
-import { requireAuth } from './middleware/userAuth'; // Keep for products
 
 // API Endpoints
 app.post('/api/analyze', analyzeImage);
@@ -98,14 +98,14 @@ app.post('/api/products', requireAuth, createProduct);
 app.get('/api/products', getProducts);
 app.get('/api/products/:id', getProductById);
 
+
 /*
 // Chat Endpoints
 app.post('/api/conversations', createConversation);
-app.get('/api/conversations/:userId', getUserConversations);
+app.get('/api/users/:userId/conversations', getUserConversations);
+app.get('/api/conversations/:conversationId/messages', getMessages);
 app.post('/api/messages', sendMessage);
-app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
-*/
 
 // Payment Endpoints
 // Webhook (No Auth required, uses Signature)
@@ -114,22 +114,16 @@ app.post('/api/payment/webhook', handleStripeWebhook);
 // Protected Payment & Order Routes (REQUIRE AUTH)
 app.post('/api/payment/create-intent', requireAuth, createPaymentIntent);
 app.post('/api/payment/connect', requireAuth, createConnectAccount);
-app.post('/api/payment/bank-info', requireAuth, updateSellerBankInfo); // NEW Route
-app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink); // userId param checked in controller against req.user
+app.post('/api/payment/bank-info', requireAuth, updateSellerBankInfo);
+app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink);
 app.post('/api/orders/ship', requireAuth, markOrderAsShipped);
 app.post('/api/orders/confirm', requireAuth, confirmOrder);
 app.get('/api/orders/health', ordersHealthCheck);
-// Wait, I need to import it first.
-// Let's rely on the next step to fix the import.
-// Actually, I can add the route and update the import in one go if I edit the import block first?
-// No, I'll just add the route here and update import separately.
-// Wait, if I use a function that isn't imported, it will crash build.
-// I must update imports first.
 
 app.post('/api/disputes', requireAuth, createDispute);
-app.post('/api/payment/verify', requireAuth, verifyPayment); // NEW Route
+app.post('/api/payment/verify', requireAuth, verifyPayment);
 
-// Admin Endpoints - All require admin authentication
+// Admin Endpoints
 // Dashboard
 app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);
 app.get('/api/admin/auth/me', requireAdmin, getAdminInfo);
@@ -137,7 +131,7 @@ app.get('/api/admin/logs', requireAdmin, getAdminLogs);
 
 // Admin Transaction & Dispute Routes
 app.get('/api/admin/orders', requireAdmin, getAdminOrders);
-app.post('/api/admin/orders/:id/mark-paid', requireAdmin, markOrderAsPaid); // NEW
+app.post('/api/admin/orders/:id/mark-paid', requireAdmin, markOrderAsPaid);
 app.get('/api/admin/disputes', requireAdmin, getAdminDisputes);
 app.post('/api/admin/disputes/resolve', requireAdmin, resolveDispute);
 
@@ -154,7 +148,6 @@ app.post('/api/admin/products/batch', requireAdmin, batchUpdateProducts);
 // User Management
 app.get('/api/admin/users', requireAdmin, getAdminUsers);
 app.get('/api/admin/users/:id', requireAdmin, getAdminUser);
-*/
 app.patch('/api/admin/users/:id/verify', requireAdmin, updateUserVerification);
 app.delete('/api/admin/users/:id', requireAdmin, deleteAdminUser);
 
@@ -172,7 +165,7 @@ app.get('/api/admin/reports', requireAdmin, getReportsData);
 app.get('/api/admin/settings', requireAdmin, getSystemSettings);
 app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
 app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
-
+*/
 
 // SEO
 import { generateSitemap } from './controllers/seoController';
