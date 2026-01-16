@@ -50,93 +50,81 @@ export const logAdminAction = async (
 /**
  * 获取仪表板统计数据
  */
+/**
+ * 获取仪表板统计数据
+ */
 export const getDashboardStats = async (req: AdminRequest, res: Response) => {
     try {
-        // 获取商品统计
-        const { data: productStats, error: productError } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null);
+        const todayStr = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+        const weekAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-        const { data: productsTodayStats, error: productsTodayError } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null)
-            .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
+        // Use Promise.all to run queries in parallel
+        const [
+            productStats,
+            productsToday,
+            productsActive,
+            // products query for users (legacy logic, kept for stability but could be improved)
+            usersStats,
+            messageStats,
+            messagesToday,
+            conversationStats,
+            categoryStats,
+            weeklyTrend,
+            recentProducts
+        ] = await Promise.all([
+            // 1. Total Products
+            supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            // 2. Products Today
+            supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('created_at', todayStr),
+            // 3. Active Products
+            supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'active'),
+            // 4. Total Users (proxy via products table for now to maintain existing behavior)
+            supabase.from('products').select('seller_id', { count: 'exact', head: true }),
+            // 5. Total Messages
+            supabase.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            // 6. Messages Today
+            supabase.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('timestamp', todayStr),
+            // 7. Total Conversations
+            supabase.from('conversations').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            // 8. Category Stats
+            supabase.from('admin_product_stats').select('*'),
+            // 9. Weekly Trend
+            supabase.from('admin_daily_stats').select('*').gte('date', weekAgoStr).order('date', { ascending: true }),
+            // 10. Recent Products
+            supabase.from('products')
+                .select(`
+                    id,
+                    title,
+                    price,
+                    currency,
+                    category,
+                    status,
+                    seller_name,
+                    seller_email,
+                    created_at,
+                    images
+                `)
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(10)
+        ]);
 
-        const { data: productsActiveStats, error: productsActiveError } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null)
-            .eq('status', 'active');
-
-        // 获取用户统计（从 auth.users - 需要使用 service role key）
-        const { count: totalUsers, error: usersError } = await supabase
-            .from('products')
-            .select('seller_id', { count: 'exact', head: true });
-
-        // 获取消息统计
-        const { count: totalMessages, error: messagesError } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null);
-
-        const { count: messagesToday, error: messagesTodayError } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null)
-            .gte('timestamp', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
-
-        // 获取对话统计
-        const { count: totalConversations, error: conversationsError } = await supabase
-            .from('conversations')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null);
-
-        // 获取分类统计
-        const { data: categoryStats, error: categoryError } = await supabase
-            .from('admin_product_stats')
-            .select('*');
-
-        // 获取最近7天趋势
-        const { data: weeklyTrend, error: weeklyError } = await supabase
-            .from('admin_daily_stats')
-            .select('*')
-            .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-            .order('date', { ascending: true });
-
-        // 获取最新商品
-        const { data: recentProducts, error: recentError } = await supabase
-            .from('products')
-            .select(`
-        id,
-        title,
-        price,
-        currency,
-        category,
-        status,
-        seller_name,
-        seller_email,
-        created_at,
-        images
-      `)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false })
-            .limit(10);
+        // Check for critical errors (optional: we could return partial data)
+        if (productStats.error) console.error('Error fetching product stats:', productStats.error);
 
         res.json({
             stats: {
-                totalProducts: productStats?.length || 0,
-                productsToday: productsTodayStats?.length || 0,
-                activeProducts: productsActiveStats?.length || 0,
-                totalUsers: totalUsers || 0,
-                totalMessages: totalMessages || 0,
-                messagesToday: messagesToday || 0,
-                totalConversations: totalConversations || 0
+                totalProducts: productStats.count || 0,
+                productsToday: productsToday.count || 0,
+                activeProducts: productsActive.count || 0,
+                totalUsers: usersStats.count || 0,
+                totalMessages: messageStats.count || 0,
+                messagesToday: messagesToday.count || 0,
+                totalConversations: conversationStats.count || 0
             },
-            categoryStats: categoryStats || [],
-            weeklyTrend: weeklyTrend || [],
-            recentProducts: recentProducts || []
+            categoryStats: categoryStats.data || [],
+            weeklyTrend: weeklyTrend.data || [],
+            recentProducts: recentProducts.data || []
         });
     } catch (error) {
         console.error('获取仪表板统计数据失败:', error);
