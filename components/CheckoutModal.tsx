@@ -139,8 +139,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                     });
 
                     if (!res.ok) {
-                        const errText = await res.text();
-                        throw new Error(errText);
+                        try {
+                            const errData = await res.json();
+                            throw new Error(errData.error || 'Payment initialization failed');
+                        } catch (e: any) {
+                            // If JSON parse fails or error prop missing, fallback to text or default
+                            if (e.message !== 'Payment initialization failed') throw e;
+                            throw new Error('Payment initialization failed');
+                        }
                     }
 
                     const data = await res.json();
