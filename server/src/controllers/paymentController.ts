@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { supabase } from '../db/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { AuthenticatedRequest } from '../middleware/userAuth'; // Import interface
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
@@ -376,16 +377,25 @@ export const createDispute = async (req: Request, res: Response) => {
 };
 
 // Get User Orders (Buyer or Seller)
+// Get User Orders (Buyer or Seller)
 export const getUserOrders = async (req: Request, res: Response) => {
     try {
         const authReq = req as AuthenticatedRequest;
         const userId = authReq.user?.id;
+        const authHeader = req.headers.authorization;
         const { role } = req.query; // 'buyer' | 'seller' | undefined (all)
 
-        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!userId || !authHeader) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Use Authenticated Client to pass RLS
+        const client = Number(process.env.SUPABASE_SERVICE_ROLE_KEY?.length) > 0
+            ? supabase // Use admin client if available
+            : createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+                global: { headers: { Authorization: authHeader } }
+            });
 
         // 1. Fetch Orders (Raw) - Only join products (public schema)
-        let query = supabase
+        let query = client
             .from('orders')
             .select('*, products(*)'); // Removed buyer:buyer_id...
 
@@ -400,46 +410,58 @@ export const getUserOrders = async (req: Request, res: Response) => {
 
         const { data: orders, error } = await query.order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase query error:', error);
+            throw error;
+        }
 
         if (!orders || orders.length === 0) {
             return res.json({ orders: [] });
         }
 
-        // 2. Manual Data Joining for User Emails
-        const userIds = new Set<string>();
-        orders.forEach(o => {
-            if (o.buyer_id) userIds.add(o.buyer_id);
-            if (o.seller_id) userIds.add(o.seller_id);
-        });
+        // 2. Manual Data Joining for User Emails (Safe Fallback)
+        // Only attempt if we have service role access, otherwise skip email enrichment to avoid crash
+        let enrichedOrders = orders;
 
-        const userMap = new Map<string, string>();
-        const uniqueIds = Array.from(userIds);
+        if (process.env.SUPABASE_SERVICE_ROLE_KEY && supabase.auth.admin) {
+            const userIds = new Set<string>();
+            orders.forEach((o: any) => {
+                if (o.buyer_id) userIds.add(o.buyer_id);
+                if (o.seller_id) userIds.add(o.seller_id);
+            });
 
-        // Fetch emails in parallel with safer handling
-        const userPromises = uniqueIds.map(async (uid) => {
-            try {
-                const { data, error } = await supabase.auth.admin.getUserById(uid);
-                if (error || !data || !data.user) {
-                    console.warn(`Could not fetch user ${uid}:`, error);
+            const userMap = new Map<string, string>();
+            const uniqueIds = Array.from(userIds);
+
+            // Fetch emails in parallel with safer handling
+            const userPromises = uniqueIds.map(async (uid) => {
+                try {
+                    const { data, error } = await supabase.auth.admin.getUserById(uid);
+                    if (error || !data || !data.user) {
+                        return { id: uid, email: 'Unknown' };
+                    }
+                    return { id: uid, email: data.user.email || 'Unknown' };
+                } catch (e) {
                     return { id: uid, email: 'Unknown' };
                 }
-                return { id: uid, email: data.user.email || 'Unknown' };
-            } catch (e) {
-                console.error(`Exception fetching user ${uid}:`, e);
-                return { id: uid, email: 'Unknown' };
-            }
-        });
+            });
 
-        const users = await Promise.all(userPromises);
-        users.forEach(u => userMap.set(u.id, u.email));
+            const users = await Promise.all(userPromises);
+            users.forEach(u => userMap.set(u.id, u.email));
 
-        // 3. Enrich Orders
-        const enrichedOrders = orders.map(o => ({
-            ...o,
-            buyer: { email: userMap.get(o.buyer_id) || 'Unknown' },
-            seller: { email: userMap.get(o.seller_id) || 'Unknown' }
-        }));
+            enrichedOrders = orders.map((o: any) => ({
+                ...o,
+                buyer: { email: userMap.get(o.buyer_id) || 'Unknown' },
+                seller: { email: userMap.get(o.seller_id) || 'Unknown' }
+            }));
+        } else {
+            // Basic structure if admin access missing
+            enrichedOrders = orders.map((o: any) => ({
+                ...o,
+                buyer: { email: 'Unknown (Protect)' },
+                seller: { email: 'Unknown (Protect)' }
+            }));
+        }
 
         res.json({ orders: enrichedOrders });
 
