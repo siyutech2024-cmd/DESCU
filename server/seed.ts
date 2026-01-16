@@ -111,7 +111,7 @@ async function seed() {
                 description: `This is a sample description for ${template.title}. Condition is good.`,
                 price: template.price * (0.8 + Math.random() * 0.4), // +/- 20%
                 currency: 'MXN',
-                images: [`https://source.unsplash.com/random/400x400/?${template.category}`],
+                images: [`https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80`], // Generic reliable image
                 category: template.category,
                 delivery_type: Math.random() > 0.5 ? 'shipping' : 'pickup',
                 location_name: location,

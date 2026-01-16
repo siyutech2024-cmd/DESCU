@@ -174,8 +174,7 @@ const OrderList: React.FC<OrderListProps> = ({ role }) => {
                                         src={order.products.images[0]}
                                         className="w-full h-full object-cover"
                                         onError={(e) => {
-                                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/64?text=No+Img'; // Fallback to text if even reliable one fails, or better:
-                                            (e.target as HTMLImageElement).src = 'https://placehold.co/64x64?text=IMG'; // Use placehold.co which is more reliable
+                                            (e.target as HTMLImageElement).src = 'https://placehold.co/64x64?text=IMG';
                                         }}
                                     />
                                 ) : (
