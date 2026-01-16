@@ -451,22 +451,73 @@ export const getAdminOrders = async (req: AdminRequest, res: Response) => {
         const { page = 1, limit = 20, status } = req.query;
         const offset = (Number(page) - 1) * Number(limit);
 
+        // 1. Fetch Orders (Raw) - Only join products (public schema)
         let query = supabase
             .from('orders')
-            .select('*, products(title, images), buyer:buyer_id(email), seller:seller_id(email)', { count: 'exact' });
+            .select('*, products(title, images)', { count: 'exact' });
 
         if (status) {
             query = query.eq('status', status);
         }
 
-        const { data, error, count } = await query
+        const { data: orders, error, count } = await query
             .order('created_at', { ascending: false })
             .range(offset, offset + Number(limit) - 1);
 
         if (error) throw error;
 
+        if (!orders || orders.length === 0) {
+            return res.json({
+                orders: [],
+                total: count || 0,
+                page: Number(page),
+                totalPages: 0
+            });
+        }
+
+        // 2. Collect User IDs
+        const userIds = new Set<string>();
+        orders.forEach(o => {
+            if (o.buyer_id) userIds.add(o.buyer_id);
+            if (o.seller_id) userIds.add(o.seller_id);
+        });
+
+        // 3. Fetch Emails manually (Using Auth Admin API would be ideal, but requires loop or RPC)
+        // Alternatively, use a public profile table if available.
+        // Since we are admin/service_role, we can actually just query 'auth.users' strictly using RPC or just iterate.
+        // For performance, let's try to map what we can. 
+        // Note: supabase-js 'service_role' CANNOT directly select from 'auth.users' via .from('auth.users') usually.
+        // But we can use auth.admin.listUsers() but it doesn't support "WHERE id IN (...)".
+
+        // Strategy: Iterate and fetch (Parallel). For 20 items, it's fast enough.
+        // Or better: Create a map.
+
+        const userMap = new Map<string, string>();
+
+        // To avoid N+1, we can't easily batch fetch users by ID list via standard admin API today without looped 'getUserById'.
+        // However, we can use a raw SQL RPC if strictly needed.
+        // PRACTICAL APPROACH: Just loop Promise.all. It's an admin dashboard, low traffic.
+
+        const uniqueIds = Array.from(userIds);
+
+        // Note: supabase.auth.admin.getUserById is efficient enough.
+        const userPromises = uniqueIds.map(async (uid) => {
+            const { data: { user } } = await supabase.auth.admin.getUserById(uid);
+            return { id: uid, email: user?.email || 'Unknown' };
+        });
+
+        const users = await Promise.all(userPromises);
+        users.forEach(u => userMap.set(u.id, u.email));
+
+        // 4. Enrich Orders
+        const enrichedOrders = orders.map(o => ({
+            ...o,
+            buyer: { email: userMap.get(o.buyer_id) || 'Unknown' },
+            seller: { email: userMap.get(o.seller_id) || 'Unknown' }
+        }));
+
         res.json({
-            orders: data,
+            orders: enrichedOrders,
             total: count || 0,
             page: Number(page),
             totalPages: Math.ceil((count || 0) / Number(limit))
