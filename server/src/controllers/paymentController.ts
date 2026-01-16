@@ -378,6 +378,61 @@ export const getUserOrders = async (req: Request, res: Response) => {
     }
 };
 
+
+// Verify Payment Status (Manual Sync)
+export const verifyPayment = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
+        const { orderId, paymentIntentId } = req.body;
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        if (!orderId && !paymentIntentId) {
+            return res.status(400).json({ error: 'Missing orderId or paymentIntentId' });
+        }
+
+        let order;
+        // Find order
+        if (orderId) {
+            const { data: o } = await supabase.from('orders').select('*').eq('id', orderId).single();
+            order = o;
+        } else {
+            const { data: o } = await supabase.from('orders').select('*').eq('payment_intent_id', paymentIntentId).single();
+            order = o;
+        }
+
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        // Check Stripe
+        const paymentIntent = await stripe.paymentIntents.retrieve(order.payment_intent_id);
+
+        if (paymentIntent.status === 'succeeded') {
+            // Update DB
+            if (order.status !== 'paid' && order.status !== 'shipped' && order.status !== 'completed') {
+                await supabase
+                    .from('orders')
+                    .update({ status: 'paid', updated_at: new Date() })
+                    .eq('id', order.id);
+
+                // Update Product to sold
+                await supabase
+                    .from('products')
+                    .update({ status: 'sold' })
+                    .eq('id', order.product_id);
+
+                return res.json({ success: true, status: 'paid' });
+            }
+        }
+
+        res.json({ success: true, status: order.status, stripeStatus: paymentIntent.status });
+
+    } catch (error: any) {
+        console.error('Verify Payment Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const handleStripeWebhook = async (req: Request, res: Response) => {
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -426,3 +481,4 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
 
     res.send();
 };
+

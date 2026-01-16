@@ -19,7 +19,7 @@ const stripePromise = loadStripe(STRIPE_KEY);
 interface CheckoutFormProps {
     product: Product;
     clientSecret: string;
-    onSuccess: () => void;
+    onSuccess: (paymentIntent: any) => void;
     onCancel: () => void;
 }
 
@@ -38,24 +38,26 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ product, onSuccess, onCance
 
         setIsProcessing(true);
 
-        const { error } = await stripe.confirmPayment({
+        const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                // Return URL where the user is redirected after the payment
                 return_url: `${window.location.origin}/payment-success`,
             },
-            redirect: "if_required", // Prevent redirect if not 3DS
+            redirect: "if_required",
         });
 
         if (error) {
             setErrorMessage(error.message || 'Payment failed');
             setIsProcessing(false);
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            onSuccess(paymentIntent);
         } else {
-            // Payment succeeded
-            onSuccess();
+            // Fallback for weird states
+            setIsProcessing(false);
         }
     };
 
+    // ... rest of form
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             <div className="bg-gray-50 p-4 rounded-xl mb-4">
@@ -190,10 +192,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         <CheckoutForm
                             product={product}
                             clientSecret={clientSecret}
-                            onSuccess={() => {
-                                import toast from 'react-hot-toast';
-
-                                // ... (inside component)
+                            onSuccess={async (paymentIntent) => {
+                                // 1. Client-side Success Feedback first (Immediate)
                                 toast.success('Payment Successful! Order created.', {
                                     duration: 4000,
                                     position: 'top-center',
@@ -207,6 +207,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                                     },
                                     icon: '🎉',
                                 });
+
+                                // 2. Call Backend Verification
+                                try {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    if (session && paymentIntent) {
+                                        await fetch(`${API_BASE_URL}/api/payment/verify`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Authorization': `Bearer ${session.access_token}`
+                                            },
+                                            body: JSON.stringify({ paymentIntentId: paymentIntent.id })
+                                        });
+                                    }
+                                } catch (e) {
+                                    console.error("Verification trigger failed", e);
+                                }
+
                                 onClose();
                             }}
                             onCancel={onClose}

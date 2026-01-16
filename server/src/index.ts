@@ -97,7 +97,7 @@ app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
 
 // Payment Endpoints
-import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute } from './controllers/paymentController';
+import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment } from './controllers/paymentController';
 
 // Webhook (No Auth required, uses Signature)
 app.post('/api/payment/webhook', handleStripeWebhook);
@@ -110,6 +110,7 @@ app.post('/api/orders/ship', requireAuth, markOrderAsShipped);
 app.post('/api/orders/confirm', requireAuth, confirmOrder);
 app.get('/api/orders', requireAuth, getUserOrders);
 app.post('/api/disputes', requireAuth, createDispute);
+app.post('/api/payment/verify', requireAuth, verifyPayment); // NEW Route
 
 // Admin Endpoints - All require admin authentication
 // Dashboard
