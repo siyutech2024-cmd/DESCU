@@ -129,32 +129,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 </button>
 
                 <button
-                  onClick={() => onAddToCart(product)}
-                  disabled={isInCart}
-                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${isInCart
-                    ? 'bg-gray-200 text-gray-400 cursor-default shadow-none'
-                    : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
-                    }`}
-                >
-                  {isInCart ? (
-                    <>
-                      <Check size={22} />
-                      {t('card.in_cart')}
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingBag size={22} />
-                      {t('card.add_cart')}
-                    </>
-                  )}
-                </button>
-                <button
                   onClick={() => setIsCheckoutOpen(true)}
                   disabled={!user}
-                  className="col-span-2 py-4 rounded-2xl font-bold text-lg bg-black text-white hover:bg-gray-800 hover:scale-[1.01] active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
                 >
-                  <ShieldCheck size={22} className="text-brand-400" />
-                  {t('card.buy_now') || 'Buy Now'}
+                  <ShoppingBag size={22} />
+                  Lo quiero
                 </button>
               </div>
             </div>
