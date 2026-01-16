@@ -250,9 +250,72 @@ const AppContent: React.FC = () => {
     document.title = "DESCU";
   }, [language]);
 
-  // Auth Listener ... (unchanged)
+  // Supabase Auth State Listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email || '',
+          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`,
+          isVerified: false,
+        });
+      }
+    });
 
-  // ... (Login/Update logic unchanged)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          email: session.user.email || '',
+          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`,
+          isVerified: false,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('登录失败:', error);
+      showToast('登录失败，请重试', 'error');
+    }
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
+  const handleVerifyUser = () => {
+    if (user) {
+      setUser({ ...user, isVerified: true });
+    }
+  };
+
+  const handleBoostProduct = (productId: string) => {
+    setProducts(prev => prev.map(p => {
+      if (p.id === productId) {
+        return { ...p, isPromoted: true };
+      }
+      return p;
+    }));
+  };
 
   const loadProducts = async (coords: Coordinates, pageNum: number = 1) => {
     try {
