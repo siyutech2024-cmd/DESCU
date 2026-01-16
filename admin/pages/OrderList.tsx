@@ -6,12 +6,9 @@ import {
     Filter,
     ChevronLeft,
     ChevronRight,
-    Clock,
-    CheckCircle,
-    AlertCircle,
+    Search as SearchIcon,
     XCircle,
-    Truck,
-    CreditCard
+    Truck
 } from 'lucide-react';
 
 interface Order {
@@ -36,13 +33,14 @@ interface Order {
     tracking_number?: string;
 }
 
-export const OrderList: React.FC = () => {
+const OrderList: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     useEffect(() => {
         fetchOrders();
@@ -63,7 +61,6 @@ export const OrderList: React.FC = () => {
                 setTotalPages(data.totalPages || 1);
             } else if (res.error) {
                 console.error("Fetch orders failed:", res.error);
-                // alert(res.error); // Optional: show toast
             }
         } catch (err) {
             console.error(err);
@@ -104,35 +101,141 @@ export const OrderList: React.FC = () => {
         );
     };
 
-    // Filter displayed orders by search term (local filter for now as API might not support flexible search yet)
-    // Ideally backend should handle search
-    const displayedOrders = orders; // .filter(...) if needed
+    const displayedOrders = orders.filter(o => {
+        if (!searchTerm) return true;
+        const low = searchTerm.toLowerCase();
+        return o.id.toLowerCase().includes(low) ||
+            o.products?.title?.toLowerCase().includes(low) ||
+            o.buyer?.email?.toLowerCase().includes(low);
+    });
 
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    return (
+        <div className="space-y-6 animate-fade-in pb-12">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-3 bg-white rounded-xl shadow-sm border border-gray-100">
+                        <ShoppingBag className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-gray-800">全量订单</h1>
+                        <p className="text-sm text-gray-500 font-medium">查看并管理平台所有交易</p>
+                    </div>
+                </div>
+            </div>
 
-    // ... inside map
+            {/* Filters */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl flex-1 max-w-sm">
+                    <Search className="w-5 h-5 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="搜索订单ID、买家邮箱..."
+                        className="bg-transparent border-none outline-none text-sm w-full"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-gray-400" />
+                    <select
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                        className="bg-gray-50 border-none rounded-lg text-sm px-3 py-2 outline-none font-medium text-gray-700"
+                    >
+                        <option value="">所有状态</option>
+                        <option value="pending_payment">待付款</option>
+                        <option value="paid">已付款</option>
+                        <option value="shipped">已发货</option>
+                        <option value="completed">已完成</option>
+                        <option value="disputed">纠纷中</option>
+                    </select>
+                </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-50/50 border-b border-gray-100">
+                            <tr>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">订单信息</th>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">买家/卖家</th>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">金额</th>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">状态</th>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">时间</th>
+                                <th className="text-right py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} className="py-12 text-center text-gray-400">Loading...</td>
+                                </tr>
+                            ) : displayedOrders.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="py-12 text-center text-gray-400">无相关订单</td>
+                                </tr>
+                            ) : (
+                                displayedOrders.map(order => (
+                                    <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="py-4 px-6">
                                             <div className="flex items-center gap-3">
-                                                {/* ... img ... */}
+                                                <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                                                    {order.products?.images?.[0] ? (
+                                                        <img src={order.products.images[0]} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No Img</div>
+                                                    )}
+                                                </div>
                                                 <div>
                                                     <div className="font-bold text-gray-800 truncate max-w-[150px]">{order.products?.title || 'Unk'}</div>
-                                                    <div 
-                                                        className="text-xs text-gray-400 font-mono cursor-pointer hover:text-brand-600 flex items-center gap-1"
+                                                    <div
+                                                        className="text-xs text-gray-400 font-mono cursor-pointer hover:text-brand-600 flex items-center gap-1 group/id"
                                                         onClick={() => {
                                                             navigator.clipboard.writeText(order.id);
-                                                            // toast.success('ID Copied');
+                                                            // Could show toast here
                                                         }}
-                                                        title="Click to copy full ID"
+                                                        title="点击复制完整ID"
                                                     >
                                                         {order.id.slice(0, 8)}...
-                                                        <Search size={10} />
+                                                        <span className='opacity-0 group-hover/id:opacity-100 transition-opacity'>
+                                                            <SearchIcon size={10} />
+                                                        </span>
                                                     </div>
-                                                    {/* ... */}
+                                                    {order.shipping_carrier && (
+                                                        <div className="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1">
+                                                            <Truck size={10} />
+                                                            {order.shipping_carrier}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
-    
-    // ... inside actions
+                                        <td className="py-4 px-6">
+                                            <div className="text-sm">
+                                                <div className="flex items-center gap-1.5 mb-1">
+                                                    <span className="text-xs bg-blue-50 text-blue-600 px-1.5 rounded">买</span>
+                                                    <div className="text-gray-700 truncate max-w-[120px]" title={order.buyer?.email}>{order.buyer?.email || 'N/A'}</div>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs bg-orange-50 text-orange-600 px-1.5 rounded">卖</span>
+                                                    <div className="text-gray-500 truncate max-w-[120px]" title={order.seller?.email}>{order.seller?.email || 'N/A'}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-6">
+                                            <div className="font-bold text-gray-900">
+                                                {new Intl.NumberFormat('es-MX', { style: 'currency', currency: order.currency || 'MXN' }).format(order.amount)}
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-6">
+                                            {getStatusBadge(order.status)}
+                                        </td>
+                                        <td className="py-4 px-6 text-sm text-gray-500">
+                                            {new Date(order.created_at).toLocaleDateString()}
+                                        </td>
                                         <td className="py-4 px-6 text-right">
                                             <button
                                                 className="text-gray-400 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"
@@ -142,78 +245,103 @@ export const OrderList: React.FC = () => {
                                                 <ChevronRight size={18} />
                                             </button>
                                         </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
 
-    // ... after table (before closing div)
-    {/* Detail Modal */ }
-    {
-        selectedOrder && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedOrder(null)}>
-                <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-                    <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                        <h2 className="text-xl font-black text-gray-800">Order Details</h2>
-                        <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-gray-100 rounded-full">
-                            <XCircle size={24} className="text-gray-400" />
+                {/* Pagination */}
+                <div className="py-4 px-6 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        >
+                            <ChevronLeft size={16} />
                         </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">Order ID</label>
-                                <div className="font-mono text-sm bg-gray-50 p-2 rounded select-all">{selectedOrder.id}</div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">Created At</label>
-                                <div className="text-sm">{new Date(selectedOrder.created_at).toLocaleString()}</div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">Status</label>
-                                <div className="mt-1">{getStatusBadge(selectedOrder.status)}</div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">Product</label>
-                                <div className="text-sm font-bold">{selectedOrder.products?.title}</div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase">Amount</label>
-                                <div className="text-lg font-black text-brand-600">
-                                    {new Intl.NumberFormat('es-MX', { style: 'currency', currency: selectedOrder.currency }).format(selectedOrder.amount)}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="col-span-2 grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Buyer</label>
-                                <div className="text-sm truncate">{selectedOrder.buyer?.email}</div>
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Seller</label>
-                                <div className="text-sm truncate">{selectedOrder.seller?.email}</div>
-                            </div>
-                        </div>
-
-                        <div className="col-span-2">
-                            <label className="text-xs font-bold text-gray-400 uppercase">Payment Intent ID</label>
-                            <div className="font-mono text-xs bg-gray-100 p-2 rounded text-gray-600 break-all select-all">
-                                {selectedOrder.payment_intent_id || 'N/A'}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-8 flex justify-end gap-3">
-                        <button onClick={() => setSelectedOrder(null)} className="px-5 py-2 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
-                            Close
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        >
+                            <ChevronRight size={16} />
                         </button>
                     </div>
                 </div>
             </div>
-        )
-    }
-        </div >
+
+            {/* Detail Modal */}
+            {selectedOrder && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedOrder(null)}>
+                    <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <h2 className="text-xl font-black text-gray-800">Order Details</h2>
+                            <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-gray-100 rounded-full">
+                                <XCircle size={24} className="text-gray-400" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase">Order ID</label>
+                                    <div className="font-mono text-sm bg-gray-50 p-2 rounded select-all break-all">{selectedOrder.id}</div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase">Created At</label>
+                                    <div className="text-sm">{new Date(selectedOrder.created_at).toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase">Status</label>
+                                    <div className="mt-1">{getStatusBadge(selectedOrder.status)}</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase">Product</label>
+                                    <div className="text-sm font-bold">{selectedOrder.products?.title}</div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase">Amount</label>
+                                    <div className="text-lg font-black text-brand-600">
+                                        {new Intl.NumberFormat('es-MX', { style: 'currency', currency: selectedOrder.currency || 'MXN' }).format(selectedOrder.amount)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="col-span-2 grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Buyer</label>
+                                    <div className="text-sm truncate" title={selectedOrder.buyer?.email}>{selectedOrder.buyer?.email}</div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Seller</label>
+                                    <div className="text-sm truncate" title={selectedOrder.seller?.email}>{selectedOrder.seller?.email}</div>
+                                </div>
+                            </div>
+
+                            <div className="col-span-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase">Payment Intent ID</label>
+                                <div className="font-mono text-xs bg-gray-100 p-2 rounded text-gray-600 break-all select-all">
+                                    {selectedOrder.payment_intent_id || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-end gap-3">
+                            <button onClick={() => setSelectedOrder(null)} className="px-5 py-2 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 
