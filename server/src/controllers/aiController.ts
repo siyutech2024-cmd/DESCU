@@ -43,7 +43,7 @@ export const analyzeImage = async (req: Request, res: Response) => {
 
         try {
             const response = await ai.models.generateContent({
-                model: "gemini-1.5-flash", // Switch to stable, fast model for Vercel
+                model: "gemini-2.0-flash-exp", // Switched to 2.0 per user request
                 contents: {
                     parts: [
                         {
