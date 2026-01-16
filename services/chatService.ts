@@ -29,7 +29,7 @@ export const createOrGetConversation = async (
 // 获取用户所有对话
 export const getUserConversations = async (userId: string): Promise<any[]> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/conversations/${userId}`);
+        const response = await fetch(`${API_BASE_URL}/api/users/${userId}/conversations`);
         if (!response.ok) throw new Error('Failed to fetch conversations');
         return await response.json();
     } catch (error) {
