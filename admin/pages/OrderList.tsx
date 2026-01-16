@@ -262,3 +262,5 @@ export const OrderList: React.FC = () => {
         </div>
     );
 };
+
+export default OrderList;
