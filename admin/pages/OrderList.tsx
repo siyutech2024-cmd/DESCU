@@ -75,6 +75,7 @@ const OrderList: React.FC = () => {
             paid: 'bg-blue-100 text-blue-800',
             shipped: 'bg-indigo-100 text-indigo-800',
             completed: 'bg-green-100 text-green-800',
+            completed_pending_payout: 'bg-orange-100 text-orange-800 border border-orange-200',
             disputed: 'bg-red-100 text-red-800',
             resolved_refund: 'bg-gray-100 text-gray-800',
             resolved_release: 'bg-green-100 text-green-800',
@@ -87,6 +88,7 @@ const OrderList: React.FC = () => {
             paid: '已付款(待发货)',
             shipped: '已发货',
             completed: '已完成',
+            completed_pending_payout: '待人工打款', // NEW LABEL
             disputed: '纠纷中',
             resolved_refund: '已退款(纠纷)',
             resolved_release: '已放款(纠纷)',
@@ -149,6 +151,7 @@ const OrderList: React.FC = () => {
                         <option value="paid">已付款</option>
                         <option value="shipped">已发货</option>
                         <option value="completed">已完成</option>
+                        <option value="completed_pending_payout">待人工打款</option>
                         <option value="disputed">纠纷中</option>
                     </select>
                 </div>
@@ -334,6 +337,26 @@ const OrderList: React.FC = () => {
                         </div>
 
                         <div className="mt-8 flex justify-end gap-3">
+                            {selectedOrder.status === 'completed_pending_payout' && (
+                                <button
+                                    onClick={async () => {
+                                        if (confirm('确认已向卖家人工打款？订单状态将更为“已完成”。')) {
+                                            try {
+                                                await adminApi.markOrderAsPaid(selectedOrder.id);
+                                                alert('操作成功');
+                                                setSelectedOrder(null);
+                                                fetchOrders(); // refresh list
+                                            } catch (e) {
+                                                console.error(e);
+                                                alert('操作失败');
+                                            }
+                                        }
+                                    }}
+                                    className="px-5 py-2 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
+                                >
+                                    确认已打款 (Mark Paid)
+                                </button>
+                            )}
                             <button onClick={() => setSelectedOrder(null)} className="px-5 py-2 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
                                 Close
                             </button>

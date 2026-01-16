@@ -641,3 +641,58 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+/**
+ * 标记订单为已人工打款 (Manual Payout)
+ */
+export const markOrderAsPaid = async (req: AdminRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body; // Admin can optionally add a note (e.g. transaction ref)
+
+        // 1. Check if order exists and is in correct state
+        const { data: order, error: fetchError } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (fetchError || !order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        if (order.status !== 'completed_pending_payout') {
+            return res.status(400).json({ error: 'Order is not pending manual payout' });
+        }
+
+        // 2. Update Order Status
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                status: 'completed',
+                updated_at: new Date()
+                // We could add a 'payout_reference' column later if needed, strictly storing in logs for now.
+            })
+            .eq('id', id);
+
+        if (updateError) throw updateError;
+
+        // 3. Log Admin Action
+        if (req.admin) {
+            await logAdminAction(
+                req.admin.id,
+                req.admin.email,
+                'manual_payout',
+                'order',
+                id,
+                { notes, previous_status: 'completed_pending_payout' }
+            );
+        }
+
+        res.json({ success: true });
+
+    } catch (error: any) {
+        console.error('标记订单已打款失败:', error);
+        res.status(500).json({ error: error.message });
+    }
+};

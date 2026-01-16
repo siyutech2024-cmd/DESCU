@@ -58,7 +58,8 @@ import {
     batchUpdateSettings,
     getAdminOrders,
     getAdminDisputes,
-    resolveDispute
+    resolveDispute,
+    markOrderAsPaid
 } from './controllers/adminController';
 import {
     getAdminProducts,
@@ -122,6 +123,7 @@ app.get('/api/admin/logs', requireAdmin, getAdminLogs);
 
 // Admin Transaction & Dispute Routes
 app.get('/api/admin/orders', requireAdmin, getAdminOrders);
+app.post('/api/admin/orders/:id/mark-paid', requireAdmin, markOrderAsPaid); // NEW
 app.get('/api/admin/disputes', requireAdmin, getAdminDisputes);
 app.post('/api/admin/disputes/resolve', requireAdmin, resolveDispute);
 

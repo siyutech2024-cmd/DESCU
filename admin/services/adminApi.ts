@@ -154,6 +154,13 @@ export const adminApi = {
         return apiRequest(`/api/admin/orders?${queryString}`);
     },
 
+    markOrderAsPaid: async (id: string, notes?: string) => {
+        return apiRequest(`/api/admin/orders/${id}/mark-paid`, {
+            method: 'POST',
+            body: JSON.stringify({ notes })
+        });
+    },
+
     getDisputes: async (params?: any) => {
         const queryString = new URLSearchParams(cleanParams(params || {})).toString();
         return apiRequest(`/api/admin/disputes?${queryString}`);
