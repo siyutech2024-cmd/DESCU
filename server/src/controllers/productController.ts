@@ -79,7 +79,8 @@ import { translateBatch } from '../services/translationService';
 
 export const getProducts = async (req: Request, res: Response) => {
     try {
-        const { lang } = req.query;
+        const { lang, limit = '50', offset = '0' } = req.query; // Added limit/offset support
+
         let query = supabase
             .from('products')
             .select('*')
@@ -87,7 +88,13 @@ export const getProducts = async (req: Request, res: Response) => {
             .eq('status', 'active')
             .order('created_at', { ascending: false });
 
-        // Limit results if translating to avoid timeouts
+        // Apply Limit (Defaut 50 to prevent slow load)
+        const limitVal = parseInt(String(limit));
+        if (!isNaN(limitVal) && limitVal > 0) {
+            query = query.limit(limitVal);
+        }
+
+        // Limit results if translating to avoid timeouts (override if lang is set)
         if (lang && lang !== 'es') {
             query = query.limit(20);
         }

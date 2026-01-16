@@ -63,9 +63,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                             <path d="M30 20 V80" />
                         </svg>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 tracking-tighter drop-shadow-sm">DESCU</h1>
+                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter drop-shadow-sm">DESCU</h1>
                 </div>
-                <p className="text-gray-500 text-xs md:text-base font-medium mt-3 tracking-wide bg-white/40 px-4 py-1 rounded-full backdrop-blur-sm border border-white/40 text-center">{t('hero.subtitle')}</p>
+                <p className="text-gray-600 text-xs md:text-base font-bold mt-3 tracking-wide bg-white/60 px-4 py-1.5 rounded-full backdrop-blur-md border border-white/50 text-center shadow-sm">{t('hero.subtitle')}</p>
             </div>
 
             {/* Category Filter - Glass Pills */}
@@ -74,17 +74,17 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <button
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`flex flex-col items-center flex-shrink-0 gap-2 min-w-[76px] group transition-all duration-300 ${selectedCategory === cat.id ? 'opacity-100 scale-105' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
+                        className={`flex flex-col items-center flex-shrink-0 gap-2 min-w-[76px] group transition-all duration-300 ${selectedCategory === cat.id ? 'opacity-100 scale-105' : 'opacity-100 hover:scale-105'}`}
                     >
                         <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ${selectedCategory === cat.id
-                            ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/40'
-                            : 'bg-white/60 backdrop-blur-md text-gray-600 shadow-sm border border-white/60 group-hover:bg-white/80'
+                            ? 'bg-gradient-to-br from-brand-600 to-brand-800 text-white shadow-lg shadow-brand-600/40' // Darker brand color
+                            : 'bg-white text-gray-700 shadow-sm border border-gray-200 group-hover:bg-gray-50 group-hover:border-brand-200' // Solid white, darker text
                             }`}>
                             <cat.icon size={26} strokeWidth={selectedCategory === cat.id ? 2.5 : 2} />
                         </div>
                         <span className={`text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full ${selectedCategory === cat.id
-                            ? 'text-brand-700 bg-brand-50/50'
-                            : 'text-gray-500 group-hover:text-gray-700'
+                            ? 'text-brand-800 bg-brand-100'
+                            : 'text-gray-700 group-hover:text-gray-900'
                             }`}>
                             {t(cat.label)}
                         </span>

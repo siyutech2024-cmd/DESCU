@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://www.descu.ai/sitemap.xml

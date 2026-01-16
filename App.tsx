@@ -129,7 +129,7 @@ const getMockDeliveryType = (category: Category): DeliveryType => {
 };
 
 const generateMockProducts = (center: Coordinates, lang: string): Product[] => {
-  const TOTAL_ITEMS = 400;
+  const TOTAL_ITEMS = 20; // REDUCED FROM 400 FOR PERFORMANCE
   const items: Product[] = [];
   const categories = Object.keys(MOCK_TEMPLATES) as Category[];
   const langKey = (lang === 'zh' || lang === 'en' || lang === 'es') ? lang : 'es';
