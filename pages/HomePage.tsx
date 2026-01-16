@@ -17,6 +17,9 @@ interface HomePageProps {
     onSellClick: () => void;
     onAddToCart: (product: Product) => void;
     cart: Product[];
+    hasMore: boolean;
+    isLoadingMore: boolean;
+    onLoadMore: () => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -29,6 +32,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     onSellClick,
     onAddToCart,
     cart,
+    hasMore,
+    isLoadingMore,
+    onLoadMore
 }) => {
     const { t } = useLanguage();
     const navigate = useNavigate();
@@ -128,16 +134,39 @@ export const HomePage: React.FC<HomePageProps> = ({
                     )}
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-6 pb-20">
-                    {sortedProducts.map((product) => (
-                        <ProductCard
-                            key={product.id}
-                            product={product}
-                            onAddToCart={onAddToCart}
-                            isInCart={cart.some(item => item.id === product.id)}
-                            onClick={(p) => navigate(`/product/${p.id}`)}
-                        />
-                    ))}
+                <div className="flex flex-col gap-8 pb-20">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-6">
+                        {sortedProducts.map((product) => (
+                            <ProductCard
+                                key={product.id}
+                                product={product}
+                                onAddToCart={onAddToCart}
+                                isInCart={cart.some(item => item.id === product.id)}
+                                onClick={(p) => navigate(`/product/${p.id}`)}
+                            />
+                        ))}
+                    </div>
+
+                    {hasMore && (
+                        <div className="flex justify-center pt-4">
+                            <button
+                                onClick={onLoadMore}
+                                disabled={isLoadingMore}
+                                className="px-6 py-3 bg-white hover:bg-gray-50 text-gray-800 font-bold rounded-full shadow-sm border border-gray-200 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoadingMore ? (
+                                    <>
+                                        <RefreshCw size={18} className="animate-spin" />
+                                        {t('list.loading_more')}
+                                    </>
+                                ) : (
+                                    <>
+                                        {t('list.load_more')}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 

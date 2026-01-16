@@ -13,3 +13,25 @@ const url = supabaseUrl || 'https://placeholder.supabase.co';
 const key = supabaseAnonKey || 'placeholder';
 
 export const supabase = createClient(url, key);
+
+export const uploadProductImage = async (file: File): Promise<string | null> => {
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('products')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            throw uploadError;
+        }
+
+        const { data } = supabase.storage.from('products').getPublicUrl(filePath);
+        return data.publicUrl;
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        return null;
+    }
+};

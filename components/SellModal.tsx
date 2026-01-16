@@ -3,9 +3,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Sparkles, MapPin, Loader2, Camera, DollarSign, Truck, Handshake, Info } from 'lucide-react';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
 import { analyzeProductImage } from '../services/geminiService';
-import { fileToBase64, getFullDataUrl } from '../services/utils';
+import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { GlassToast, ToastType } from './GlassToast';
+import { uploadProductImage } from '../services/supabase';
 
 interface SellModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Toast State
   const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
@@ -48,16 +50,22 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
       setImagePreview(null);
       setFormData({ title: '', description: '', category: Category.Other, price: '', deliveryType: DeliveryType.Both });
       setIsAnalyzing(false);
+      setIsUploading(false);
       setToast(prev => ({ ...prev, show: false }));
     }
   }, [isOpen]);
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setImage(file);
+      let file = e.target.files[0];
 
       try {
+        // 1. Compress immediately for preview & AI
+        // Limit to 1024px for AI analysis to go faster
+        const compressedFile = await compressImage(file, 1024, 0.8);
+        file = compressedFile;
+        setImage(file);
+
         const previewUrl = await getFullDataUrl(file);
         setImagePreview(previewUrl);
 
@@ -74,32 +82,47 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
           deliveryType: result.suggestedDeliveryType || DeliveryType.Both,
         }));
       } catch (error: any) {
-        console.error("AI Analysis failed", error);
-        // Custom Toast Error
-        showToast(t('modal.ai_error') || `AI Analysis Failed: ${error.message}`, 'error');
+        console.error("AI Analysis/Compression failed", error);
+        showToast(t('modal.ai_error') || `Error: ${error.message}`, 'error');
       } finally {
         setIsAnalyzing(false);
       }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!imagePreview || !userLocation) return;
+    if (!image || !userLocation) return;
 
-    onSubmit({
-      seller: user,
-      title: formData.title || 'Untitled',
-      description: formData.description || '',
-      price: Number(formData.price) || 0,
-      currency: language === 'zh' ? 'CNY' : 'MXN',
-      images: [imagePreview],
-      category: formData.category as Category,
-      deliveryType: formData.deliveryType,
-      location: userLocation,
-      locationName: language === 'es' ? 'CDMX' : 'Nearby',
-    });
-    onClose();
+    try {
+      setIsUploading(true);
+
+      // 2. Upload to Supabase Storage
+      const publicUrl = await uploadProductImage(image);
+
+      if (!publicUrl) {
+        throw new Error('Image upload failed');
+      }
+
+      onSubmit({
+        seller: user,
+        title: formData.title || 'Untitled',
+        description: formData.description || '',
+        price: Number(formData.price) || 0,
+        currency: language === 'zh' ? 'CNY' : 'MXN',
+        images: [publicUrl], // Send URL, not Base64!
+        category: formData.category as Category,
+        deliveryType: formData.deliveryType,
+        location: userLocation,
+        locationName: language === 'es' ? 'CDMX' : 'Nearby',
+      });
+      onClose();
+    } catch (error: any) {
+      console.error("Submission failed", error);
+      showToast('Failed to upload product. Please try again.', 'error');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -260,13 +283,18 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white">
           <button
             onClick={handleSubmit}
-            disabled={!imagePreview || !userLocation || isAnalyzing}
+            disabled={!imagePreview || !userLocation || isAnalyzing || isUploading}
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-200 hover:shadow-brand-300 transition-all active:scale-[0.98] text-lg flex items-center justify-center gap-2"
           >
             {isAnalyzing ? (
               <>
                 <Loader2 size={20} className="animate-spin" />
                 {t('modal.submit.analyzing')}
+              </>
+            ) : isUploading ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                Processing...
               </>
             ) : t('modal.submit')}
           </button>
