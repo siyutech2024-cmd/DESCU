@@ -3,9 +3,16 @@ import { AdminRequest } from '../middleware/adminAuth';
 import { supabase } from '../db/supabase';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-    apiVersion: '2024-12-18.acacia' as any,
-});
+// --- LAZY STRIPE INIT ---
+let stripeInstance: Stripe | null = null;
+const getStripe = () => {
+    if (!stripeInstance) {
+        stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+            apiVersion: '2024-12-18.acacia' as any,
+        });
+    }
+    return stripeInstance;
+};
 
 /**
  * 记录管理员操作日志
@@ -585,7 +592,7 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
         if (action === 'refund') {
             // A. Refund to Buyer
             // Assume full refund for simplicity
-            await stripe.refunds.create({
+            await getStripe().refunds.create({
                 payment_intent: paymentIntentId,
             });
 
@@ -609,7 +616,7 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
                 const platformFee = Math.round(amount * 0.05);
                 const transferAmount = amount - platformFee;
 
-                await stripe.transfers.create({
+                await getStripe().transfers.create({
                     amount: transferAmount,
                     currency: order.currency.toLowerCase(),
                     destination: seller.stripe_connect_id,
