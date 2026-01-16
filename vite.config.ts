@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             'vendor': ['react', 'react-dom', 'react-router-dom'],
-            'ui': ['lucide-react', 'react-hot-toast', 'framer-motion'],
+            'ui': ['lucide-react', 'react-hot-toast'],
             'supabase': ['@supabase/supabase-js'],
             'stripe': ['@stripe/stripe-js', '@stripe/react-stripe-js']
           }
