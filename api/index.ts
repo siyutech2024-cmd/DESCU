@@ -1,10 +1,12 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 
 // Imports from Local Lib (Bundled)
-import { analyzeImage } from './_lib/controllers/aiController';
-import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController';
-import { requireAuth } from './_lib/middleware/userAuth';
+// import { analyzeImage } from './_lib/controllers/aiController';
+// import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController';
+// import { requireAuth } from './_lib/middleware/userAuth';
 
 const app = express();
 
@@ -26,19 +28,60 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // Feature Routes
-app.post('/api/analyze', analyzeImage);
-app.get('/api/products/health', productsHealthCheck);
-app.post('/api/products', requireAuth, createProduct);
-app.get('/api/products', getProducts);
-app.get('/api/products/:id', getProductById);
+// app.post('/api/analyze', analyzeImage);
+// app.get('/api/products/health', productsHealthCheck);
+// app.post('/api/products', requireAuth, createProduct);
+// app.get('/api/products', getProducts);
+// app.get('/api/products/:id', getProductById);
 
 // Test Route
 app.get('/api/test_ping', (req, res) => {
-    res.json({
+    const debug: any = {
         pong: true,
         time: new Date().toISOString(),
-        location: 'api/index.ts inlined'
-    });
+        location: 'api/index.ts inlined',
+        fs: {}
+    };
+
+    try {
+        const root = process.cwd();
+        debug.fs.cwd = root;
+
+        // Check api folder
+        const apiPath = path.join(root, 'api');
+        if (fs.existsSync(apiPath)) {
+            debug.fs.api = fs.readdirSync(apiPath);
+
+            // Check _lib
+            const libPath = path.join(apiPath, '_lib');
+            if (fs.existsSync(libPath)) {
+                debug.fs.lib = fs.readdirSync(libPath);
+
+                // Check controllers
+                const ctrlPath = path.join(libPath, 'controllers');
+                if (fs.existsSync(ctrlPath)) {
+                    debug.fs.controllers = fs.readdirSync(ctrlPath);
+                } else {
+                    debug.fs.controllers = 'NOT_FOUND';
+                }
+            } else {
+                debug.fs.lib = 'NOT_FOUND';
+            }
+        } else {
+            debug.fs.api = 'NOT_FOUND';
+        }
+
+    } catch (e: any) {
+        debug.fs_error = e.message;
+    }
+
+    res.json(debug);
+});
+res.json({
+    pong: true,
+    time: new Date().toISOString(),
+    location: 'api/index.ts inlined'
+});
 });
 
 app.get('/', (req, res) => {
