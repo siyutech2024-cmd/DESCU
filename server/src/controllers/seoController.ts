@@ -2,12 +2,21 @@
 import { Request, Response } from 'express';
 import { supabase } from '../db/supabase';
 
-export const generateSitemap = async (req: Request, res: Response) => {
+// Helper to get safe headers (compatible with Express and Vercel/Node)
+const getHeader = (req: any, name: string) => {
+    if (req.headers && req.headers[name.toLowerCase()]) return req.headers[name.toLowerCase()];
+    if (req.get && typeof req.get === 'function') return req.get(name);
+    return null;
+};
+
+export const generateSitemap = async (req: any, res: any) => {
     try {
-        // 1. Fetch Static Routes (Hardcoded)
-        // Use request host to determine domain
-        const protocol = req.protocol === 'http' && req.get('host')?.includes('localhost') ? 'http' : 'https';
-        const baseUrl = `${protocol}://${req.get('host')}`;
+        // 1. Determine Protocol & Host
+        const host = getHeader(req, 'host') || 'www.descu.ai';
+        const forwardedProto = getHeader(req, 'x-forwarded-proto') || getHeader(req, 'x-scheme');
+
+        const protocol = forwardedProto ? (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto) : 'https';
+        const baseUrl = `${protocol}://${host}`;
 
         const staticRoutes = [
             '',
@@ -54,11 +63,37 @@ export const generateSitemap = async (req: Request, res: Response) => {
         xml += `
 </urlset>`;
 
-        res.header('Content-Type', 'application/xml');
-        res.send(xml);
+        // Compatible Response Handling
+        // Set Header
+        if (typeof res.setHeader === 'function') {
+            res.setHeader('Content-Type', 'application/xml');
+        } else if (typeof res.header === 'function') {
+            res.header('Content-Type', 'application/xml');
+        }
+
+        // Set Status
+        if (typeof res.status === 'function') {
+            res.status(200);
+        } else {
+            res.statusCode = 200;
+        }
+
+        // Send Body
+        if (typeof res.send === 'function') {
+            res.send(xml);
+        } else if (typeof res.end === 'function') {
+            res.end(xml);
+        } else {
+            console.error('Unknown response object structure', res);
+        }
 
     } catch (error) {
         console.error('Sitemap Error:', error);
-        res.status(500).send('Error generating sitemap');
+
+        if (res.statusCode) res.statusCode = 500;
+        if (typeof res.status === 'function') res.status(500);
+
+        if (typeof res.end === 'function') res.end('Error generating sitemap');
+        else if (typeof res.send === 'function') res.send('Error generating sitemap');
     }
 };
