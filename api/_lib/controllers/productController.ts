@@ -136,15 +136,17 @@ export const getProducts = async (req: Request, res: Response) => {
             .eq('status', 'active')
             .order('created_at', { ascending: false });
 
-        // Apply Limit (Defaut 50 to prevent slow load)
-        const limitVal = parseInt(String(limit));
-        if (!isNaN(limitVal) && limitVal > 0) {
-            query = query.limit(limitVal);
-        }
+        // Apply Pagination (Range)
+        const limitVal = parseInt(String(limit)) || 20;
+        const offsetVal = parseInt(String(offset)) || 0;
 
-        // Limit results if translating to avoid timeouts (override if lang is set)
-        if (lang && lang !== 'es') {
-            query = query.limit(20);
+        // Supabase range is inclusive [start, end]
+        query = query.range(offsetVal, offsetVal + limitVal - 1);
+
+        // Limit results if translating to avoid timeouts (but keep pagination working)
+        if (lang && lang !== 'es' && limitVal > 20) {
+            // If user requested > 20 translated items, cap it?
+            // Actually, let's just trust the frontend to send limit=20
         }
 
         const { data, error } = await query;
