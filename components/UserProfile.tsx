@@ -186,73 +186,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           </button>
         </div>
 
-        {/* Safety & Policies - Google Play Compliance */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Scale size={20} className="text-brand-600" />
-            {t('profile.safety_policies')}
-          </h2>
-          <div className="space-y-3">
-            <button className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-              <span className="text-sm font-semibold text-gray-700">{t('profile.content_policy')}</span>
-              <ExternalLink size={16} className="text-gray-400" />
-            </button>
-            <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100">
-              <p className="text-[11px] text-blue-800 leading-relaxed italic">
-                DESCU adheres to strict safety guidelines regarding political misinformation and hate speech to ensure a healthy neighborhood marketplace.
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* Payouts / Seller Dashboard Section */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <CreditCard size={20} className="text-green-600" />
-            {t('profile.payouts') || 'Payouts & Earnings'}
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            {t('profile.payouts_desc') || 'Connect your bank account to receive payments directly just like a professional store.'}
-          </p>
-
-          <div className="flex gap-3">
-            <button
-              onClick={handleSetupPayouts}
-              disabled={isPayoutLoading}
-              className="flex-1 bg-gray-900 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-black transition-colors"
-            >
-              {isPayoutLoading ? <Loader2 size={18} className="animate-spin" /> : <ExternalLink size={18} />}
-              {t('profile.setup_payouts') || 'Setup Payouts'}
-            </button>
-            {/* Logic to show Dashboard button if already connected could be added here if we passed that state */}
-          </div>
-        </div>
-
-        {/* Verification Banner */}
-        <div className={`rounded-xl p-5 mb-8 border transition-all ${user.isVerified ? 'bg-blue-50 border-blue-100' : 'bg-gray-100 border-gray-200'}`}>
-          <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-full ${user.isVerified ? 'bg-blue-100 text-blue-600' : 'bg-white text-gray-400'}`}>
-              <ShieldCheck size={24} />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900">{user.isVerified ? t('profile.is_verified') : t('profile.verify_title')}</h3>
-              <p className="text-sm text-gray-500 mt-1 mb-3">{t('profile.verify_desc')}</p>
-
-              {!user.isVerified && onVerifyUser && (
-                <div>
-                  <input type="file" ref={idInputRef} className="hidden" accept="image/*,.pdf" onChange={handleIDUpload} />
-                  <button
-                    onClick={() => idInputRef.current?.click()}
-                    disabled={isUploadingID}
-                    className="bg-white border border-gray-300 hover:border-blue-500 hover:text-blue-600 text-gray-700 text-sm font-bold py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center gap-2"
-                  >
-                    {isUploadingID ? <><Loader2 size={16} className="animate-spin" /> {t('profile.verifying')}</> : <><FileText size={16} /> {t('profile.get_verified')}</>}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
 
 
@@ -297,6 +231,77 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         {/* New Order Lists */}
         {activeTab === 'buying' && <div className="min-h-[200px]"><OrderList role="buyer" /></div>}
         {activeTab === 'selling' && <div className="min-h-[200px]"><OrderList role="seller" /></div>}
+
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Settings & Account</h3>
+
+          {/* Payouts / Seller Dashboard Section */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <CreditCard size={20} className="text-green-600" />
+              {t('profile.payouts') || 'Payouts & Earnings'}
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {t('profile.payouts_desc') || 'Connect your bank account to receive payments directly just like a professional store.'}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSetupPayouts}
+                disabled={isPayoutLoading}
+                className="flex-1 bg-gray-900 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-black transition-colors"
+              >
+                {isPayoutLoading ? <Loader2 size={18} className="animate-spin" /> : <ExternalLink size={18} />}
+                {t('profile.setup_payouts') || 'Setup Payouts'}
+              </button>
+            </div>
+          </div>
+
+          {/* Verification Banner */}
+          <div className={`rounded-xl p-5 mb-8 border transition-all ${user.isVerified ? 'bg-blue-50 border-blue-100' : 'bg-gray-100 border-gray-200'}`}>
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-full ${user.isVerified ? 'bg-blue-100 text-blue-600' : 'bg-white text-gray-400'}`}>
+                <ShieldCheck size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-gray-900">{user.isVerified ? t('profile.is_verified') : t('profile.verify_title')}</h3>
+                <p className="text-sm text-gray-500 mt-1 mb-3">{t('profile.verify_desc')}</p>
+
+                {!user.isVerified && onVerifyUser && (
+                  <div>
+                    <input type="file" ref={idInputRef} className="hidden" accept="image/*,.pdf" onChange={handleIDUpload} />
+                    <button
+                      onClick={() => idInputRef.current?.click()}
+                      disabled={isUploadingID}
+                      className="bg-white border border-gray-300 hover:border-blue-500 hover:text-blue-600 text-gray-700 text-sm font-bold py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                    >
+                      {isUploadingID ? <><Loader2 size={16} className="animate-spin" /> {t('profile.verifying')}</> : <><FileText size={16} /> {t('profile.get_verified')}</>}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Safety & Policies - Google Play Compliance */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Scale size={20} className="text-brand-600" />
+              {t('profile.safety_policies')}
+            </h2>
+            <div className="space-y-3">
+              <button className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                <span className="text-sm font-semibold text-gray-700">{t('profile.content_policy')}</span>
+                <ExternalLink size={16} className="text-gray-400" />
+              </button>
+              <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                <p className="text-[11px] text-blue-800 leading-relaxed italic">
+                  DESCU adheres to strict safety guidelines regarding political misinformation and hate speech to ensure a healthy neighborhood marketplace.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>
