@@ -67,7 +67,9 @@ import {
     createDispute,
     verifyPayment,
     updateSellerBankInfo,
-    ordersHealthCheck
+    updateSellerBankInfo,
+    ordersHealthCheck,
+    getUserOrders
 } from './_lib/controllers/paymentController.js';
 
 import { generateSitemap } from './_lib/controllers/seoController.js';
@@ -122,6 +124,7 @@ app.post('/api/orders/confirm', requireAuth, confirmOrder);
 app.get('/api/orders/health', ordersHealthCheck);
 app.post('/api/disputes', requireAuth, createDispute);
 app.post('/api/payment/verify', requireAuth, verifyPayment);
+app.get('/api/orders', requireAuth, getUserOrders);
 
 // Admin Endpoints
 app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);
