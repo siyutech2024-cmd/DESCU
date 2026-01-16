@@ -64,7 +64,9 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
                 "@context": "https://schema.org/",
                 "@type": "Product",
                 "name": product.title,
-                "image": product.images || [],
+                "image": (product.images && product.images.length > 0)
+                    ? product.images
+                    : ['https://www.descu.ai/og-image.png'],
                 "description": product.description,
                 "sku": product.id,
                 "brand": { "@type": "Brand", "name": "DESCU" },
