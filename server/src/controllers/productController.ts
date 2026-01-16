@@ -88,6 +88,20 @@ export const createProduct = async (req: any, res: Response) => {
 
 import { translateBatch } from '../services/translationService';
 
+// Health Check
+export const productsHealthCheck = (req: Request, res: Response) => {
+    res.json({
+        status: 'ok',
+        message: 'Product controller loaded',
+        env: {
+            hasSupabaseUrl: !!process.env.SUPABASE_URL,
+            hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY,
+            hasViteSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
+            hasGeminiKey: !!process.env.GEMINI_API_KEY
+        }
+    });
+};
+
 export const getProducts = async (req: Request, res: Response) => {
     try {
         const { lang, limit = '50', offset = '0' } = req.query; // Added limit/offset support
@@ -175,7 +189,14 @@ export const getProducts = async (req: Request, res: Response) => {
         res.json(products);
     } catch (error: any) {
         console.error("Error fetching products:", error);
-        res.status(500).json({ error: error.message || 'Failed to fetch products' });
+        res.status(500).json({
+            error: error.message || 'Failed to fetch products',
+            stack: error.stack,
+            envCheck: {
+                hasSupabaseUrl: !!process.env.SUPABASE_URL,
+                hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY
+            }
+        });
     }
 };
 

@@ -34,10 +34,14 @@ import { supabase } from './db/supabase';
 
 // Routes
 import { analyzeImage } from './controllers/aiController';
-import { createProduct, getProducts, getProductById } from './controllers/productController';
-import {
-    createConversation,
-    getUserConversations,
+import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
+// ...
+// API Endpoints
+app.post('/api/analyze', analyzeImage);
+app.get('/api/products/health', productsHealthCheck); // Check Env Vars
+app.post('/api/products', requireAuth, createProduct);
+app.get('/api/products', getProducts);
+getUserConversations,
     sendMessage,
     getMessages,
     markMessagesAsRead
@@ -87,6 +91,7 @@ import {
 
 // API Endpoints
 app.post('/api/analyze', analyzeImage);
+app.get('/api/products/health', productsHealthCheck);
 app.post('/api/products', requireAuth, createProduct);
 app.get('/api/products', getProducts);
 app.get('/api/products/:id', getProductById);
