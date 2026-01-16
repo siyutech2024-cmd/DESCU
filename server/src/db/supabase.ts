@@ -10,8 +10,8 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABAS
 if (!supabaseUrl || !supabaseKey) {
     console.error('❌ CRITICAL ERROR: Missing environment variables!');
     console.error('Required: SUPABASE_URL, and (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)');
-    // We throw to stop execution with a clear message rather than crashing inside createClient
-    throw new Error('Server Start Failed: Missing Supabase Environment Variables');
+    // We do NOT throw here, to allow other parts of the app (like AI) to function even if DB is misconfigured.
+    // The DB calls will fail individually with clear errors.
 } else {
     // Only warn if Service Role is missing but we have Anon
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -19,4 +19,8 @@ if (!supabaseUrl || !supabaseKey) {
     }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Use safe placeholders to prevent startup crash if env vars are missing
+const safeUrl = supabaseUrl || 'https://placeholder.supabase.co';
+const safeKey = supabaseKey || 'placeholder-key';
+
+export const supabase = createClient(safeUrl, safeKey);
