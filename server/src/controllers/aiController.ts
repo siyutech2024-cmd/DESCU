@@ -1,8 +1,16 @@
 import { Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
 
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// --- LAZY AI INIT ---
+let aiInstance: GoogleGenAI | null = null;
+const getAI = () => {
+    if (!aiInstance) {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) return null;
+        aiInstance = new GoogleGenAI({ apiKey });
+    }
+    return aiInstance;
+};
 
 export const analyzeImage = async (req: Request, res: Response) => {
     try {
@@ -12,6 +20,7 @@ export const analyzeImage = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Image data is required' });
         }
 
+        const ai = getAI();
         if (!ai) {
             console.error('Gemini API Key is missing in server environment variables.');
             return res.status(500).json({ error: 'Gemini API not configured (Server)' });

@@ -2,7 +2,17 @@
 import { GoogleGenAI } from '@google/genai';
 
 const apiKey = process.env.GEMINI_API_KEY;
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// Lazy load to prevent startup crash if key missing or lib failure
+let aiInstance: GoogleGenAI | null = null;
+const getAI = () => {
+    if (!aiInstance) {
+        const key = process.env.GEMINI_API_KEY;
+        if (key) {
+            aiInstance = new GoogleGenAI({ apiKey: key });
+        }
+    }
+    return aiInstance;
+};
 
 interface TranslatableItem {
     id: string;
@@ -14,6 +24,7 @@ export const translateBatch = async (
     items: TranslatableItem[],
     targetLang: string
 ): Promise<TranslatableItem[]> => {
+    const ai = getAI();
     if (!ai || !items.length) return items;
 
     // Filter out items that don't need translation or empty
