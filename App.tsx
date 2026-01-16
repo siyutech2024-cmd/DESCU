@@ -467,9 +467,19 @@ const AppContent: React.FC = () => {
     setIsCreatingProduct(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('请先登录验证身份');
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           seller_id: user.id,
           seller_name: user.name,

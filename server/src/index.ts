@@ -87,7 +87,7 @@ import {
 
 // API Endpoints
 app.post('/api/analyze', analyzeImage);
-app.post('/api/products', createProduct);
+app.post('/api/products', requireAuth, createProduct);
 app.get('/api/products', getProducts);
 app.get('/api/products/:id', getProductById);
 

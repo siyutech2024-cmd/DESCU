@@ -1,10 +1,17 @@
 import { Request, Response } from 'express';
 import { supabase } from '../db/supabase';
+import { createClient } from '@supabase/supabase-js';
 
-export const createProduct = async (req: Request, res: Response) => {
+export const createProduct = async (req: any, res: Response) => {
     try {
+        const user = req.user; // Set by requireAuth
+        const authHeader = req.headers.authorization;
+
+        if (!user || !authHeader) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const {
-            seller_id,
             seller_name,
             seller_email,
             seller_avatar,
@@ -21,22 +28,13 @@ export const createProduct = async (req: Request, res: Response) => {
             location_name
         } = req.body;
 
-        // 验证必填字段
-        console.log('Received product data:', { seller_id, title, price, category });
-
-        if (!seller_id || !title) {
-            console.error('Validation failed: missing seller_id or title');
-            return res.status(400).json({ error: 'Missing or invalid required fields' });
+        // Validation
+        if (!title || price === undefined) {
+            return res.status(400).json({ error: 'Missing required fields (title, price)' });
         }
 
-        if (price === undefined || price === null) {
-            console.error('Validation failed: price is missing');
-            return res.status(400).json({ error: 'Missing or invalid required fields' });
-        }
-
-        // 准备数据
         const productData = {
-            seller_id,
+            seller_id: user.id, // Enforce authenticated user ID
             seller_name: seller_name || 'Unknown',
             seller_email: seller_email || '',
             seller_avatar: seller_avatar || null,
@@ -57,21 +55,34 @@ export const createProduct = async (req: Request, res: Response) => {
             is_promoted: false
         };
 
-        const { data, error } = await supabase
+        // Create a scoped Supabase client for this user to pass RLS
+        const scopedSupabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_ANON_KEY!,
+            {
+                global: {
+                    headers: {
+                        Authorization: authHeader // Pass the Bearer token
+                    }
+                }
+            }
+        );
+
+        const { data, error } = await scopedSupabase
             .from('products')
             .insert([productData])
             .select()
             .single();
 
         if (error) {
-            console.error('Supabase error:', error);
+            console.error('Supabase insert error:', error);
             throw error;
         }
 
         res.status(201).json(data);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating product:', error);
-        res.status(500).json({ error: 'Failed to create product' });
+        res.status(500).json({ error: error.message || 'Failed to create product' });
     }
 };
 
