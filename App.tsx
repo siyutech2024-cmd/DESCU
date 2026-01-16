@@ -356,16 +356,13 @@ const AppContent: React.FC = () => {
             isPromoted: p.is_promoted || false,
           }));
 
-          const mocks = generateMockProducts(coords, language);
-          setProducts([...convertedProducts, ...mocks]);
+          setProducts(convertedProducts);
         } else {
-          const mocks = generateMockProducts(coords, language);
-          setProducts(mocks);
+          setProducts([]);
         }
       } catch (error) {
         console.error('加载商品失败:', error);
-        const mocks = generateMockProducts(coords, language);
-        setProducts(mocks);
+        setProducts([]);
       }
     };
 
@@ -395,7 +392,8 @@ const AppContent: React.FC = () => {
           setIsLoadingLoc(false);
           setLocation(fallbackCDMX);
           updateProducts(fallbackCDMX);
-        }
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 3600000 }
       );
     } else {
       setIsLoadingLoc(false);
