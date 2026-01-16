@@ -5,8 +5,8 @@ import path from 'path';
 
 // Imports from Local Lib (Bundled)
 import { analyzeImage } from './_lib/controllers/aiController.js';
-// import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController';
-// import { requireAuth } from './_lib/middleware/userAuth';
+import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController.js';
+import { requireAuth } from './_lib/middleware/userAuth.js';
 
 const app = express();
 
@@ -29,10 +29,10 @@ app.use(express.json({ limit: '10mb' }));
 
 // Feature Routes
 app.post('/api/analyze', analyzeImage);
-// app.get('/api/products/health', productsHealthCheck);
-// app.post('/api/products', requireAuth, createProduct);
-// app.get('/api/products', getProducts);
-// app.get('/api/products/:id', getProductById);
+app.get('/api/products/health', productsHealthCheck);
+app.post('/api/products', requireAuth, createProduct);
+app.get('/api/products', getProducts);
+app.get('/api/products/:id', getProductById);
 
 // Test Route
 app.get('/api/test_ping', (req, res) => {

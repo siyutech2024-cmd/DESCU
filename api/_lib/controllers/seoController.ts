@@ -1,6 +1,6 @@
 
 import { Request, Response } from 'express';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 
 // Helper to get safe headers (compatible with Express and Vercel/Node)
 const getHeader = (req: any, name: string) => {

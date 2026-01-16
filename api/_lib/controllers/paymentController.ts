@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import { supabase } from '../db/supabase';
-import { AuthenticatedRequest } from '../middleware/userAuth';
-import { getAuthClient } from '../utils/supabaseHelper';
+import { supabase } from '../db/supabase.js';
+import { AuthenticatedRequest } from '../middleware/userAuth.js';
+import { getAuthClient } from '../utils/supabaseHelper.js';
 
 export const ordersHealthCheck = (req: Request, res: Response) => {
     res.json({

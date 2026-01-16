@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 
 export const createProduct = async (req: any, res: Response) => {
@@ -86,7 +86,7 @@ export const createProduct = async (req: any, res: Response) => {
     }
 };
 
-import { translateBatch } from '../services/translationService';
+import { translateBatch } from '../services/translationService.js';
 
 // Health Check
 export const productsHealthCheck = (req: Request, res: Response) => {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 
 // 创建新对话
 import { createClient } from '@supabase/supabase-js';

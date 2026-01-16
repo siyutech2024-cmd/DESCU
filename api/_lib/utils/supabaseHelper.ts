@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 
 export const getAuthClient = (authHeader?: string): SupabaseClient => {
     // 1. If we have the Service Role Key (Admin), use the global admin client.

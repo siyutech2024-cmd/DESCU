@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import { AdminRequest } from '../middleware/adminAuth';
-import { supabase } from '../db/supabase';
+import { AdminRequest } from '../middleware/adminAuth.js';
+import { supabase } from '../db/supabase.js';
 import Stripe from 'stripe';
 
 // --- LAZY STRIPE INIT ---

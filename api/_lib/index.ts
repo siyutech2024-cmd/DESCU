@@ -28,15 +28,15 @@ app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 // Standard JSON parsing for everything else
 app.use(express.json({ limit: '10mb' }));
 
-// import { supabase } from './db/supabase';
+// import { supabase } from './db/supabase.js';
 
 // Routes
-// import { analyzeImage } from './controllers/aiController';
-// import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
-// import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController';
+// import { analyzeImage } from './controllers/aiController.js';
+// import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController.js';
+// import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController.js';
 
-// import { requireAuth } from './middleware/userAuth'; // Keep for products
-// import { requireAdmin } from './middleware/adminAuth';
+// import { requireAuth } from './middleware/userAuth.js'; // Keep for products
+// import { requireAdmin } from './middleware/adminAuth.js';
 
 /* TEMPORARILY DISABLED FOR DEBUGGING - SAFETY MODE */
 /*
@@ -47,7 +47,7 @@ import {
     sendMessage,
     getMessages,
     markMessagesAsRead
-} from './controllers/chatController';
+} from './controllers/chatController.js';
 
 
 // Admin Controller Imports
@@ -63,7 +63,7 @@ import {
     getSystemSettings,
     updateSystemSettings,
     batchUpdateSettings
-} from './controllers/adminController';
+} from './controllers/adminController.js';
 import {
     getAdminProducts,
     getAdminProduct,
@@ -73,20 +73,20 @@ import {
     updateProductStatus,
     updateProductPromotion,
     batchUpdateProducts
-} from './controllers/adminProductController';
+} from './controllers/adminProductController.js';
 import {
     getAdminUsers,
     getAdminUser,
     updateUserVerification,
     deleteAdminUser
-} from './controllers/adminUserController';
+} from './controllers/adminUserController.js';
 import {
     getAdminConversations,
     getAdminConversation,
     deleteAdminConversation,
     deleteAdminMessage,
     flagAdminMessage
-} from './controllers/adminMessageController';
+} from './controllers/adminMessageController.js';
 */
 
 // API Endpoints
@@ -166,11 +166,11 @@ app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 */
 
 // SEO
-// import { generateSitemap } from './controllers/seoController';
+// import { generateSitemap } from './controllers/seoController.js';
 // app.get('/sitemap.xml', generateSitemap);
 
 // Location Proxy
-// import { reverseGeocodeProxy } from './controllers/locationController';
+// import { reverseGeocodeProxy } from './controllers/locationController.js';
 // app.get('/api/location/reverse', reverseGeocodeProxy);
 
 app.get('/', (req, res) => {
