@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Language } from '../types';
 
 interface LanguageContextType {
@@ -357,7 +357,26 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>('es');
+  const [language, setLanguage] = useState<Language>(() => {
+    // 1. Check local storage
+    const saved = localStorage.getItem('app_language') as Language;
+    if (saved && ['zh', 'en', 'es'].includes(saved)) return saved;
+
+    // 2. Check browser language
+    if (typeof navigator !== 'undefined') {
+      const browserLang = navigator.language.toLowerCase();
+      if (browserLang.startsWith('zh')) return 'zh';
+      if (browserLang.startsWith('en')) return 'en';
+      if (browserLang.startsWith('es')) return 'es';
+    }
+
+    // 3. Default
+    return 'es';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('app_language', language);
+  }, [language]);
 
   const t = (key: string): string => {
     return translations[language][key] || key;

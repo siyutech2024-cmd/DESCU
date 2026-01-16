@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag } from 'lucide-react';
+import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Share2, Facebook, Link as LinkIcon } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { ReportModal } from './ReportModal';
 import { CheckoutModal } from './CheckoutModal';
+import { RatingModal } from './RatingModal';
 import { User } from '../types';
 
 interface ProductDetailsProps {
@@ -20,6 +21,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const { t, formatPrice } = useLanguage();
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const getRelativeTime = (timestamp: number) => {
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
@@ -29,6 +32,23 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
   const getDeliveryLabel = (type: DeliveryType) => {
     return t(`delivery.${type}`);
+  };
+
+  const shareUrl = window.location.href;
+  const shareText = `Check out ${product.title} on DESCU!`;
+
+  const handleShareWhatsApp = () => {
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
+  };
+
+  const handleShareFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   return (
@@ -56,15 +76,28 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-10">
             {/* Image Section - Framed Glass */}
             <div className="relative group">
-              <div className="aspect-square rounded-[2rem] overflow-hidden bg-white/20 shadow-inner border border-white/30 relative z-10">
+              <div className="aspect-square rounded-[2rem] overflow-hidden bg-white/20 shadow-inner border border-white/30 relative z-10 mb-4">
                 <img
-                  src={product.images[0]}
+                  src={product.images[0]} // TODO: Add state for selected image
                   alt={product.title}
                   className="w-full h-full object-cover transform transition-transform duration-700 hover:scale-105"
                 />
               </div>
+
+              {/* Thumbnails (Mock implementation as product might only have 1 image in mock) */}
+              {product.images.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                  {product.images.map((img, idx) => (
+                    <button key={idx} className="w-16 h-16 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-500 focus:border-brand-500 transition-all flex-shrink-0">
+                      <img src={img} className="w-full h-full object-cover" alt="" />
+                    </button>
+                  ))}
+                  {/* Mock extra images if only 1 exists, just to show UI? No, stick to real data */}
+                </div>
+              )}
+
               {/* Decorative Blur blob behind image */}
-              <div className="absolute -inset-4 bg-brand-500/20 blur-3xl rounded-full opacity-50 z-0"></div>
+              <div className="absolute -inset-4 bg-brand-500/20 blur-3xl rounded-full opacity-50 z-0 pointer-events-none"></div>
 
               {product.distance !== undefined && product.distance <= 5 && (
                 <div className="absolute top-6 left-6 z-20 bg-white/80 backdrop-blur-md text-gray-800 text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border border-white/50">
@@ -119,7 +152,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-2 grid grid-cols-2 gap-4">
+              <div className="pt-2 grid grid-cols-2 gap-4 mb-8">
                 <button
                   onClick={() => onContactSeller(product)}
                   className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm transition-all"
@@ -137,6 +170,22 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   Lo quiero
                 </button>
               </div>
+
+              {/* Share Buttons */}
+              <div className="flex gap-4 items-center justify-center border-t border-gray-200/50 pt-6">
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mr-2">Share</span>
+                <button onClick={handleShareWhatsApp} className="p-3 bg-green-100 text-green-600 rounded-full hover:bg-green-200 hover:scale-110 transition-all" title="Share on WhatsApp">
+                  <MessageCircle size={20} />
+                </button>
+                <button onClick={handleShareFacebook} className="p-3 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 hover:scale-110 transition-all" title="Share on Facebook">
+                  <Facebook size={20} />
+                </button>
+                <button onClick={handleCopyLink} className="p-3 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 hover:scale-110 transition-all relative" title="Copy Link">
+                  {linkCopied ? <Check size={20} className="text-green-500" /> : <LinkIcon size={20} />}
+                  {linkCopied && <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded">Copied!</span>}
+                </button>
+              </div>
+
             </div>
           </div>
         </div>
@@ -159,6 +208,9 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 {product.seller.name}
               </div>
               <div className="text-sm text-gray-500 font-medium">{product.seller.email}</div>
+              <button onClick={() => setIsRatingOpen(true)} className="mt-2 text-xs font-bold text-brand-600 border border-brand-200 px-3 py-1 rounded-full hover:bg-brand-50 transition-colors">
+                Rate Seller
+              </button>
             </div>
           </div>
 
@@ -186,6 +238,16 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           user={user}
         />
       )}
+      <RatingModal
+        isOpen={isRatingOpen}
+        onClose={() => setIsRatingOpen(false)}
+        targetUser={product.seller}
+        onSubmit={(score, comment) => {
+          console.log('Rating submitted:', score, comment);
+          setIsRatingOpen(false);
+          // showToast('Thanks for your feedback!', 'success'); // If showToast was available
+        }}
+      />
     </div>
   );
 };

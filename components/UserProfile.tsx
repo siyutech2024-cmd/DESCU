@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import OrderList from './OrderList';
-import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard } from 'lucide-react';
+import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFullDataUrl } from '../services/utils';
@@ -136,6 +136,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
               </div>
               <p className="text-xs text-gray-400 mt-2">{t('profile.change_avatar')}</p>
+            </div>
+
+            {/* Reputation / Rating Card */}
+            <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex text-yellow-500">
+                  {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+                </div>
+                <span className="font-bold text-gray-900">5.0</span>
+              </div>
+              <span className="text-xs font-bold text-orange-600 bg-white px-2 py-1 rounded-full shadow-sm">12 Reviews</span>
             </div>
 
             <div className="space-y-4">

@@ -1,24 +1,27 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
-import { ProductCard } from './components/ProductCard';
 import { SellModal } from './components/SellModal';
 import { CartDrawer } from './components/CartDrawer';
-import { ProductDetails } from './components/ProductDetails';
-import { UserProfile } from './components/UserProfile';
-import { ChatList } from './components/ChatList';
-import { ChatWindow } from './components/ChatWindow';
-import { User, Product, Coordinates, Category, Language, DeliveryType, Conversation, ViewState } from './types';
-import { MapPinOff, RefreshCw, SearchX, Car, Home, Smartphone, Briefcase, Armchair, Shirt, Book, Trophy, Package } from 'lucide-react';
+import { User, Product, Coordinates, Category, Conversation, DeliveryType } from './types';
 import { calculateDistance } from './services/utils';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { supabase } from './services/supabase';
 import { API_BASE_URL } from './services/apiConfig';
 import { createOrGetConversation, sendMessage as sendMessageApi, getUserConversations, subscribeToConversations } from './services/chatService';
+import { GlassToast, ToastType } from './components/GlassToast';
+import { reverseGeocode } from './services/locationService';
+import { Toaster } from 'react-hot-toast';
 
+// Pages
+import { HomePage } from './pages/HomePage';
+import { ProductPage } from './pages/ProductPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { ChatPage } from './pages/ChatPage';
 
-// --- EXPANDED MOCK DATA TEMPLATES ---
+// --- MOCK DATA ---
 const MOCK_TEMPLATES: Record<Category, Array<{
   titles: { zh: string; en: string; es: string };
   basePrice: number;
@@ -125,11 +128,11 @@ const getMockDeliveryType = (category: Category): DeliveryType => {
   return DeliveryType.Both;
 };
 
-// Generate 400 items
-const generateMockProducts = (center: Coordinates, lang: Language): Product[] => {
+const generateMockProducts = (center: Coordinates, lang: string): Product[] => {
   const TOTAL_ITEMS = 400;
   const items: Product[] = [];
   const categories = Object.keys(MOCK_TEMPLATES) as Category[];
+  const langKey = (lang === 'zh' || lang === 'en' || lang === 'es') ? lang : 'es';
 
   for (let i = 0; i < TOTAL_ITEMS; i++) {
     const cat = categories[Math.floor(Math.random() * categories.length)];
@@ -154,14 +157,13 @@ const generateMockProducts = (center: Coordinates, lang: Language): Product[] =>
     const priceJitter = 0.8 + Math.random() * 0.4;
     const finalPrice = Math.floor(template.basePrice * priceJitter / 10) * 10;
 
-    const descList = MOCK_DESCRIPTIONS[lang] || MOCK_DESCRIPTIONS['es'];
+    const descList = MOCK_DESCRIPTIONS[langKey as keyof typeof MOCK_DESCRIPTIONS] || MOCK_DESCRIPTIONS['es'];
     const desc = descList[Math.floor(Math.random() * descList.length)];
 
     const sellerIndex = Math.floor(Math.random() * 50);
 
-    // Monetization Mock
-    const isPromoted = Math.random() < 0.08; // 8% chance of being promoted
-    const isSellerVerified = Math.random() < 0.2; // 20% chance of being verified
+    const isPromoted = Math.random() < 0.08;
+    const isSellerVerified = Math.random() < 0.2;
 
     items.push({
       id: `mock-${i}`,
@@ -172,7 +174,7 @@ const generateMockProducts = (center: Coordinates, lang: Language): Product[] =>
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${sellerIndex + 100}`,
         isVerified: isSellerVerified,
       },
-      title: template.titles[lang] || template.titles['es'],
+      title: template.titles[langKey as keyof typeof template.titles] || template.titles['es'],
       description: desc,
       price: finalPrice,
       currency: lang === 'zh' ? 'CNY' : 'MXN',
@@ -188,13 +190,20 @@ const generateMockProducts = (center: Coordinates, lang: Language): Product[] =>
   return items;
 };
 
-import { GlassToast, ToastType } from './components/GlassToast';
-import { reverseGeocode } from './services/locationService';
-
-// --- MAIN CONTENT COMPONENT ---
-// This component consumes the Language Context
 const AppContent: React.FC = () => {
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
+  const locationHook = useLocation();
+
+  // Determine current view from URL for BottomNav
+  const currentView = useMemo(() => {
+    const path = locationHook.pathname;
+    if (path === '/') return 'home';
+    if (path.startsWith('/chat')) return 'chat-list';
+    if (path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/product')) return 'product';
+    return 'home';
+  }, [locationHook.pathname]);
 
   // Toast State
   const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
@@ -216,16 +225,12 @@ const AppContent: React.FC = () => {
   const [locationName, setLocationName] = useState<string>('CDMX');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const [currentView, setCurrentView] = useState<ViewState>({ type: 'home' });
   const [cart, setCart] = useState<Product[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Chat State
   const [conversations, setConversations] = useState<Conversation[]>([]);
-
-  // Loading and Error States
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
 
   useEffect(() => {
     document.title = "DESCU";
@@ -233,7 +238,6 @@ const AppContent: React.FC = () => {
 
   // Supabase Auth State Listener
   useEffect(() => {
-    // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser({
@@ -246,7 +250,6 @@ const AppContent: React.FC = () => {
       }
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -266,7 +269,6 @@ const AppContent: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Login Handler - now triggers Google OAuth
   const handleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -281,7 +283,6 @@ const AppContent: React.FC = () => {
       showToast('登录失败，请重试', 'error');
     }
   };
-
 
   const handleUpdateUser = (updatedUser: User) => {
     setUser(updatedUser);
@@ -308,17 +309,15 @@ const AppContent: React.FC = () => {
 
     const loadProductsFromAPI = async (coords: Coordinates) => {
       try {
-        // 从数据库加载真实商品
         const response = await fetch(`${API_BASE_URL}/api/products`);
         if (response.ok) {
           const dbProducts = await response.json();
-
-          // 转换数据库格式到应用格式
           const convertedProducts: Product[] = dbProducts.map((p: any) => ({
             id: p.id,
             seller: {
               id: p.seller_id,
               name: p.seller_name,
+              seller_info: p.seller_info,
               email: p.seller_email,
               avatar: p.seller_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.seller_id}`,
               isVerified: p.seller_verified || false,
@@ -339,19 +338,14 @@ const AppContent: React.FC = () => {
             isPromoted: p.is_promoted || false,
           }));
 
-          // 生成一些mock商品填充列表
           const mocks = generateMockProducts(coords, language);
-
-          // 合并数据库商品和mock商品
           setProducts([...convertedProducts, ...mocks]);
         } else {
-          // 如果API失败，只使用mock数据
           const mocks = generateMockProducts(coords, language);
           setProducts(mocks);
         }
       } catch (error) {
         console.error('加载商品失败:', error);
-        // 失败时使用mock数据
         const mocks = generateMockProducts(coords, language);
         setProducts(mocks);
       }
@@ -359,13 +353,10 @@ const AppContent: React.FC = () => {
 
     const updateProducts = async (coords: Coordinates) => {
       setLocation(coords);
-
-      // Fetch location name
       const name = await reverseGeocode(coords.latitude, coords.longitude);
       if (name) {
         setLocationName(name);
       }
-
       loadProductsFromAPI(coords);
     };
 
@@ -396,45 +387,33 @@ const AppContent: React.FC = () => {
     }
   }, [language]);
 
-  // Load conversations and subscribe to updates
+  // Load conversations
   useEffect(() => {
     if (!user) {
       setConversations([]);
       return;
     }
 
-    // 1. Load initial conversations
     const loadConversations = async () => {
       try {
         const data = await getUserConversations(user.id);
-        // DEBUG: 临时调试弹窗，确认数据是否到达
-        // DEBUG: 数据已确认到达，移除弹窗以免阻塞渲染
-
-        // Map backend data to frontend model
         const mappedConversations: Conversation[] = data.map((c: any) => {
-          //Determine if current user is buyer or seller
           const isBuyer = user.id === c.user1_id;
-
-          // Construct other user info
-          let otherUser;
-          // Check for sellerInfo (camelCase from new backend) or seller_info (legacy)
           const sellerInfo = c.sellerInfo || c.seller_info;
+          let otherUser;
 
           if (isBuyer && sellerInfo) {
-            // If I am buyer, other user is seller
             otherUser = {
               id: sellerInfo.id,
               name: sellerInfo.name,
-              email: '', // Not returned by API for privacy
+              email: '',
               avatar: sellerInfo.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
               isVerified: false
             };
           } else {
-            // If I am seller, other user is buyer (info not fully available yet)
-            // Or fallback if sellerInfo is missing
             otherUser = {
               id: isBuyer ? c.user2_id : c.user1_id,
-              name: isBuyer ? 'Seller' : 'Buyer', // Placeholder
+              name: isBuyer ? 'Seller' : 'Buyer',
               email: '',
               avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
               isVerified: false
@@ -455,17 +434,14 @@ const AppContent: React.FC = () => {
         setConversations(mappedConversations);
       } catch (error: any) {
         console.error('Failed to load conversations', error);
-        // showToast(`❌ 加载对话列表失败: ${error.message}`, 'error');
       }
     };
 
     loadConversations();
 
-    // 2. Subscribe to real-time updates
     const unsubscribe = subscribeToConversations(user.id, (payload) => {
-      // Handle update
       console.log('Conversation update:', payload);
-      loadConversations(); // Simplest strategy: reload list
+      loadConversations();
     });
 
     return () => {
@@ -491,12 +467,9 @@ const AppContent: React.FC = () => {
     setIsCreatingProduct(true);
 
     try {
-      // 调用后端 API 创建商品
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           seller_id: user.id,
           seller_name: user.name,
@@ -522,8 +495,6 @@ const AppContent: React.FC = () => {
       }
 
       const savedProduct = await response.json();
-
-      // 转换数据库格式到应用格式
       const productForApp: Product = {
         id: savedProduct.id,
         seller: {
@@ -549,11 +520,9 @@ const AppContent: React.FC = () => {
         isPromoted: savedProduct.is_promoted || false,
       };
 
-      // 更新本地状态
       setProducts(prev => [productForApp, ...prev]);
       setIsSellModalOpen(false);
-      setCurrentView({ type: 'home' });
-
+      navigate('/');
       showToast('🎉 商品发布成功！', 'success');
     } catch (error) {
       console.error('商品创建失败:', error);
@@ -582,35 +551,30 @@ const AppContent: React.FC = () => {
     setCart([]);
   };
 
-  // Chat Logic
   const handleContactSeller = async (product: Product) => {
     if (!user) {
       handleLogin();
       return;
     }
 
-    // 检查是否已有对话
     let existingConv = conversations.find(
       c => c.otherUser.id === product.seller.id && c.productId === product.id
     );
 
     if (existingConv) {
-      setCurrentView({ type: 'chat-window', conversationId: existingConv.id });
+      navigate(`/chat/${existingConv.id}`);
       return;
     }
 
-    setIsLoadingChat(true);
     try {
-      // 调用 API 创建或获取对话
       const conversation = await createOrGetConversation(
         product.id,
         user.id,
         product.seller.id
       );
 
-      // 创建本地对话对象
       const newConversation: Conversation = {
-        id: conversation.id || conversation.conversation?.id, // 处理不同的响应格式
+        id: conversation.id || conversation.conversation?.id,
         otherUser: product.seller,
         productId: product.id,
         productTitle: product.title,
@@ -620,12 +584,10 @@ const AppContent: React.FC = () => {
       };
 
       setConversations(prev => [...prev, newConversation]);
-      setCurrentView({ type: 'chat-window', conversationId: newConversation.id });
+      navigate(`/chat/${newConversation.id}`);
     } catch (error) {
       console.error('创建对话失败:', error);
       showToast('❌ 无法打开聊天，请稍后重试', 'error');
-    } finally {
-      setIsLoadingChat(false);
     }
   };
 
@@ -636,7 +598,6 @@ const AppContent: React.FC = () => {
     const timestamp = Date.now();
     const tempMessageId = `msg-temp-${timestamp}`;
 
-    // 先添加到本地UI（乐观更新）
     const tempMessage = {
       id: tempMessageId,
       senderId: user.id,
@@ -657,10 +618,7 @@ const AppContent: React.FC = () => {
     }));
 
     try {
-      // 调用 API 发送消息
       const savedMessage = await sendMessageApi(conversationId, user.id, text);
-
-      // 用真实ID替换临时ID
       setConversations(prev => prev.map(c => {
         if (c.id === conversationId) {
           return {
@@ -676,7 +634,6 @@ const AppContent: React.FC = () => {
       }));
     } catch (error) {
       console.error('发送消息失败:', error);
-      // 从UI移除失败的消息
       setConversations(prev => prev.map(c => {
         if (c.id === conversationId) {
           return {
@@ -712,12 +669,9 @@ const AppContent: React.FC = () => {
 
     if (debouncedSearchQuery.trim()) {
       const lowerQ = debouncedSearchQuery.toLowerCase();
-      const translatedCategory = Object.values(Category).find(c => t(`cat.${c}`).toLowerCase().includes(lowerQ));
-
       filtered = products.filter(p =>
         p.title.toLowerCase().includes(lowerQ) ||
         p.description.toLowerCase().includes(lowerQ) ||
-        (translatedCategory && p.category === translatedCategory) ||
         p.category.toLowerCase().includes(lowerQ)
       );
     }
@@ -734,34 +688,15 @@ const AppContent: React.FC = () => {
     }));
 
     return withDistance.sort((a, b) => {
-      // 1. Promoted items first
       if (a.isPromoted && !b.isPromoted) return -1;
       if (!a.isPromoted && b.isPromoted) return 1;
-
-      // 2. Nearby items (within 5km)
       const aIsClose = a.distance! <= 5;
       const bIsClose = b.distance! <= 5;
-
       if (aIsClose && !bIsClose) return -1;
       if (!aIsClose && bIsClose) return 1;
-
-      // 3. Distance ascending
       return a.distance! - b.distance!;
     });
-  }, [products, location, debouncedSearchQuery, selectedCategory, t]);
-
-  const CATEGORIES = [
-    { id: 'all', icon: RefreshCw, label: 'cat.all' },
-    { id: Category.Vehicles, icon: Car, label: 'cat.vehicles' },
-    { id: Category.RealEstate, icon: Home, label: 'cat.real_estate' },
-    { id: Category.Electronics, icon: Smartphone, label: 'cat.electronics' },
-    { id: Category.Services, icon: Briefcase, label: 'cat.services' },
-    { id: Category.Furniture, icon: Armchair, label: 'cat.furniture' },
-    { id: Category.Clothing, icon: Shirt, label: 'cat.clothing' },
-    { id: Category.Sports, icon: Trophy, label: 'cat.sports' },
-    { id: Category.Books, icon: Book, label: 'cat.books' },
-    { id: Category.Other, icon: Package, label: 'cat.other' },
-  ];
+  }, [products, location, debouncedSearchQuery, selectedCategory]);
 
   const unreadCount = useMemo(() => {
     if (!user) return 0;
@@ -769,181 +704,6 @@ const AppContent: React.FC = () => {
       return acc + c.messages.filter(m => !m.isRead && m.senderId !== user.id).length;
     }, 0);
   }, [conversations, user]);
-
-  const renderContent = () => {
-    switch (currentView.type) {
-      case 'product':
-        const product = products.find(p => p.id === (currentView as any).productId);
-        if (!product) return <div className="p-8 text-center text-gray-500">Product not found</div>;
-        return (
-          <ProductDetails
-            product={product}
-            onBack={() => setCurrentView({ type: 'home' })}
-            onAddToCart={addToCart}
-            onContactSeller={handleContactSeller}
-            isInCart={cart.some(p => p.id === product.id)}
-            user={user}
-          />
-        );
-      case 'chat-list':
-        if (!user) return (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-            <h2 className="text-xl font-bold mb-4">{t('nav.login')}</h2>
-            <button onClick={handleLogin} className="bg-brand-600 text-white px-8 py-3 rounded-full font-bold shadow-lg">Google Login</button>
-          </div>
-        );
-        return (
-          <ChatList
-            conversations={conversations}
-            currentUser={user}
-            onSelectConversation={(id) => setCurrentView({ type: 'chat-window', conversationId: id })}
-          />
-        );
-      case 'chat-window':
-        const activeConv = conversations.find(c => c.id === (currentView as any).conversationId);
-        if (!activeConv || !user) {
-          setTimeout(() => setCurrentView({ type: 'chat-list' }), 0);
-          return <div className="p-4 text-center">Loading chat...</div>;
-        }
-        return (
-          <div className="flex-1 sm:py-8 sm:px-4 flex justify-center bg-gray-50">
-            <div className="w-full max-w-4xl h-full sm:h-[85vh] bg-white sm:rounded-2xl shadow-xl overflow-hidden">
-              <ChatWindow
-                conversation={activeConv}
-                currentUser={user}
-                onBack={() => setCurrentView({ type: 'chat-list' })}
-                onSendMessage={handleSendMessage}
-              />
-            </div>
-          </div>
-        );
-      case 'profile':
-        if (!user) return (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-            <h2 className="text-xl font-bold mb-4">{t('nav.login')}</h2>
-            <button
-              onClick={handleLogin}
-              className="bg-brand-600 text-white px-8 py-3 rounded-full font-bold shadow-lg"
-            >
-              Google Login
-            </button>
-          </div>
-        );
-        const userProducts = products.filter(p => p.seller.id === user.id);
-        return (
-          <UserProfile
-            user={user}
-            userProducts={userProducts}
-            onUpdateUser={handleUpdateUser}
-            onBack={() => setCurrentView({ type: 'home' })}
-            onProductClick={(p) => setCurrentView({ type: 'product', productId: p.id })}
-            onVerifyUser={handleVerifyUser}
-            onBoostProduct={handleBoostProduct}
-          />
-        );
-      case 'home':
-      default:
-        return (
-          <main className="max-w-5xl mx-auto px-4 pb-24">
-            {/* DESCU Brand Header with Updated Logo */}
-            <div className="flex flex-col items-center justify-center pt-10 pb-8">
-              <div className="flex items-center gap-3 animate-fade-in-up">
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-brand-600 text-white flex items-center justify-center rounded-2xl shadow-xl shadow-brand-500/30 transform hover:scale-105 transition-transform backdrop-blur-sm bg-opacity-90">
-                  <svg viewBox="0 0 100 100" className="w-8 h-8 md:w-10 md:h-10 fill-none stroke-white" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
-                    {/* Stylized 'D' + Tag hook */}
-                    <path d="M30 20 H50 C70 20 85 35 85 50 C85 65 70 80 50 80 H30 Z" />
-                    <circle cx="45" cy="40" r="5" fill="white" stroke="none" />
-                    <path d="M30 20 V80" />
-                  </svg>
-                </div>
-                <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-800 tracking-tighter drop-shadow-sm">DESCU</h1>
-              </div>
-              <p className="text-gray-500 text-xs md:text-base font-medium mt-3 tracking-wide bg-white/40 px-4 py-1 rounded-full backdrop-blur-sm border border-white/40 text-center">{t('hero.subtitle')}</p>
-            </div>
-
-            {/* Category Filter - Glass Pills */}
-            <div className="flex gap-4 overflow-x-auto pb-6 mb-6 no-scrollbar px-1">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`flex flex-col items-center flex-shrink-0 gap-2 min-w-[76px] group transition-all duration-300 ${selectedCategory === cat.id ? 'opacity-100 scale-105' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
-                >
-                  <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ${selectedCategory === cat.id
-                    ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-500/40'
-                    : 'bg-white/60 backdrop-blur-md text-gray-600 shadow-sm border border-white/60 group-hover:bg-white/80'
-                    }`}>
-                    <cat.icon size={26} strokeWidth={selectedCategory === cat.id ? 2.5 : 2} />
-                  </div>
-                  <span className={`text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full ${selectedCategory === cat.id
-                    ? 'text-brand-700 bg-brand-50/50'
-                    : 'text-gray-500 group-hover:text-gray-700'
-                    }`}>
-                    {t(cat.label)}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between mb-6 px-1">
-              <h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
-                {selectedCategory === 'all' ? t('list.header') : t(`cat.${selectedCategory}`)}
-                <span className="text-sm font-normal text-gray-400 bg-white/50 px-2 py-0.5 rounded-full backdrop-blur-xs border border-white/40">{sortedProducts.length}</span>
-              </h2>
-
-              <div className="flex items-center gap-2 text-xs text-gray-600 bg-white/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/50 shadow-sm transition-all hover:bg-white/80 cursor-pointer">
-                {isLoadingLoc ? (
-                  <span className="flex items-center gap-1.5"><RefreshCw size={12} className="animate-spin text-brand-500" /> {t('list.loading_loc')}</span>
-                ) : permissionDenied ? (
-                  <span className="flex items-center gap-1.5 text-orange-500 font-bold"><MapPinOff size={12} /> {t('list.loc_denied')}</span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-brand-600 font-bold"><RefreshCw size={12} /> {t('list.loc_success')}</span>
-                )}
-              </div>
-            </div>
-
-            {sortedProducts.length === 0 ? (
-              <div className="text-center py-24 glass-panel rounded-[2.5rem] flex flex-col items-center justify-center">
-                <div className="bg-gray-50/50 w-28 h-28 rounded-full flex items-center justify-center mb-6 text-gray-300 border-2 border-dashed border-gray-200">
-                  {searchQuery ? <SearchX size={48} /> : <Package size={48} />}
-                </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
-                  {searchQuery ? t('list.no_results') : t('list.empty')}
-                </h3>
-                <p className="text-gray-400 max-w-xs mx-auto mb-6 leading-relaxed">
-                  {searchQuery ? 'Suggestions: check spelling or try broader terms.' : 'Be the first to list an item in this category!'}
-                </p>
-                {!searchQuery && (
-                  <button onClick={handleSellClick} className="px-8 py-3 bg-brand-600 text-white font-bold rounded-full shadow-lg shadow-brand-200 hover:scale-105 active:scale-95 transition-all">
-                    {t('nav.sell')}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
-                {sortedProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={addToCart}
-                    isInCart={cart.some(item => item.id === product.id)}
-                    onClick={(p) => setCurrentView({ type: 'product', productId: p.id })}
-                  />
-                ))}
-              </div>
-            )}
-
-            <div className="text-center py-12">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/30 backdrop-blur-sm border border-white/20 text-gray-400 text-xs font-medium">
-                <span>DESCU Marketplace © 2024</span>
-                <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                <span>Premium Resale</span>
-              </div>
-            </div>
-          </main>
-        );
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
@@ -955,27 +715,79 @@ const AppContent: React.FC = () => {
         onSearchChange={setSearchQuery}
         cartCount={cart.length}
         onCartClick={() => setIsCartOpen(true)}
-        onProfileClick={() => setCurrentView({ type: 'profile' })}
-        onLogoClick={() => setCurrentView({ type: 'home' })}
-        onChatClick={() => setCurrentView({ type: 'chat-list' })}
+        onProfileClick={() => navigate('/profile')}
+        onLogoClick={() => navigate('/')}
+        onChatClick={() => navigate('/chat')}
         unreadCount={unreadCount}
         locationName={locationName}
       />
 
       <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden">
-        {renderContent()}
+        <Routes>
+          <Route path="/" element={
+            <HomePage
+              sortedProducts={sortedProducts}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              isLoadingLoc={isLoadingLoc}
+              permissionDenied={permissionDenied}
+              searchQuery={searchQuery}
+              onSellClick={handleSellClick}
+              onAddToCart={addToCart}
+              cart={cart}
+            />
+          } />
+          <Route path="/product/:id" element={
+            <ProductPage
+              products={products}
+              onAddToCart={addToCart}
+              onContactSeller={handleContactSeller}
+              cart={cart}
+              user={user}
+            />
+          } />
+          <Route path="/profile" element={
+            <ProfilePage
+              user={user}
+              products={products}
+              onLogin={handleLogin}
+              onUpdateUser={handleUpdateUser}
+              onVerifyUser={handleVerifyUser}
+              onBoostProduct={handleBoostProduct}
+            />
+          } />
+          <Route path="/chat" element={
+            <ChatPage
+              conversations={conversations}
+              user={user}
+              onLogin={handleLogin}
+              onSendMessage={handleSendMessage}
+            />
+          } />
+          <Route path="/chat/:id" element={
+            <ChatPage
+              conversations={conversations}
+              user={user}
+              onLogin={handleLogin}
+              onSendMessage={handleSendMessage}
+            />
+          } />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
 
-      {currentView.type !== 'chat-window' && (
-        <BottomNav
-          currentView={currentView.type === 'product' ? 'home' : currentView.type}
-          onChangeView={(view) => setCurrentView({ type: view })}
-          onSellClick={handleSellClick}
-          onCartClick={() => setIsCartOpen(true)}
-          cartCount={cart.length}
-          unreadCount={unreadCount}
-        />
-      )}
+      <BottomNav
+        currentView={currentView}
+        onChangeView={(view) => {
+          if (view === 'home') navigate('/');
+          if (view === 'profile') navigate('/profile');
+          if (view === 'chat-list') navigate('/chat');
+        }}
+        onSellClick={handleSellClick}
+        onCartClick={() => setIsCartOpen(true)}
+        cartCount={cart.length}
+        unreadCount={unreadCount}
+      />
 
       <SellModal
         isOpen={isSellModalOpen}
@@ -992,7 +804,7 @@ const AppContent: React.FC = () => {
         onRemoveItem={removeFromCart}
         onCheckout={handleCheckout}
       />
-      {/* Glass Toast Notification */}
+
       <GlassToast
         isVisible={toast.show}
         message={toast.message}
@@ -1003,11 +815,6 @@ const AppContent: React.FC = () => {
   );
 };
 
-
-import { Toaster } from 'react-hot-toast';
-
-// --- ROOT APP WRAPPER ---
-// This component provides the context to the rest of the app
 const App: React.FC = () => {
   return (
     <LanguageProvider>
