@@ -394,12 +394,8 @@ export const getUserOrders = async (req: Request, res: Response) => {
             return res.status(401).json({ error: 'Unauthorized: Missing credentials' });
         }
 
-        import { getAuthClient } from '../utils/supabaseHelper';
-        // Note: Import inside function is bad practice but doing it here to match previous structure if needed.
-        // Wait, I fixed the top-level import in previous step. 
-        // I should NOT use import here. 
-        // I will assume getAuthClient is available from top level.
 
+        // Use Authenticated Client
         // Use Authenticated Client
         let client;
         try {
