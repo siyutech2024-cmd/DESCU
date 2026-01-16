@@ -163,6 +163,10 @@ app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 import { generateSitemap } from './controllers/seoController';
 app.get('/sitemap.xml', generateSitemap);
 
+// Location Proxy
+import { reverseGeocodeProxy } from './controllers/locationController';
+app.get('/api/location/reverse', reverseGeocodeProxy);
+
 app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');
 });

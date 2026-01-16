@@ -2,9 +2,27 @@ import { Request, Response } from 'express';
 import { supabase } from '../db/supabase';
 
 // 创建新对话
+import { createClient } from '@supabase/supabase-js';
+
+// Helper to create authenticated client
+const getAuthClient = (authHeader?: string) => {
+    const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
+    const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY!;
+
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return supabase;
+    }
+
+    return createClient(sbUrl, sbKey, {
+        global: { headers: { Authorization: authHeader || '' } }
+    });
+};
+
+// 创建新对话
 export const createConversation = async (req: Request, res: Response) => {
     try {
         const { product_id, user1_id, user2_id } = req.body;
+        const supabaseClient = getAuthClient(req.headers.authorization);
 
         // 严格验证 ID
         if (!user1_id || user1_id === 'undefined' || !user2_id || user2_id === 'undefined') {
@@ -12,8 +30,9 @@ export const createConversation = async (req: Request, res: Response) => {
             return res.status(400).json({ error: '无效的用户ID (Invalid user IDs)' });
         }
 
-        // 检查对话是否已存在
-        const { data: existing } = await supabase
+        // 检查对话是否已存在 (Use scoped client if possible, but reading requires permission. 
+        // If creating for two other people (unlikely), this might fail. User usually creates for self and other.)
+        const { data: existing } = await supabaseClient
             .from('conversations')
             .select('*')
             .eq('product_id', product_id)
@@ -25,7 +44,7 @@ export const createConversation = async (req: Request, res: Response) => {
         }
 
         // 创建新对话
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('conversations')
             .insert([{ product_id, user1_id, user2_id }])
             .select()
@@ -43,10 +62,11 @@ export const createConversation = async (req: Request, res: Response) => {
 export const getUserConversations = async (req: Request, res: Response) => {
     try {
         const { userId } = req.params;
+        const supabaseClient = getAuthClient(req.headers.authorization);
 
         console.log(`[Chat] Fetching conversations for user: ${userId}`);
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('conversations')
             .select('*')
             .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
@@ -59,7 +79,8 @@ export const getUserConversations = async (req: Request, res: Response) => {
 
         const conversationsWithDetails = await Promise.all(
             (data || []).map(async (conversation) => {
-                const { data: product } = await supabase
+                // Public info read (Products) works with anon client too, but scoped is safer/consistent
+                const { data: product } = await supabaseClient
                     .from('products')
                     .select('title, images, seller_id, seller_name, seller_avatar')
                     .eq('id', conversation.product_id)
