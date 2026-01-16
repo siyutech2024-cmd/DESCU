@@ -684,7 +684,7 @@ export const markOrderAsPaid = async (req: AdminRequest, res: Response) => {
                 req.admin.email,
                 'manual_payout',
                 'order',
-                id,
+                String(id),
                 { notes, previous_status: 'completed_pending_payout' }
             );
         }
