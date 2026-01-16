@@ -70,9 +70,9 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, 
                         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
                             <div className="relative">
                                 <img
-                                    src={user.avatar || 'https://via.placeholder.com/100'}
-                                    alt={user.name}
-                                    className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
+                                    src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
+                                    alt=""
+                                    className="h-16 w-16 rounded-full"
                                 />
                                 {user.is_verified && (
                                     <div className="absolute bottom-1 right-1 bg-green-500 text-white p-1 rounded-full border-2 border-white shadow-sm">

@@ -293,9 +293,9 @@ export const UserList: React.FC = () => {
                                             <div className="flex items-center gap-3">
                                                 <div className="relative">
                                                     <img
-                                                        src={user.avatar || 'https://via.placeholder.com/40'}
+                                                        src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`}
                                                         alt=""
-                                                        className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                                                        className="h-10 w-10 rounded-full"
                                                     />
                                                     {user.is_verified && (
                                                         <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-0.5 border border-white">

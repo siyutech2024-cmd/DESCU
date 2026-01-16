@@ -170,7 +170,14 @@ const OrderList: React.FC<OrderListProps> = ({ role }) => {
                         <div className="flex gap-4">
                             <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
                                 {order.products?.images?.[0] ? (
-                                    <img src={order.products.images[0]} className="w-full h-full object-cover" />
+                                    <img
+                                        src={order.products.images[0]}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/64?text=No+Img'; // Fallback to text if even reliable one fails, or better:
+                                            (e.target as HTMLImageElement).src = 'https://placehold.co/64x64?text=IMG'; // Use placehold.co which is more reliable
+                                        }}
+                                    />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-300">No Img</div>
                                 )}
