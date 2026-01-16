@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "server": "npx tsx server/src/index.ts",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
@@ -12,7 +13,9 @@
     "@stripe/react-stripe-js": "^5.4.1",
     "@stripe/stripe-js": "^8.6.1",
     "@supabase/supabase-js": "^2.39.7",
+    "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "express": "^5.2.1",
     "file-saver": "^2.0.5",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
@@ -20,10 +23,14 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.22.0",
     "recharts": "^3.6.0",
+    "stripe": "^20.1.2",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/file-saver": "^2.0.7",
+    "@types/node": "^25.0.9",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/stripe-v3": "^3.1.33",

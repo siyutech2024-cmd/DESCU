@@ -37,7 +37,7 @@ async function createDefaultAdmin() {
         return;
     }
 
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = (users as any[]).find(u => u.email === email);
 
     if (existingUser) {
         // Update existing

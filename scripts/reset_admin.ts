@@ -41,7 +41,7 @@ async function resetAdmin() {
         return;
     }
 
-    const user = users.find(u => u.email === email);
+    const user = (users as any[]).find(u => u.email === email);
     if (!user) {
         console.error('User not found.');
         return;
