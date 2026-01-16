@@ -91,8 +91,26 @@ import { translateBatch } from '../services/translationService';
 export const getProducts = async (req: Request, res: Response) => {
     try {
         const { lang, limit = '50', offset = '0' } = req.query; // Added limit/offset support
+        const authHeader = req.headers.authorization;
 
-        let query = supabase
+        let client = supabase;
+
+        // If user is authenticated, use their context (for RLS)
+        if (authHeader) {
+            client = createClient(
+                process.env.SUPABASE_URL!,
+                process.env.SUPABASE_ANON_KEY!,
+                {
+                    global: {
+                        headers: {
+                            Authorization: authHeader
+                        }
+                    }
+                }
+            );
+        }
+
+        let query = client
             .from('products')
             .select('*')
             .is('deleted_at', null)

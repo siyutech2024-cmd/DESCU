@@ -309,7 +309,16 @@ const AppContent: React.FC = () => {
 
     const loadProductsFromAPI = async (coords: Coordinates) => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/products?lang=${language}`);
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: HeadersInit = {};
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/products?lang=${language}`, {
+          headers
+        });
+
         if (response.ok) {
           const dbProducts = await response.json();
           const convertedProducts: Product[] = dbProducts.map((p: any) => ({
