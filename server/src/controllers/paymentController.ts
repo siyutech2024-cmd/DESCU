@@ -385,10 +385,19 @@ export const getUserOrders = async (req: Request, res: Response) => {
         const userMap = new Map<string, string>();
         const uniqueIds = Array.from(userIds);
 
-        // Fetch emails in parallel
+        // Fetch emails in parallel with safer handling
         const userPromises = uniqueIds.map(async (uid) => {
-            const { data: { user } } = await supabase.auth.admin.getUserById(uid);
-            return { id: uid, email: user?.email || 'Unknown' };
+            try {
+                const { data, error } = await supabase.auth.admin.getUserById(uid);
+                if (error || !data || !data.user) {
+                    console.warn(`Could not fetch user ${uid}:`, error);
+                    return { id: uid, email: 'Unknown' };
+                }
+                return { id: uid, email: data.user.email || 'Unknown' };
+            } catch (e) {
+                console.error(`Exception fetching user ${uid}:`, e);
+                return { id: uid, email: 'Unknown' };
+            }
         });
 
         const users = await Promise.all(userPromises);
