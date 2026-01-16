@@ -722,7 +722,7 @@ const AppContent: React.FC = () => {
         locationName={locationName}
       />
 
-      <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden">
+      <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-16 md:pb-0">
         <Routes>
           <Route path="/" element={
             <HomePage

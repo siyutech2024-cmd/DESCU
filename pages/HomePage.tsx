@@ -52,7 +52,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     ];
 
     return (
-        <main className="max-w-5xl mx-auto px-4 pb-24">
+        <main className="max-w-5xl mx-auto px-2 md:px-4 pb-24 w-full overflow-x-hidden">
             {/* DESCU Brand Header */}
             {/* DESCU Brand Header - More Compact on Mobile */}
             <div className="flex flex-col items-center justify-center pt-6 pb-4 md:pt-10 md:pb-8">

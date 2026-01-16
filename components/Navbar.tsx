@@ -50,15 +50,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-glass-sm transition-all duration-300">
-      <div className="max-w-5xl mx-auto px-4 h-18 flex items-center gap-4">
+      <div className="max-w-5xl mx-auto px-3 md:px-4 h-16 md:h-18 flex items-center gap-2 md:gap-4 justify-between">
 
         {/* Brand Logo - Added for brand consistency */}
         <div
           onClick={onLogoClick}
-          className="flex items-center gap-2 cursor-pointer group flex-shrink-0"
+          className="flex items-center gap-1.5 md:gap-2 cursor-pointer group flex-shrink-0"
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-brand-600 to-brand-500 text-white flex items-center justify-center rounded-xl shadow-lg shadow-brand-500/20 transform group-hover:rotate-6 transition-transform">
-            <svg viewBox="0 0 100 100" className="w-6 h-6 fill-none stroke-white" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-brand-600 to-brand-500 text-white flex items-center justify-center rounded-xl shadow-lg shadow-brand-500/20 transform group-hover:rotate-6 transition-transform">
+            <svg viewBox="0 0 100 100" className="w-5 h-5 md:w-6 md:h-6 fill-none stroke-white" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round">
               <path d="M30 20 H50 C70 20 85 35 85 50 C85 65 70 80 50 80 H30 Z" />
             </svg>
           </div>
@@ -72,24 +72,24 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Search Bar - Modern Glass Input */}
-        <div className="flex-1 relative max-w-lg ml-auto mr-auto md:mr-0 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
-            <Search size={18} />
+        <div className="flex-1 relative max-w-lg mx-2 md:mx-4 group min-w-0">
+          <div className="absolute inset-y-0 left-0 pl-3 md:pl-4 flex items-center pointer-events-none text-gray-400">
+            <Search size={16} className="md:w-[18px] md:h-[18px]" />
           </div>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('nav.search')}
-            className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2.5 pl-11 pr-10 text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
+            className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2 pl-9 pr-8 md:py-2.5 md:pl-11 md:pr-10 text-xs md:text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
           />
           {searchQuery && (
             <button
               onClick={() => onSearchChange('')}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              className="absolute inset-y-0 right-0 pr-2 md:pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
             >
               <div className="bg-gray-200/50 rounded-full p-0.5 hover:bg-gray-300/50">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </div>
             </button>
           )}
