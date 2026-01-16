@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-
-dotenv.config();
+// import dotenv from 'dotenv'; // Removed to avoid crash in Prod (dotenv is devDependency)
+// dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 // Try Service Role first (Admin), then Anon Key (Public)
