@@ -13,7 +13,7 @@ import { API_BASE_URL } from '../services/apiConfig';
 import { GlassToast } from './GlassToast';
 import { supabase } from '../services/supabase';
 
-const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Sq0FaPszvEBRy9EPWb3KrtaKHZKjKeo7WVyDiGQpryyG8tfMvG7ptrw0LKzU3rcl9d2f72uUsspMVEkqSC6UgMr00jck4vrdB';
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51Sq0FTQ21K2ZcCkTeSAIFszExSoxuA6L5qGSn20wjF1MIyYECOM2O8zZU0YSTFVCQs8RAMiuTeLyyWmr4wv4gtkL00eEWCifnz';
 const stripePromise = loadStripe(STRIPE_KEY);
 
 interface CheckoutFormProps {
