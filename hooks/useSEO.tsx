@@ -8,41 +8,87 @@ interface SEOProps {
     url?: string;
 }
 
-export const useSEO = ({ title, description, image, url }: SEOProps) => {
+
+export const useSEO = ({ title, description, image, url, product }: SEOProps & { product?: any }) => {
     useEffect(() => {
-        // Update Title
+        // 1. Basic Meta Tags
         document.title = title;
 
-        // Helper to update meta tags
         const updateMeta = (name: string, content: string) => {
+            if (!content) return;
             let element = document.querySelector(`meta[name="${name}"]`) || document.querySelector(`meta[property="${name}"]`);
             if (!element) {
                 element = document.createElement('meta');
-                element.setAttribute(name.startsWith('og:') ? 'property' : 'name', name);
+                element.setAttribute(name.startsWith('og:') || name.startsWith('twitter:') ? 'property' : 'name', name);
                 document.head.appendChild(element);
             }
             element.setAttribute('content', content);
         };
 
-        if (description) {
-            updateMeta('description', description);
-            updateMeta('og:description', description);
-        }
+        const desc = description || 'DESCU - The best AI-powered local marketplace.';
+        const currentUrl = url || window.location.href;
+        const img = image || 'https://www.descu.ai/og-image.png'; // Default OG Image
 
+        updateMeta('description', desc);
+
+        // OpenGraph
         updateMeta('og:title', title);
+        updateMeta('og:description', desc);
+        updateMeta('og:image', img);
+        updateMeta('og:url', currentUrl);
+        updateMeta('og:type', product ? 'product' : 'website');
+        updateMeta('og:site_name', 'DESCU');
 
-        if (image) {
-            updateMeta('og:image', image);
+        // Twitter Card
+        updateMeta('twitter:card', 'summary_large_image');
+        updateMeta('twitter:title', title);
+        updateMeta('twitter:description', desc);
+        updateMeta('twitter:image', img);
+
+        // Canonical
+        let canonical = document.querySelector('link[rel="canonical"]');
+        if (!canonical) {
+            canonical = document.createElement('link');
+            canonical.setAttribute('rel', 'canonical');
+            document.head.appendChild(canonical);
         }
+        canonical.setAttribute('href', currentUrl);
 
-        if (url) {
-            updateMeta('og:url', url);
+        // 2. Structured Data (JSON-LD) for Products
+        let script = document.querySelector('script[type="application/ld+json"]');
+        if (product) {
+            if (!script) {
+                script = document.createElement('script');
+                script.setAttribute('type', 'application/ld+json');
+                document.head.appendChild(script);
+            }
+
+            const structuredData = {
+                "@context": "https://schema.org/",
+                "@type": "Product",
+                "name": product.title,
+                "image": product.images || [],
+                "description": product.description,
+                "sku": product.id,
+                "brand": {
+                    "@type": "Brand",
+                    "name": "SecondHand"
+                },
+                "offers": {
+                    "@type": "Offer",
+                    "url": currentUrl,
+                    "priceCurrency": product.currency || "MXN",
+                    "price": product.price,
+                    "availability": "https://schema.org/InStock",
+                    "itemCondition": "https://schema.org/UsedCondition"
+                }
+            };
+
+            script.textContent = JSON.stringify(structuredData);
         } else {
-            updateMeta('og:url', window.location.href);
+            // Cleanup JSON-LD if not on product page
+            if (script) script.remove();
         }
 
-        // Cleanup not strictly necessary for single page flows, 
-        // but we might want to revert to default on unmount?
-        // For now, next page will overwrite.
-    }, [title, description, image, url]);
+    }, [title, description, image, url, product]);
 };

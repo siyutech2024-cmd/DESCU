@@ -86,6 +86,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
         title: product ? `${product.title} | DESCU` : 'Item Not Found | DESCU',
         description: product ? `Check out ${product.title} for ${formatPrice(product.price)}. ${product.description.substring(0, 150)}...` : 'Product not found on DESCU.',
         image: product?.images[0],
+        product: product
     });
 
     if (loading) {

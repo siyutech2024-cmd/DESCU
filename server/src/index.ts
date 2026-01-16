@@ -159,6 +159,10 @@ app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
 app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 
 
+// SEO
+import { generateSitemap } from './controllers/seoController';
+app.get('/sitemap.xml', generateSitemap);
+
 app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');
 });
