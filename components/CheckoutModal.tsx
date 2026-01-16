@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import {
     PaymentElement,
@@ -190,7 +191,22 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                             product={product}
                             clientSecret={clientSecret}
                             onSuccess={() => {
-                                alert('Payment Successful! (Using mock success handling for now)');
+                                import toast from 'react-hot-toast';
+
+                                // ... (inside component)
+                                toast.success('Payment Successful! Order created.', {
+                                    duration: 4000,
+                                    position: 'top-center',
+                                    style: {
+                                        background: 'rgba(255, 255, 255, 0.9)',
+                                        backdropFilter: 'blur(10px)',
+                                        color: '#333',
+                                        fontWeight: 'bold',
+                                        borderRadius: '16px',
+                                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                                    },
+                                    icon: '🎉',
+                                });
                                 onClose();
                             }}
                             onCancel={onClose}

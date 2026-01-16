@@ -1003,11 +1003,15 @@ const AppContent: React.FC = () => {
   );
 };
 
+
+import { Toaster } from 'react-hot-toast';
+
 // --- ROOT APP WRAPPER ---
 // This component provides the context to the rest of the app
 const App: React.FC = () => {
   return (
     <LanguageProvider>
+      <Toaster />
       <AppContent />
     </LanguageProvider>
   );
