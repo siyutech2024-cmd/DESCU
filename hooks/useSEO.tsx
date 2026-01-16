@@ -67,28 +67,43 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
                 "image": product.images || [],
                 "description": product.description,
                 "sku": product.id,
-                "brand": { "@type": "Brand", "name": "SecondHand" },
+                "brand": { "@type": "Brand", "name": "DESCU" },
                 "offers": {
                     "@type": "Offer",
                     "url": currentUrl,
                     "priceCurrency": product.currency || "MXN",
                     "price": product.price,
                     "availability": "https://schema.org/InStock",
-                    "itemCondition": "https://schema.org/UsedCondition"
+                    "itemCondition": "https://schema.org/UsedCondition",
+                    "seller": {
+                        "@type": "Person",
+                        "name": product.seller?.name || "Verified Seller"
+                    }
                 }
             };
         } else {
-            // Fallback: WebSite schema for Homepage
+            // Detailed WebSite schema for Homepage + Breadcrumbs
             formattedSchema = {
                 "@context": "https://schema.org",
-                "@type": "WebSite",
-                "name": "DESCU",
-                "url": "https://www.descu.ai/",
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": "https://www.descu.ai/?q={search_term_string}",
-                    "query-input": "required name=search_term_string"
-                }
+                "@graph": [
+                    {
+                        "@type": "WebSite",
+                        "name": "DESCU Marketplace",
+                        "url": "https://www.descu.ai/",
+                        "potentialAction": {
+                            "@type": "SearchAction",
+                            "target": "https://www.descu.ai/?q={search_term_string}",
+                            "query-input": "required name=search_term_string"
+                        },
+                        "description": "Your trusted local marketplace for buying and selling safely."
+                    },
+                    {
+                        "@type": "CollectionPage",
+                        "name": title,
+                        "description": desc,
+                        "url": currentUrl
+                    }
+                ]
             };
         }
 
@@ -99,9 +114,6 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
                 document.head.appendChild(script);
             }
             script.textContent = JSON.stringify(formattedSchema);
-        } else {
-            if (script) script.remove();
         }
-
     }, [title, description, image, url, product]);
 };

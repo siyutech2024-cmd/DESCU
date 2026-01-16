@@ -16,10 +16,19 @@ import { reverseGeocode } from './services/locationService';
 import { Toaster } from 'react-hot-toast';
 
 // Pages
-import { HomePage } from './pages/HomePage';
-import { ProductPage } from './pages/ProductPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { ChatPage } from './pages/ChatPage';
+// Pages
+// Optimized with React.lazy for better performance
+const HomePage = React.lazy(() => import('./pages/HomePage').then(module => ({ default: module.HomePage })));
+const ProductPage = React.lazy(() => import('./pages/ProductPage').then(module => ({ default: module.ProductPage })));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
+const ChatPage = React.lazy(() => import('./pages/ChatPage').then(module => ({ default: module.ChatPage })));
+
+// Loading Component
+const PageLoader = () => (
+  <div className="min-h-[50vh] flex flex-col items-center justify-center p-4">
+    <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
+  </div>
+);
 
 // --- MOCK DATA ---
 const MOCK_TEMPLATES: Record<Category, Array<{
@@ -742,57 +751,59 @@ const AppContent: React.FC = () => {
       />
 
       <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-16 md:pb-0">
-        <Routes>
-          <Route path="/" element={
-            <HomePage
-              sortedProducts={sortedProducts}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              isLoadingLoc={isLoadingLoc}
-              permissionDenied={permissionDenied}
-              searchQuery={searchQuery}
-              onSellClick={handleSellClick}
-              onAddToCart={addToCart}
-              cart={cart}
-            />
-          } />
-          <Route path="/product/:id" element={
-            <ProductPage
-              products={products}
-              onAddToCart={addToCart}
-              onContactSeller={handleContactSeller}
-              cart={cart}
-              user={user}
-            />
-          } />
-          <Route path="/profile" element={
-            <ProfilePage
-              user={user}
-              products={products}
-              onLogin={handleLogin}
-              onUpdateUser={handleUpdateUser}
-              onVerifyUser={handleVerifyUser}
-              onBoostProduct={handleBoostProduct}
-            />
-          } />
-          <Route path="/chat" element={
-            <ChatPage
-              conversations={conversations}
-              user={user}
-              onLogin={handleLogin}
-              onSendMessage={handleSendMessage}
-            />
-          } />
-          <Route path="/chat/:id" element={
-            <ChatPage
-              conversations={conversations}
-              user={user}
-              onLogin={handleLogin}
-              onSendMessage={handleSendMessage}
-            />
-          } />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <React.Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={
+              <HomePage
+                sortedProducts={sortedProducts}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                isLoadingLoc={isLoadingLoc}
+                permissionDenied={permissionDenied}
+                searchQuery={searchQuery}
+                onSellClick={handleSellClick}
+                onAddToCart={addToCart}
+                cart={cart}
+              />
+            } />
+            <Route path="/product/:id" element={
+              <ProductPage
+                products={products}
+                onAddToCart={addToCart}
+                onContactSeller={handleContactSeller}
+                cart={cart}
+                user={user}
+              />
+            } />
+            <Route path="/profile" element={
+              <ProfilePage
+                user={user}
+                products={products}
+                onLogin={handleLogin}
+                onUpdateUser={handleUpdateUser}
+                onVerifyUser={handleVerifyUser}
+                onBoostProduct={handleBoostProduct}
+              />
+            } />
+            <Route path="/chat" element={
+              <ChatPage
+                conversations={conversations}
+                user={user}
+                onLogin={handleLogin}
+                onSendMessage={handleSendMessage}
+              />
+            } />
+            <Route path="/chat/:id" element={
+              <ChatPage
+                conversations={conversations}
+                user={user}
+                onLogin={handleLogin}
+                onSendMessage={handleSendMessage}
+              />
+            } />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </React.Suspense>
       </div>
 
       <BottomNav

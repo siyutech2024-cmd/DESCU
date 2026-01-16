@@ -21,6 +21,16 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor': ['react', 'react-dom', 'react-router-dom'],
+            'ui': ['lucide-react', 'react-hot-toast', 'framer-motion'],
+            'supabase': ['@supabase/supabase-js'],
+            'stripe': ['@stripe/stripe-js', '@stripe/react-stripe-js']
+          }
+        }
+      }
     },
     define: {
       'process.env': {
