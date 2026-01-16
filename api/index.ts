@@ -77,12 +77,6 @@ app.get('/api/test_ping', (req, res) => {
 
     res.json(debug);
 });
-res.json({
-    pong: true,
-    time: new Date().toISOString(),
-    location: 'api/index.ts inlined'
-});
-});
 
 app.get('/', (req, res) => {
     res.send('DESCU API (Inlined)');
