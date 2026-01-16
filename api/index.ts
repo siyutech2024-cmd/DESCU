@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 
-// Imports from Server Logic
-import { analyzeImage } from '../server/src/controllers/aiController';
-import { createProduct, getProducts, getProductById, productsHealthCheck } from '../server/src/controllers/productController';
-import { requireAuth } from '../server/src/middleware/userAuth';
+// Imports from Local Lib (Bundled)
+import { analyzeImage } from './_lib/controllers/aiController';
+import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController';
+import { requireAuth } from './_lib/middleware/userAuth';
 
 const app = express();
 
