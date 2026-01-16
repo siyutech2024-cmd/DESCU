@@ -5,7 +5,10 @@ import { supabase } from '../db/supabase';
 export const generateSitemap = async (req: Request, res: Response) => {
     try {
         // 1. Fetch Static Routes (Hardcoded)
-        const baseUrl = 'https://www.descu.ai';
+        // Use request host to determine domain
+        const protocol = req.protocol === 'http' && req.get('host')?.includes('localhost') ? 'http' : 'https';
+        const baseUrl = `${protocol}://${req.get('host')}`;
+
         const staticRoutes = [
             '',
             '/chat',
