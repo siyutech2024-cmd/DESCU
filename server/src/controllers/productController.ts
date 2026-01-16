@@ -97,17 +97,22 @@ export const getProducts = async (req: Request, res: Response) => {
 
         // If user is authenticated, use their context (for RLS)
         if (authHeader) {
-            client = createClient(
-                process.env.SUPABASE_URL!,
-                process.env.SUPABASE_ANON_KEY!,
-                {
-                    global: {
-                        headers: {
-                            Authorization: authHeader
+            const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+            const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+            if (sbUrl && sbKey) {
+                client = createClient(
+                    sbUrl,
+                    sbKey,
+                    {
+                        global: {
+                            headers: {
+                                Authorization: authHeader
+                            }
                         }
                     }
-                }
-            );
+                );
+            }
         }
 
         let query = client

@@ -167,6 +167,16 @@ app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');
 });
 
+// Global Error Handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('Unhandled Server Error:', err);
+    res.status(500).json({
+        error: 'Internal Server Error',
+        message: err.message || 'Unknown error',
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+});
+
 app.listen(Number(PORT), () => {
     console.log(`Server starting...`);
     console.log(`env.PORT currently is: ${process.env.PORT}`);
