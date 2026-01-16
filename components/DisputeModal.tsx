@@ -22,7 +22,7 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({ isOpen, onClose, ord
         setLoading(true);
 
         try {
-            const { data: { session } } = await supabaseClient.auth.getSession();
+            const { data: { session } } = await supabase.auth.getSession();
 
             const res = await fetch(`${API_BASE_URL}/api/disputes`, {
                 method: 'POST',
