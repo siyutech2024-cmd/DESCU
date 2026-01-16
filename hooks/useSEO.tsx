@@ -54,26 +54,20 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
         }
         canonical.setAttribute('href', currentUrl);
 
-        // 2. Structured Data (JSON-LD) for Products
+        // 2. Structured Data (JSON-LD)
         let script = document.querySelector('script[type="application/ld+json"]');
-        if (product) {
-            if (!script) {
-                script = document.createElement('script');
-                script.setAttribute('type', 'application/ld+json');
-                document.head.appendChild(script);
-            }
 
-            const structuredData = {
+        let formattedSchema = null;
+
+        if (product) {
+            formattedSchema = {
                 "@context": "https://schema.org/",
                 "@type": "Product",
                 "name": product.title,
                 "image": product.images || [],
                 "description": product.description,
                 "sku": product.id,
-                "brand": {
-                    "@type": "Brand",
-                    "name": "SecondHand"
-                },
+                "brand": { "@type": "Brand", "name": "SecondHand" },
                 "offers": {
                     "@type": "Offer",
                     "url": currentUrl,
@@ -83,10 +77,29 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
                     "itemCondition": "https://schema.org/UsedCondition"
                 }
             };
-
-            script.textContent = JSON.stringify(structuredData);
         } else {
-            // Cleanup JSON-LD if not on product page
+            // Fallback: WebSite schema for Homepage
+            formattedSchema = {
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                "name": "DESCU",
+                "url": "https://www.descu.ai/",
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": "https://www.descu.ai/?q={search_term_string}",
+                    "query-input": "required name=search_term_string"
+                }
+            };
+        }
+
+        if (formattedSchema) {
+            if (!script) {
+                script = document.createElement('script');
+                script.setAttribute('type', 'application/ld+json');
+                document.head.appendChild(script);
+            }
+            script.textContent = JSON.stringify(formattedSchema);
+        } else {
             if (script) script.remove();
         }
 
