@@ -35,6 +35,8 @@ import { supabase } from './db/supabase';
 // Routes
 import { analyzeImage } from './controllers/aiController';
 import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
+
+/* TEMPORARILY DISABLED FOR DEBUGGING
 import {
     createConversation,
     getUserConversations,
@@ -42,10 +44,6 @@ import {
     getMessages,
     markMessagesAsRead
 } from './controllers/chatController';
-
-// Middleware Imports
-import { requireAdmin } from './middleware/adminAuth';
-import { requireAuth } from './middleware/userAuth'; // New User Auth
 
 // Admin Controller Imports...
 import {
@@ -84,6 +82,14 @@ import {
     deleteAdminMessage,
     flagAdminMessage
 } from './controllers/adminMessageController';
+*/
+// Payment Endpoints
+import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController';
+
+
+// Middleware Imports
+import { requireAdmin } from './middleware/adminAuth';
+import { requireAuth } from './middleware/userAuth'; // Keep for products
 
 // API Endpoints
 app.post('/api/analyze', analyzeImage);
@@ -92,16 +98,16 @@ app.post('/api/products', requireAuth, createProduct);
 app.get('/api/products', getProducts);
 app.get('/api/products/:id', getProductById);
 
+/*
 // Chat Endpoints
 app.post('/api/conversations', createConversation);
 app.get('/api/conversations/:userId', getUserConversations);
 app.post('/api/messages', sendMessage);
 app.get('/api/messages/:conversationId', getMessages);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
+*/
 
 // Payment Endpoints
-import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController';
-
 // Webhook (No Auth required, uses Signature)
 app.post('/api/payment/webhook', handleStripeWebhook);
 
@@ -113,7 +119,7 @@ app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink); // userId 
 app.post('/api/orders/ship', requireAuth, markOrderAsShipped);
 app.post('/api/orders/confirm', requireAuth, confirmOrder);
 app.get('/api/orders/health', ordersHealthCheck);
-// Wait, I need to import it first. 
+// Wait, I need to import it first.
 // Let's rely on the next step to fix the import.
 // Actually, I can add the route and update the import in one go if I edit the import block first?
 // No, I'll just add the route here and update import separately.
@@ -148,6 +154,7 @@ app.post('/api/admin/products/batch', requireAdmin, batchUpdateProducts);
 // User Management
 app.get('/api/admin/users', requireAdmin, getAdminUsers);
 app.get('/api/admin/users/:id', requireAdmin, getAdminUser);
+*/
 app.patch('/api/admin/users/:id/verify', requireAdmin, updateUserVerification);
 app.delete('/api/admin/users/:id', requireAdmin, deleteAdminUser);
 
