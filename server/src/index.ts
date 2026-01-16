@@ -188,8 +188,14 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     });
 });
 
-app.listen(Number(PORT), () => {
-    console.log(`Server starting...`);
-    console.log(`env.PORT currently is: ${process.env.PORT}`);
-    console.log(`Server explicitly listening on port ${PORT}`);
-});
+// Only start the server if running directly (Local Dev)
+// On Vercel, we export 'app' and it's handled by api/index.ts
+if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
+    app.listen(Number(PORT), () => {
+        console.log(`Server starting...`);
+        console.log(`env.PORT currently is: ${process.env.PORT}`);
+        console.log(`Server explicitly listening on port ${PORT}`);
+    });
+}
+
+export default app;
