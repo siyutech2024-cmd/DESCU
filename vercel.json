@@ -5,6 +5,10 @@
             "destination": "/api/sitemap"
         },
         {
+            "source": "/api/(.*)",
+            "destination": "/api/index"
+        },
+        {
             "source": "/((?!assets/|api/|.*\\..*).*)",
             "destination": "/index.html"
         }
