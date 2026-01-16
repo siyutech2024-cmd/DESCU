@@ -41,19 +41,30 @@ const OrderList: React.FC<OrderListProps> = ({ role }) => {
     const fetchOrders = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+            if (!session) {
+                console.warn("OrderList: No session found");
+                return;
+            }
 
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/orders?role=${role}`, {
+            const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/orders?role=${role}`;
+            console.log(`Fetching orders: ${url}`);
+
+            const res = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`
                 }
             });
+
             const data = await res.json();
+            console.log("Orders Response:", data);
+
             if (res.ok) {
                 setOrders(data.orders || []);
+            } else {
+                console.error("Orders Error:", data);
             }
         } catch (err) {
-            console.error(err);
+            console.error("Fetch catch error:", err);
         } finally {
             setLoading(false);
         }
