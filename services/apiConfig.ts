@@ -7,8 +7,9 @@ const getApiBaseUrl = (): string => {
 
     // 2. Production Fallback (if env var missing)
     if (import.meta.env.PROD) {
-        // Default to relative path on Vercel (same domain) or specific domain
-        return 'https://www.descu.ai';
+        // Default to relative path on Vercel (same domain)
+        // This avoids CORS and DNS issues (e.g. www vs non-www)
+        return '';
     }
 
     // 3. Development Fallback (Proxy to localhost:3000 via vite.config.ts)
