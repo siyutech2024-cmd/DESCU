@@ -164,6 +164,28 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           </form>
         </div>
 
+        {/* Tabs (Moved Up) */}
+        <div className="flex border-b border-gray-200 mb-6">
+          <button
+            onClick={() => setActiveTab('listings')}
+            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'listings' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            {t('profile.listings')}
+          </button>
+          <button
+            onClick={() => setActiveTab('buying')}
+            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'buying' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            {t('profile.buying') || 'My Orders'}
+          </button>
+          <button
+            onClick={() => setActiveTab('selling')}
+            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'selling' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            {t('profile.selling') || 'Sales'}
+          </button>
+        </div>
+
         {/* Safety & Policies - Google Play Compliance */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -232,27 +254,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab('listings')}
-            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'listings' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            {t('profile.listings')}
-          </button>
-          <button
-            onClick={() => setActiveTab('buying')}
-            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'buying' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            My Orders
-          </button>
-          <button
-            onClick={() => setActiveTab('selling')}
-            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'selling' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            Sales
-          </button>
-        </div>
+
 
         {/* Content Area */}
         {activeTab === 'listings' && (
