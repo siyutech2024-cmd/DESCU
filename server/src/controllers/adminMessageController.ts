@@ -171,7 +171,7 @@ export const deleteAdminConversation = async (req: AdminRequest, res: Response) 
             req.admin!.email,
             hard_delete ? 'hard_delete_conversation' : 'soft_delete_conversation',
             'conversation',
-            id,
+            String(id),
             { hard_delete },
             req.ip,
             req.get('user-agent')
@@ -216,7 +216,7 @@ export const deleteAdminMessage = async (req: AdminRequest, res: Response) => {
             req.admin!.email,
             hard_delete ? 'hard_delete_message' : 'soft_delete_message',
             'message',
-            id,
+            String(id),
             { hard_delete },
             req.ip,
             req.get('user-agent')
@@ -255,7 +255,7 @@ export const flagAdminMessage = async (req: AdminRequest, res: Response) => {
             req.admin!.email,
             'flag_message',
             'message',
-            id,
+            String(id),
             { is_flagged, flag_reason },
             req.ip,
             req.get('user-agent')

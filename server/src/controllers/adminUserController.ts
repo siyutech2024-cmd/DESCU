@@ -267,7 +267,7 @@ export const updateUserVerification = async (req: AdminRequest, res: Response) =
             req.admin!.email,
             'verify_user',
             'user',
-            id,
+            String(id),
             { is_verified },
             req.ip,
             req.get('user-agent')
@@ -334,7 +334,7 @@ export const deleteAdminUser = async (req: AdminRequest, res: Response) => {
             req.admin!.email,
             hard_delete ? 'hard_delete_user' : 'soft_delete_user',
             'user',
-            id,
+            String(id),
             { hard_delete },
             req.ip,
             req.get('user-agent')

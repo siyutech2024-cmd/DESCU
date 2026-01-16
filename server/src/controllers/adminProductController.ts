@@ -195,7 +195,7 @@ export const updateAdminProduct = async (req: AdminRequest, res: Response) => {
             req.admin!.email,
             'update',
             'product',
-            id,
+            String(id),
             { updates },
             req.ip,
             req.get('user-agent')
@@ -233,7 +233,7 @@ export const deleteAdminProduct = async (req: AdminRequest, res: Response) => {
             req.admin!.email,
             'delete',
             'product',
-            id,
+            String(id),
             {},
             req.ip,
             req.get('user-agent')
@@ -271,7 +271,7 @@ export const restoreAdminProduct = async (req: AdminRequest, res: Response) => {
             req.admin!.email,
             'restore',
             'product',
-            id,
+            String(id),
             {},
             req.ip,
             req.get('user-agent')
@@ -311,7 +311,7 @@ export const updateProductStatus = async (req: AdminRequest, res: Response) => {
             req.admin!.email,
             'update_status',
             'product',
-            id,
+            String(id),
             { status },
             req.ip,
             req.get('user-agent')
@@ -347,7 +347,7 @@ export const updateProductPromotion = async (req: AdminRequest, res: Response) =
             req.admin!.email,
             'promote',
             'product',
-            id,
+            String(id),
             { is_promoted },
             req.ip,
             req.get('user-agent')
