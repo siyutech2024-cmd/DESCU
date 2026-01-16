@@ -15,9 +15,27 @@ export const ordersHealthCheck = (req: Request, res: Response) => {
     });
 };
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-    apiVersion: '2024-12-18.acacia' as any,
-});
+// --- LAYZ STRIPE INIT ---
+let stripeInstance: Stripe | null = null;
+
+const getStripe = () => {
+    if (!stripeInstance) {
+        const key = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+        if (!process.env.STRIPE_SECRET_KEY) {
+            console.warn('[Stripe] Missing STRIPE_SECRET_KEY, using placeholder');
+        }
+        try {
+            stripeInstance = new Stripe(key, {
+                apiVersion: '2024-12-18.acacia' as any,
+            });
+            console.log('[Stripe] Initialized successfully');
+        } catch (error) {
+            console.error('[Stripe] Initialization Failed:', error);
+            throw error;
+        }
+    }
+    return stripeInstance;
+};
 
 // --- CONNECT: ONBOARDING ---
 
@@ -40,7 +58,7 @@ export const createConnectAccount = async (req: Request, res: Response) => {
 
         // 2. If not, create Stripe Account
         if (!accountId) {
-            const account = await stripe.accounts.create({
+            const account = await getStripe().accounts.create({
                 type: 'express',
                 country: 'MX', // Defaulting to Mexico
                 email: email,
@@ -64,7 +82,7 @@ export const createConnectAccount = async (req: Request, res: Response) => {
         }
 
         // 3. Create Account Link (for onboarding)
-        const accountLink = await stripe.accountLinks.create({
+        const accountLink = await getStripe().accountLinks.create({
             account: accountId,
             refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`,
             return_url: `${req.headers.origin}/profile?onboarding_success=true`,
