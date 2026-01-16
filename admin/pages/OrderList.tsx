@@ -58,9 +58,12 @@ export const OrderList: React.FC = () => {
             });
 
             if (res.data) {
-                const data = res.data as any; // Temporary cast for build
+                const data = res.data as any;
                 setOrders(data.orders || []);
                 setTotalPages(data.totalPages || 1);
+            } else if (res.error) {
+                console.error("Fetch orders failed:", res.error);
+                // alert(res.error); // Optional: show toast
             }
         } catch (err) {
             console.error(err);

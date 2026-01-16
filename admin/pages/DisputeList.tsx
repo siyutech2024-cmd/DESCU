@@ -11,13 +11,22 @@ const DisputeList = () => {
     }, []);
 
     const fetchDisputes = async () => {
-        const token = localStorage.getItem('adminToken');
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/disputes`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        setDisputes(data.disputes || []);
-        setLoading(false);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/disputes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setDisputes(data.disputes || []);
+            } else {
+                console.error("Failed to fetch disputes:", data);
+            }
+        } catch (error) {
+            console.error("Error fetching disputes:", error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleResolve = async (disputeId: string, action: 'refund' | 'release') => {
