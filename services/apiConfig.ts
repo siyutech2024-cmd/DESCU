@@ -1,16 +1,16 @@
 // API 配置 - 根据环境自动选择 API 基础 URL
 const getApiBaseUrl = (): string => {
-    // 生产环境
+    // 1. Priority: Explicit Environment Variable (works for Dev & Prod)
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+
+    // 2. Production Fallback (if env var missing)
     if (import.meta.env.PROD) {
-        // 如果设置了自定义 API URL，使用它
-        if (import.meta.env.VITE_API_URL) {
-            return import.meta.env.VITE_API_URL || 'https://descu-production.up.railway.app';
-        }
-        // Fallback: Use known production backend if env var is missing
         return 'https://descu-production.up.railway.app';
     }
 
-    // 开发环境 - 使用 Vite 代理
+    // 3. Development Fallback (Proxy to localhost:3000 via vite.config.ts)
     return '';
 };
 

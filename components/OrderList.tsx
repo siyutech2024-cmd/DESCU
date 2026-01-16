@@ -46,7 +46,7 @@ const OrderList: React.FC<OrderListProps> = ({ role }) => {
                 return;
             }
 
-            const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/orders?role=${role}`;
+            const url = `${API_BASE_URL}/api/orders?role=${role}`;
             console.log(`Fetching orders: ${url}`);
 
             const res = await fetch(url, {
