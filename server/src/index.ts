@@ -34,7 +34,7 @@ import { supabase } from './db/supabase';
 
 // Routes
 import { analyzeImage } from './controllers/aiController';
-import { createProduct, getProducts } from './controllers/productController';
+import { createProduct, getProducts, getProductById } from './controllers/productController';
 import {
     createConversation,
     getUserConversations,
@@ -88,6 +88,7 @@ import {
 app.post('/api/analyze', analyzeImage);
 app.post('/api/products', createProduct);
 app.get('/api/products', getProducts);
+app.get('/api/products/:id', getProductById);
 
 // Chat Endpoints
 app.post('/api/conversations', createConversation);

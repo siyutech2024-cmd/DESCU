@@ -5,6 +5,7 @@ import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFullDataUrl } from '../services/utils';
 import { API_BASE_URL } from '../services/apiConfig';
+import { supabase } from '../services/supabase';
 
 interface UserProfileProps {
   user: User;
@@ -53,9 +54,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const handleSetupPayouts = async () => {
     setIsPayoutLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        alert("Please log in again.");
+        setIsPayoutLoading(false);
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/payment/connect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ userId: user.id, email: user.email }),
       });
       const data = await response.json();
@@ -63,7 +76,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         window.location.href = data.url;
       } else {
         console.error('No onboarding url returned', data);
-        alert('Failed to start onboarding');
+        alert(data.error || 'Failed to start onboarding');
         setIsPayoutLoading(false);
       }
     } catch (error) {
@@ -75,7 +88,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const handleDashboard = async () => {
     // For verified sellers to see their dashboard
     try {
-      const response = await fetch(`${API_BASE_URL}/api/payment/dashboard/${user.id}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/payment/dashboard/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await response.json();
       if (data.url) {
         window.open(data.url, '_blank');

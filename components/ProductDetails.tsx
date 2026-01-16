@@ -174,15 +174,15 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               {/* Share Buttons */}
               <div className="flex gap-4 items-center justify-center border-t border-gray-200/50 pt-6">
                 <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mr-2">Share</span>
-                <button onClick={handleShareWhatsApp} className="p-3 bg-green-100 text-green-600 rounded-full hover:bg-green-200 hover:scale-110 transition-all" title="Share on WhatsApp">
-                  <MessageCircle size={20} />
+                <button onClick={handleShareWhatsApp} className="p-3 bg-[#25D366] text-white rounded-full hover:scale-110 transition-all shadow-md hover:shadow-lg" title="Share on WhatsApp">
+                  <MessageCircle size={20} fill="currentColor" />
                 </button>
-                <button onClick={handleShareFacebook} className="p-3 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 hover:scale-110 transition-all" title="Share on Facebook">
-                  <Facebook size={20} />
+                <button onClick={handleShareFacebook} className="p-3 bg-[#1877F2] text-white rounded-full hover:scale-110 transition-all shadow-md hover:shadow-lg" title="Share on Facebook">
+                  <Facebook size={20} fill="currentColor" />
                 </button>
-                <button onClick={handleCopyLink} className="p-3 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 hover:scale-110 transition-all relative" title="Copy Link">
-                  {linkCopied ? <Check size={20} className="text-green-500" /> : <LinkIcon size={20} />}
-                  {linkCopied && <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded">Copied!</span>}
+                <button onClick={handleCopyLink} className="p-3 bg-gray-800 text-white rounded-full hover:scale-110 transition-all shadow-md hover:shadow-lg relative" title="Copy Link">
+                  {linkCopied ? <Check size={20} /> : <LinkIcon size={20} />}
+                  {linkCopied && <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl">Link Copied!</span>}
                 </button>
               </div>
 

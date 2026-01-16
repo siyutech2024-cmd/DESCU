@@ -309,7 +309,7 @@ const AppContent: React.FC = () => {
 
     const loadProductsFromAPI = async (coords: Coordinates) => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/products`);
+        const response = await fetch(`${API_BASE_URL}/api/products?lang=${language}`);
         if (response.ok) {
           const dbProducts = await response.json();
           const convertedProducts: Product[] = dbProducts.map((p: any) => ({
