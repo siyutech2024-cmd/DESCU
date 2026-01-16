@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Imports from Local Lib (Bundled)
-// import { analyzeImage } from './_lib/controllers/aiController';
+import { analyzeImage } from './_lib/controllers/aiController.js';
 // import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController';
 // import { requireAuth } from './_lib/middleware/userAuth';
 
@@ -28,7 +28,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // Feature Routes
-// app.post('/api/analyze', analyzeImage);
+app.post('/api/analyze', analyzeImage);
 // app.get('/api/products/health', productsHealthCheck);
 // app.post('/api/products', requireAuth, createProduct);
 // app.get('/api/products', getProducts);
