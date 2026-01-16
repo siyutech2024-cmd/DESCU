@@ -388,9 +388,17 @@ export const getUserOrders = async (req: Request, res: Response) => {
         if (!userId || !authHeader) return res.status(401).json({ error: 'Unauthorized' });
 
         // Use Authenticated Client to pass RLS
+        const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+        if (!sbUrl || !sbKey) {
+            console.error("Missing Supabase Env Vars in paymentController", { sbUrl: !!sbUrl, sbKey: !!sbKey });
+            return res.status(500).json({ error: "Server Configuration Error: Missing API Keys" });
+        }
+
         const client = Number(process.env.SUPABASE_SERVICE_ROLE_KEY?.length) > 0
             ? supabase // Use admin client if available
-            : createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
+            : createClient(sbUrl, sbKey, {
                 global: { headers: { Authorization: authHeader } }
             });
 
