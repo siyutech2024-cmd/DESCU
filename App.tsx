@@ -681,303 +681,302 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const addToCart = (product: Product) => {
-    // Cart functions completely removed - direct purchase model
+  // Cart functions completely removed - direct purchase model
 
-    const handleContactSeller = async (product: Product) => {
-      if (!user) {
-        setIsLoginModalOpen(true); // Trigger Action-Based Login
-        return;
-      }
+  const handleContactSeller = async (product: Product) => {
+    if (!user) {
+      setIsLoginModalOpen(true); // Trigger Action-Based Login
+      return;
+    }
 
-      let existingConv = conversations.find(
-        c => c.otherUser.id === product.seller.id && c.productId === product.id
+    let existingConv = conversations.find(
+      c => c.otherUser.id === product.seller.id && c.productId === product.id
+    );
+
+    if (existingConv) {
+      navigate(`/chat/${existingConv.id}`);
+      return;
+    }
+
+    try {
+      const conversation = await createOrGetConversation(
+        product.id,
+        user.id,
+        product.seller.id
       );
 
-      if (existingConv) {
-        navigate(`/chat/${existingConv.id}`);
-        return;
-      }
-
-      try {
-        const conversation = await createOrGetConversation(
-          product.id,
-          user.id,
-          product.seller.id
-        );
-
-        const newConversation: Conversation = {
-          id: conversation.id || conversation.conversation?.id,
-          otherUser: product.seller,
-          productId: product.id,
-          productTitle: product.title,
-          productImage: product.images[0],
-          messages: [],
-          lastMessageTime: Date.now(),
-        };
-
-        setConversations(prev => [...prev, newConversation]);
-        navigate(`/chat/${newConversation.id}`);
-      } catch (error) {
-        console.error('创建对话失败:', error);
-        showToast('❌ 无法打开聊天，请稍后重试', 'error');
-      }
-    };
-
-    const handleSendMessage = async (conversationId: string, text: string) => {
-      if (!user) return;
-      if (!text.trim()) return;
-
-      const timestamp = Date.now();
-      const tempMessageId = `msg-temp-${timestamp}`;
-
-      const tempMessage = {
-        id: tempMessageId,
-        senderId: user.id,
-        text,
-        timestamp,
-        isRead: true,
+      const newConversation: Conversation = {
+        id: conversation.id || conversation.conversation?.id,
+        otherUser: product.seller,
+        productId: product.id,
+        productTitle: product.title,
+        productImage: product.images[0],
+        messages: [],
+        lastMessageTime: Date.now(),
       };
 
+      setConversations(prev => [...prev, newConversation]);
+      navigate(`/chat/${newConversation.id}`);
+    } catch (error) {
+      console.error('创建对话失败:', error);
+      showToast('❌ 无法打开聊天，请稍后重试', 'error');
+    }
+  };
+
+  const handleSendMessage = async (conversationId: string, text: string) => {
+    if (!user) return;
+    if (!text.trim()) return;
+
+    const timestamp = Date.now();
+    const tempMessageId = `msg-temp-${timestamp}`;
+
+    const tempMessage = {
+      id: tempMessageId,
+      senderId: user.id,
+      text,
+      timestamp,
+      isRead: true,
+    };
+
+    setConversations(prev => prev.map(c => {
+      if (c.id === conversationId) {
+        return {
+          ...c,
+          messages: [...c.messages, tempMessage],
+          lastMessageTime: timestamp,
+        };
+      }
+      return c;
+    }));
+
+    try {
+      const savedMessage = await sendMessageApi(conversationId, user.id, text);
       setConversations(prev => prev.map(c => {
         if (c.id === conversationId) {
           return {
             ...c,
-            messages: [...c.messages, tempMessage],
-            lastMessageTime: timestamp,
+            messages: c.messages.map(m =>
+              m.id === tempMessageId
+                ? { ...m, id: savedMessage.id || savedMessage.message?.id }
+                : m
+            ),
           };
         }
         return c;
       }));
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      setConversations(prev => prev.map(c => {
+        if (c.id === conversationId) {
+          return {
+            ...c,
+            messages: c.messages.filter(m => m.id !== tempMessageId),
+          };
+        }
+        return c;
+      }));
+      showToast('❌ 消息发送失败，请重试', 'error');
+    }
+  };
 
-      try {
-        const savedMessage = await sendMessageApi(conversationId, user.id, text);
-        setConversations(prev => prev.map(c => {
-          if (c.id === conversationId) {
-            return {
-              ...c,
-              messages: c.messages.map(m =>
-                m.id === tempMessageId
-                  ? { ...m, id: savedMessage.id || savedMessage.message?.id }
-                  : m
-              ),
-            };
-          }
-          return c;
-        }));
-      } catch (error) {
-        console.error('发送消息失败:', error);
-        setConversations(prev => prev.map(c => {
-          if (c.id === conversationId) {
-            return {
-              ...c,
-              messages: c.messages.filter(m => m.id !== tempMessageId),
-            };
-          }
-          return c;
-        }));
-        showToast('❌ 消息发送失败，请重试', 'error');
-      }
-    };
+  // --- DEBOUNCE HOOK ---
+  function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+    return debouncedValue;
+  }
 
-    // --- DEBOUNCE HOOK ---
-    function useDebounce<T>(value: T, delay: number): T {
-      const [debouncedValue, setDebouncedValue] = useState(value);
-      useEffect(() => {
-        const handler = setTimeout(() => {
-          setDebouncedValue(value);
-        }, delay);
-        return () => {
-          clearTimeout(handler);
-        };
-      }, [value, delay]);
-      return debouncedValue;
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Sorting & Filtering
+  const sortedProducts = useMemo(() => {
+    let filtered = products;
+
+    if (debouncedSearchQuery.trim()) {
+      const lowerQ = debouncedSearchQuery.toLowerCase();
+      filtered = products.filter(p =>
+        p.title.toLowerCase().includes(lowerQ) ||
+        p.description.toLowerCase().includes(lowerQ) ||
+        p.category.toLowerCase().includes(lowerQ)
+      );
     }
 
-    const debouncedSearchQuery = useDebounce(searchQuery, 300);
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(p => p.category === selectedCategory);
+    }
 
-    // Sorting & Filtering
-    const sortedProducts = useMemo(() => {
-      let filtered = products;
+    // [New] Region Filter
+    if (region !== 'Global') {
+      // Filter by currency matching user's region currency
+      // This assumes local market logic: Users in Mexico only see MXN items by default
+      filtered = filtered.filter(p => (p.currency || 'MXN') === regionCurrency);
+    }
 
-      if (debouncedSearchQuery.trim()) {
-        const lowerQ = debouncedSearchQuery.toLowerCase();
-        filtered = products.filter(p =>
-          p.title.toLowerCase().includes(lowerQ) ||
-          p.description.toLowerCase().includes(lowerQ) ||
-          p.category.toLowerCase().includes(lowerQ)
-        );
-      }
+    if (!location) return filtered;
 
-      if (selectedCategory !== 'all') {
-        filtered = filtered.filter(p => p.category === selectedCategory);
-      }
+    const withDistance = filtered.map(p => ({
+      ...p,
+      distance: calculateDistance(location, p.location)
+    }));
 
-      // [New] Region Filter
-      if (region !== 'Global') {
-        // Filter by currency matching user's region currency
-        // This assumes local market logic: Users in Mexico only see MXN items by default
-        filtered = filtered.filter(p => (p.currency || 'MXN') === regionCurrency);
-      }
+    return withDistance.sort((a, b) => {
+      if (a.isPromoted && !b.isPromoted) return -1;
+      if (!a.isPromoted && b.isPromoted) return 1;
+      const aIsClose = a.distance! <= 5;
+      const bIsClose = b.distance! <= 5;
+      if (aIsClose && !bIsClose) return -1;
+      if (!aIsClose && bIsClose) return 1;
+      return a.distance! - b.distance!;
+    });
+  }, [products, location, debouncedSearchQuery, selectedCategory, region, regionCurrency]);
 
-      if (!location) return filtered;
+  const unreadCount = useMemo(() => {
+    if (!user) return 0;
+    return conversations.reduce((acc, c) => {
+      return acc + c.messages.filter(m => !m.isRead && m.senderId !== user.id).length;
+    }, 0);
+  }, [conversations, user]);
 
-      const withDistance = filtered.map(p => ({
-        ...p,
-        distance: calculateDistance(location, p.location)
-      }));
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
+      <Navbar
+        user={user}
+        onLogin={handleLogin}
+        onSellClick={handleSellClick}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onProfileClick={() => navigate('/profile')}
+        onLogoClick={() => navigate('/')}
+        onChatClick={() => navigate('/chat')}
+        unreadCount={unreadCount}
+        locationName={locationName}
+      />
 
-      return withDistance.sort((a, b) => {
-        if (a.isPromoted && !b.isPromoted) return -1;
-        if (!a.isPromoted && b.isPromoted) return 1;
-        const aIsClose = a.distance! <= 5;
-        const bIsClose = b.distance! <= 5;
-        if (aIsClose && !bIsClose) return -1;
-        if (!aIsClose && bIsClose) return 1;
-        return a.distance! - b.distance!;
-      });
-    }, [products, location, debouncedSearchQuery, selectedCategory, region, regionCurrency]);
-
-    const unreadCount = useMemo(() => {
-      if (!user) return 0;
-      return conversations.reduce((acc, c) => {
-        return acc + c.messages.filter(m => !m.isRead && m.senderId !== user.id).length;
-      }, 0);
-    }, [conversations, user]);
-
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
-        <Navbar
-          user={user}
-          onLogin={handleLogin}
-          onSellClick={handleSellClick}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onProfileClick={() => navigate('/profile')}
-          onLogoClick={() => navigate('/')}
-          onChatClick={() => navigate('/chat')}
-          unreadCount={unreadCount}
-          locationName={locationName}
-        />
-
-        <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-16 md:pb-0">
-          <React.Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={
-                <HomePage
-                  sortedProducts={sortedProducts}
-                  selectedCategory={selectedCategory}
-                  setSelectedCategory={setSelectedCategory}
-                  isLoadingLoc={isLoadingLoc}
-                  permissionDenied={permissionDenied}
-                  searchQuery={searchQuery}
-                  onSellClick={handleSellClick}
-                  // onAddToCart removed
-                  hasMore={hasMore}
-                  isLoadingMore={isLoadingMore}
-                  onLoadMore={handleLoadMore}
-                  favorites={favorites}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-              } />
-              <Route path="/product/:id" element={
-                <ProductPage
-                  products={products}
-                  // onAddToCart removed
-                  onContactSeller={handleContactSeller}
-                  user={user}
-                />
-              } />
-              <Route path="/profile" element={
-                <ProfilePage
-                  user={user}
-                  products={products}
-                  onLogin={handleLogin}
-                  onUpdateUser={handleUpdateUser}
-                  onVerifyUser={handleVerifyUser}
-                  onBoostProduct={handleBoostProduct}
-                  favorites={favorites}
-                  allProducts={sortedProducts}
-                />
-              } />
-              <Route path="/chat" element={
-                <ChatPage
-                  conversations={conversations}
-                  user={user}
-                  onLogin={handleLogin}
-                  onSendMessage={handleSendMessage}
-                />
-              } />
-              <Route path="/chat/:id" element={
-                <ChatPage
-                  conversations={conversations}
-                  user={user}
-                  onLogin={handleLogin}
-                  onSendMessage={handleSendMessage}
-                />
-              } />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </React.Suspense>
-        </div>
-
-        <BottomNav
-          currentView={currentView}
-          onChangeView={(view) => {
-            if (view === 'home') navigate('/');
-            if (view === 'profile') navigate('/profile');
-            if (view === 'chat-list') navigate('/chat');
-          }}
-          onSellClick={handleSellClick}
-          unreadCount={unreadCount}
-        />
-
-        <SellModal
-          isOpen={isSellModalOpen}
-          onClose={() => setIsSellModalOpen(false)}
-          onSubmit={handleProductSubmit}
-          user={user!}
-          userLocation={location}
-        />
-
-        {/* CartDrawer removed - direct purchase model */}
-
-        <LoginModal
-          isOpen={isLoginModalOpen}
-          onClose={() => setIsLoginModalOpen(false)}
-          onLogin={handleLogin}
-        />
-
-        <CameraSellFlow
-          isOpen={isCameraFlowOpen}
-          onClose={() => setIsCameraFlowOpen(false)}
-          onPostProduct={(data) => {
-            setIsCameraFlowOpen(false);
-            handleProductSubmit(data);
-          }}
-          userLocation={location}
-        />
-
-        <GlassToast
-          isVisible={toast.show}
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(prev => ({ ...prev, show: false }))}
-        />
+      <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-16 md:pb-0">
+        <React.Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={
+              <HomePage
+                sortedProducts={sortedProducts}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                isLoadingLoc={isLoadingLoc}
+                permissionDenied={permissionDenied}
+                searchQuery={searchQuery}
+                onSellClick={handleSellClick}
+                // onAddToCart removed
+                hasMore={hasMore}
+                isLoadingMore={isLoadingMore}
+                onLoadMore={handleLoadMore}
+                favorites={favorites}
+                onToggleFavorite={handleToggleFavorite}
+              />
+            } />
+            <Route path="/product/:id" element={
+              <ProductPage
+                products={products}
+                // onAddToCart removed
+                onContactSeller={handleContactSeller}
+                user={user}
+              />
+            } />
+            <Route path="/profile" element={
+              <ProfilePage
+                user={user}
+                products={products}
+                onLogin={handleLogin}
+                onUpdateUser={handleUpdateUser}
+                onVerifyUser={handleVerifyUser}
+                onBoostProduct={handleBoostProduct}
+                favorites={favorites}
+                allProducts={sortedProducts}
+              />
+            } />
+            <Route path="/chat" element={
+              <ChatPage
+                conversations={conversations}
+                user={user}
+                onLogin={handleLogin}
+                onSendMessage={handleSendMessage}
+              />
+            } />
+            <Route path="/chat/:id" element={
+              <ChatPage
+                conversations={conversations}
+                user={user}
+                onLogin={handleLogin}
+                onSendMessage={handleSendMessage}
+              />
+            } />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </React.Suspense>
       </div>
-    );
-  };
 
-  const App: React.FC = () => {
-    return (
-      <LanguageProvider>
-        <RegionProvider>
-          <Toaster />
-          <OnboardingModal />
-          <AppContent />
-        </RegionProvider>
-      </LanguageProvider>
-    );
-  };
+      <BottomNav
+        currentView={currentView}
+        onChangeView={(view) => {
+          if (view === 'home') navigate('/');
+          if (view === 'profile') navigate('/profile');
+          if (view === 'chat-list') navigate('/chat');
+        }}
+        onSellClick={handleSellClick}
+        unreadCount={unreadCount}
+      />
 
-  export default App;
+      <SellModal
+        isOpen={isSellModalOpen}
+        onClose={() => setIsSellModalOpen(false)}
+        onSubmit={handleProductSubmit}
+        user={user!}
+        userLocation={location}
+      />
+
+      {/* CartDrawer removed - direct purchase model */}
+
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLogin={handleLogin}
+      />
+
+      <CameraSellFlow
+        isOpen={isCameraFlowOpen}
+        onClose={() => setIsCameraFlowOpen(false)}
+        onPostProduct={(data) => {
+          setIsCameraFlowOpen(false);
+          handleProductSubmit(data);
+        }}
+        userLocation={location}
+      />
+
+      <GlassToast
+        isVisible={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast(prev => ({ ...prev, show: false }))}
+      />
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <LanguageProvider>
+      <RegionProvider>
+        <Toaster />
+        <OnboardingModal />
+        <AppContent />
+      </RegionProvider>
+    </LanguageProvider>
+  );
+};
+
+export default App;
