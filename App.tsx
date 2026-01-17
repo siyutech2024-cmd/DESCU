@@ -8,6 +8,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { User, Product, Coordinates, Category, Conversation, DeliveryType } from './types';
 import { calculateDistance } from './services/utils';
 import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import { RegionProvider, useRegion } from './contexts/RegionContext';
 import { supabase } from './services/supabase';
 import { API_BASE_URL } from './services/apiConfig';
 import { createOrGetConversation, sendMessage as sendMessageApi, getUserConversations, subscribeToConversations } from './services/chatService';
@@ -201,6 +202,7 @@ const generateMockProducts = (center: Coordinates, lang: string): Product[] => {
 
 const AppContent: React.FC = () => {
   const { t, language } = useLanguage();
+  const { region, currency: regionCurrency } = useRegion();
   const navigate = useNavigate();
   const locationHook = useLocation();
 
@@ -737,6 +739,13 @@ const AppContent: React.FC = () => {
       filtered = filtered.filter(p => p.category === selectedCategory);
     }
 
+    // [New] Region Filter
+    if (region !== 'Global') {
+      // Filter by currency matching user's region currency
+      // This assumes local market logic: Users in Mexico only see MXN items by default
+      filtered = filtered.filter(p => (p.currency || 'MXN') === regionCurrency);
+    }
+
     if (!location) return filtered;
 
     const withDistance = filtered.map(p => ({
@@ -753,7 +762,7 @@ const AppContent: React.FC = () => {
       if (!aIsClose && bIsClose) return 1;
       return a.distance! - b.distance!;
     });
-  }, [products, location, debouncedSearchQuery, selectedCategory]);
+  }, [products, location, debouncedSearchQuery, selectedCategory, region, regionCurrency]);
 
   const unreadCount = useMemo(() => {
     if (!user) return 0;
@@ -880,8 +889,10 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <LanguageProvider>
-      <Toaster />
-      <AppContent />
+      <RegionProvider>
+        <Toaster />
+        <AppContent />
+      </RegionProvider>
     </LanguageProvider>
   );
 };

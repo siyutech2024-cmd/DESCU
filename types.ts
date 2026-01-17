@@ -32,6 +32,9 @@ export enum DeliveryType {
 
 export type Language = 'zh' | 'en' | 'es';
 
+export type Region = 'MX' | 'US' | 'CN' | 'EU' | 'JP' | 'Global';
+export type Currency = 'MXN' | 'USD' | 'CNY' | 'EUR' | 'JPY';
+
 export interface Product {
   id: string;
   seller: User;
@@ -43,7 +46,7 @@ export interface Product {
   category: Category;
   deliveryType: DeliveryType;
   location: Coordinates;
-  locationName: string; 
+  locationName: string;
   createdAt: number;
   distance?: number;
   isPromoted?: boolean; // New: Boosted status
@@ -59,7 +62,7 @@ export interface AISuggestion {
 
 export interface Message {
   id: string;
-  senderId: string; 
+  senderId: string;
   text: string;
   timestamp: number;
   isRead: boolean;
@@ -75,9 +78,9 @@ export interface Conversation {
   lastMessageTime: number;
 }
 
-export type ViewState = 
-  | { type: 'home' } 
-  | { type: 'product', productId: string } 
+export type ViewState =
+  | { type: 'home' }
+  | { type: 'product', productId: string }
   | { type: 'profile' }
   | { type: 'chat-list' }
   | { type: 'chat-window', conversationId: string };

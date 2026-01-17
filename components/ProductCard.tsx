@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { Product, DeliveryType } from '../types';
-import { MapPin, ShoppingBag, Truck, Handshake, Zap } from 'lucide-react';
+import { MapPin, ShoppingBag, Truck, Zap } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useRegion } from '../contexts/RegionContext';
 
 interface ProductCardProps {
   product: Product;
@@ -12,12 +12,16 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, isInCart, onClick }) => {
-  const { t, formatPrice } = useLanguage();
+  const { t } = useLanguage();
+  const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
   const isNearby = product.distance !== undefined && product.distance <= 5.0;
+
+  const productCurrency = product.currency || 'MXN'; // Fallback
+  const { price: convertedPrice, currency: targetCurrency } = convertPrice(product.price, productCurrency);
+  const showDual = productCurrency !== userCurrency;
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Stop propagation if the click originated from the button
-    // Note: The button's onClick handler stops propagation, but this is a safety check
     if ((e.target as HTMLElement).closest('button')) return;
     onClick(product);
   };
@@ -63,18 +67,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
 
         <div className="mt-auto">
           {/* Price */}
-          <div className="flex items-end justify-between mb-2">
-            <span className={`text-base md:text-lg font-black tracking-tight ${product.isPromoted ? 'text-orange-600' : 'text-gray-900'}`}>
-              <span className="text-[10px] md:text-xs mr-0.5 font-bold text-gray-500">$</span>
-              {product.price.toLocaleString()}
-            </span>
+          <div className="flex flex-col mb-2">
+            <div className="flex items-end justify-between">
+              <span className={`text-base md:text-lg font-black tracking-tight ${product.isPromoted ? 'text-orange-600' : 'text-gray-900'}`}>
+                {formatCurrency(product.price, productCurrency)}
+              </span>
 
-            {/* Delivery Icons (Hidden on very small screens if crowded, or simplified) */}
-            <div className="flex gap-1 opacity-70">
-              {(product.deliveryType === DeliveryType.Shipping || product.deliveryType === DeliveryType.Both) && (
-                <div className="bg-blue-100 p-0.5 md:p-1 rounded-full"><Truck size={10} className="text-blue-600 md:w-3 md:h-3" /></div>
-              )}
+              {/* Delivery Icons */}
+              <div className="flex gap-1 opacity-70">
+                {(product.deliveryType === DeliveryType.Shipping || product.deliveryType === DeliveryType.Both) && (
+                  <div className="bg-blue-100 p-0.5 md:p-1 rounded-full"><Truck size={10} className="text-blue-600 md:w-3 md:h-3" /></div>
+                )}
+              </div>
             </div>
+
+            {showDual && (
+              <span className="text-[10px] md:text-xs text-gray-400 font-bold -mt-0.5">
+                ≈ {formatCurrency(convertedPrice, targetCurrency)}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-gray-200/50">

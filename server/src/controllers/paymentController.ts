@@ -56,11 +56,13 @@ export const createConnectAccount = async (req: Request, res: Response) => {
 
         let accountId = seller?.stripe_connect_id;
 
+        const country = req.body.country || 'MX';
+
         // 2. If not, create Stripe Custom Account
         if (!accountId) {
             const account = await getStripe().accounts.create({
                 type: 'custom',
-                country: 'MX',
+                country: country,
                 email: email,
                 capabilities: {
                     card_payments: { requested: true },

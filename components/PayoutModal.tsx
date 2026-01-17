@@ -29,6 +29,7 @@ const PayoutForm = ({ userId, email, onSuccess, onClose }: { userId: string, ema
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [step, setStep] = useState<'create_account' | 'add_card' | 'success'>('create_account');
+    const [country, setCountry] = useState('MX');
 
     // 1. Create Connect Account (if needed)
     const handleCreateAccount = async () => {
@@ -44,7 +45,7 @@ const PayoutForm = ({ userId, email, onSuccess, onClose }: { userId: string, ema
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ userId, email }),
+                body: JSON.stringify({ userId, email, country }),
             });
 
             const data = await response.json();
@@ -130,14 +131,31 @@ const PayoutForm = ({ userId, email, onSuccess, onClose }: { userId: string, ema
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Setup Payouts</h3>
                 <p className="text-gray-500 mb-6 text-sm px-4">
-                    To receive payments, we need to set up a secure seller account for you.
+                    Select your bank account country to receive payments.
                 </p>
+
+                <div className="mb-6 text-left">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">Bank Country</label>
+                    <select
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none bg-white font-medium"
+                        value={country} // Needs state
+                        onChange={(e) => setCountry(e.target.value)} // Needs state
+                    >
+                        <option value="MX">🇲🇽 Mexico (MXN)</option>
+                        <option value="US">🇺🇸 United States (USD)</option>
+                        <option value="CA">🇨🇦 Canada (CAD)</option>
+                        <option value="GB">🇬🇧 United Kingdom (GBP)</option>
+                        <option value="JP">🇯🇵 Japan (JPY)</option>
+                        <option value="CN">🇨🇳 China (CNY)</option>
+                    </select>
+                </div>
+
                 <button
                     onClick={handleCreateAccount}
                     disabled={loading}
                     className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                 >
-                    {loading ? <Loader2 className="animate-spin" /> : 'Get Started'}
+                    {loading ? <Loader2 className="animate-spin" /> : 'Create Account'}
                 </button>
                 {error && (
                     <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-center gap-2 justify-center">

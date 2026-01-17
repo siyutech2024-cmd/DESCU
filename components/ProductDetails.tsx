@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Share2, Facebook, Link as LinkIcon } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useRegion } from '../contexts/RegionContext';
 import { ReportModal } from './ReportModal';
 import { CheckoutModal } from './CheckoutModal';
 import { RatingModal } from './RatingModal';
@@ -18,7 +19,13 @@ interface ProductDetailsProps {
 }
 
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddToCart, onContactSeller, isInCart, user }) => {
-  const { t, formatPrice } = useLanguage();
+  const { t } = useLanguage();
+  const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
+
+  const productCurrency = product.currency || 'MXN';
+  const { price: convertedPrice, currency: targetCurrency } = convertPrice(product.price, productCurrency);
+  const showDual = productCurrency !== userCurrency;
+
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
@@ -130,8 +137,15 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   {product.title}
                 </h1>
 
-                <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-400 mb-6 drop-shadow-sm">
-                  {formatPrice(product.price)}
+                <div className="flex flex-col">
+                  <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-400 mb-1 drop-shadow-sm">
+                    {formatCurrency(product.price, productCurrency)}
+                  </div>
+                  {showDual && (
+                    <div className="text-lg md:text-xl font-bold text-gray-400 mb-6">
+                      ≈ {formatCurrency(convertedPrice, targetCurrency)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Delivery Method Info */}

@@ -5,6 +5,7 @@ import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from
 import { analyzeProductImage } from '../services/geminiService';
 import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useRegion } from '../contexts/RegionContext';
 import { GlassToast, ToastType } from './GlassToast';
 import { uploadProductImage } from '../services/supabase';
 
@@ -18,6 +19,7 @@ interface SellModalProps {
 
 export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit, user, userLocation }) => {
   const { t, language } = useLanguage();
+  const { currency: regionCurrency } = useRegion();
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -34,11 +36,12 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     setToast({ show: true, message, type });
   };
 
-  const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; deliveryType: DeliveryType }>({
+  const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; currency: string; deliveryType: DeliveryType }>({
     title: '',
     description: '',
     category: Category.Other,
     price: '',
+    currency: 'MXN',
     deliveryType: DeliveryType.Both,
   });
 
@@ -48,7 +51,14 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     if (!isOpen) {
       setImage(null);
       setImagePreview(null);
-      setFormData({ title: '', description: '', category: Category.Other, price: '', deliveryType: DeliveryType.Both });
+      setFormData({
+        title: '',
+        description: '',
+        category: Category.Other,
+        price: '',
+        currency: regionCurrency,
+        deliveryType: DeliveryType.Both
+      });
       setIsAnalyzing(false);
       setIsUploading(false);
       setToast(prev => ({ ...prev, show: false }));
@@ -109,7 +119,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         title: formData.title || 'Untitled',
         description: formData.description || '',
         price: Number(formData.price) || 0,
-        currency: language === 'zh' ? 'CNY' : 'MXN',
+        currency: formData.currency || 'MXN',
         images: [publicUrl], // Send URL, not Base64!
         category: formData.category as Category,
         deliveryType: formData.deliveryType,
@@ -226,17 +236,25 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1.5">{t('modal.label.price')}</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-400 font-bold text-lg">{language === 'zh' ? '¥' : '$'}</span>
-                  </div>
+                <div className="flex gap-2">
+                  <select
+                    value={formData.currency}
+                    onChange={e => setFormData({ ...formData, currency: e.target.value })}
+                    className="w-24 px-2 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none bg-gray-50 font-bold text-gray-700"
+                  >
+                    <option value="MXN">MX$</option>
+                    <option value="USD">US$</option>
+                    <option value="CNY">¥</option>
+                    <option value="EUR">€</option>
+                    <option value="JPY">¥JP</option>
+                  </select>
                   <input
                     required
                     type="number"
                     value={formData.price}
                     onChange={e => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0"
-                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-lg font-bold text-gray-900 placeholder:text-gray-300"
+                    className="flex-1 pl-4 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-lg font-bold text-gray-900 placeholder:text-gray-300"
                   />
                 </div>
               </div>

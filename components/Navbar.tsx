@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Search, Globe, MapPin, Home, MessageCircle, LogOut } from 'lucide-react';
-import { User as UserType, Language } from '../types';
+import { User as UserType, Language, Region } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useRegion } from '../contexts/RegionContext';
 import { supabase } from '../services/supabase';
 
 interface NavbarProps {
@@ -35,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   locationName = "CDMX"
 }) => {
   const { t, language, setLanguage } = useLanguage();
+  const { region, setRegion } = useRegion();
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setLanguage(e.target.value as Language);
@@ -97,7 +99,26 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-5">
-          {/* Language */}
+          {/* Region Selector [NEW] */}
+          <div className="flex items-center text-gray-500/80 hover:text-gray-800 transition-colors cursor-pointer group/region relative">
+            <span className="text-lg mr-1.5 grayscale group-hover/region:grayscale-0 transition-all">
+              {region === 'MX' ? '🇲🇽' : region === 'US' ? '🇺🇸' : region === 'CN' ? '🇨🇳' : region === 'EU' ? '🇪🇺' : region === 'JP' ? '🇯🇵' : '🌍'}
+            </span>
+            <select
+              value={region}
+              onChange={(e) => setRegion(e.target.value as Region)}
+              className="bg-transparent text-xs font-bold outline-none cursor-pointer uppercase tracking-wider appearance-none pr-4"
+            >
+              <option value="MX">MEX</option>
+              <option value="US">USA</option>
+              <option value="CN">CHN</option>
+              <option value="EU">EUR</option>
+              <option value="JP">JPN</option>
+              <option value="Global">ALL</option>
+            </select>
+          </div>
+
+          {/* Language Selector */}
           <div className="flex items-center text-gray-500/80 hover:text-gray-800 transition-colors">
             <Globe size={18} className="mr-1.5" />
             <select
@@ -178,21 +199,21 @@ export const Navbar: React.FC<NavbarProps> = ({
               {t('nav.login')}
             </button>
           )}
-        </div>
 
-        {/* Mobile Language Switcher */}
-        <div className="md:hidden">
-          <select
-            value={language}
-            onChange={handleLanguageChange}
-            className="bg-white/50 backdrop-blur-md rounded-lg text-xs font-bold text-gray-500 outline-none py-1.5 px-1 border border-white/40"
-          >
-            <option value="es">ES</option>
-            <option value="en">EN</option>
-            <option value="zh">CN</option>
-          </select>
-        </div>
+          {/* Mobile Language Switcher */}
+          <div className="md:hidden">
+            <select
+              value={language}
+              onChange={handleLanguageChange}
+              className="bg-white/50 backdrop-blur-md rounded-lg text-xs font-bold text-gray-500 outline-none py-1.5 px-1 border border-white/40"
+            >
+              <option value="es">ES</option>
+              <option value="en">EN</option>
+              <option value="zh">CN</option>
+            </select>
+          </div>
 
+        </div>
       </div>
     </nav>
   );
