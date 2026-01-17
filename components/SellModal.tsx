@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Sparkles, MapPin, Loader2, Camera, DollarSign, Truck, Handshake, Info } from 'lucide-react';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
-import { analyzeProductImage } from '../services/geminiService';
+import { analyzeImageWithGemini } from '../services/geminiService';
 import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
@@ -81,16 +81,18 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
 
         setIsAnalyzing(true);
         const base64 = await fileToBase64(file);
-        const result = await analyzeProductImage(base64, language);
+        const result = await analyzeImageWithGemini(base64);
 
-        setFormData(prev => ({
-          ...prev,
-          title: result.title,
-          description: result.description,
-          category: result.category,
-          price: result.suggestedPrice ? result.suggestedPrice.toString() : prev.price,
-          deliveryType: result.suggestedDeliveryType || DeliveryType.Both,
-        }));
+        if (result) {
+          setFormData(prev => ({
+            ...prev,
+            title: result.title,
+            description: result.description,
+            category: result.category as Category,
+            price: result.price ? result.price.toString() : prev.price,
+            deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
+          }));
+        }
       } catch (error: any) {
         console.error("AI Analysis/Compression failed", error);
         showToast(t('modal.ai_error') || `Error: ${error.message}`, 'error');
