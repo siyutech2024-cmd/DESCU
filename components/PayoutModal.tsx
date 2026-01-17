@@ -11,7 +11,9 @@ import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
 
 // Initialize Stripe (Replace with your Publishable Key)
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
+// Initialize Stripe
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51Sq0FTQ21K2ZcCkTeSAIFszExSoxuA6L5qGSn20wjF1MIyYECOM2O8zZU0YSTFVCQs8RAMiuTeLyyWmr4wv4gtkL00eEWCifnz';
+const stripePromise = loadStripe(STRIPE_KEY);
 
 interface PayoutModalProps {
     isOpen: boolean;
