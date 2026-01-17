@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, CheckCheck, Loader2, MoreVertical, Phone, Video, Image as ImageIcon, Smile } from 'lucide-react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -18,6 +19,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onSendMessage
 }) => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -25,6 +27,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Handle product click navigation
+  const handleProductClick = () => {
+    if (conversation.productId) {
+      navigate(`/product/${conversation.productId}`);
+    }
+  };
 
   const handleAddEmoji = (emoji: string) => {
     setNewMessage(prev => prev + emoji);
@@ -186,7 +195,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="flex-1 overflow-y-auto pt-[72px] pb-[120px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
 
         {/* Product Context Card */}
-        <div className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex items-center gap-3 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow">
+        <div
+          onClick={handleProductClick}
+          className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex items-center gap-3 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow"
+        >
           <img src={conversation.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'} className="w-12 h-12 rounded-lg object-cover shadow-sm bg-gray-100" alt="Product" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
