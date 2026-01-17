@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AdminRequest } from '../middleware/adminAuth';
 import { supabase } from '../db/supabase';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
 // --- LAZY STRIPE INIT ---
@@ -52,60 +53,71 @@ export const logAdminAction = async (
  */
 export const getDashboardStats = async (req: AdminRequest, res: Response) => {
     try {
+        // Create a dedicated Admin Client to ensure we bypass RLS
+        const adminUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        // Fallback to global client if key missing (will likely fail for RLS but handles dev cases)
+        const adminClient = (adminUrl && adminKey)
+            ? createClient(adminUrl, adminKey, { auth: { autoRefreshToken: false, persistSession: false } })
+            : supabase;
+
+        console.log('[Dashboard] Using Admin Client:', !!(adminUrl && adminKey));
+
         // 获取商品统计
-        const { count: totalProducts, error: productError } = await supabase
+        const { count: totalProducts, error: productError } = await adminClient
             .from('products')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null);
 
-        const { count: productsToday, error: productsTodayError } = await supabase
+        const { count: productsToday, error: productsTodayError } = await adminClient
             .from('products')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null)
             .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
 
-        const { count: activeProducts, error: productsActiveError } = await supabase
+        const { count: activeProducts, error: productsActiveError } = await adminClient
             .from('products')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null)
             .eq('status', 'active');
 
-        // 获取用户统计（从 auth.users via Admin API）
-        const { data: { users: authUsers }, error: usersError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+        // 获取用户统计
+        const { data: { users: authUsers }, error: usersError } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
         const totalUserCount = authUsers?.length || 0;
 
         // 获取消息统计
-        const { count: totalMessages, error: messagesError } = await supabase
+        const { count: totalMessages, error: messagesError } = await adminClient
             .from('messages')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null);
 
-        const { count: messagesToday, error: messagesTodayError } = await supabase
+        const { count: messagesToday, error: messagesTodayError } = await adminClient
             .from('messages')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null)
             .gte('timestamp', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
 
         // 获取对话统计
-        const { count: totalConversations, error: conversationsError } = await supabase
+        const { count: totalConversations, error: conversationsError } = await adminClient
             .from('conversations')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null);
 
         // 获取分类统计
-        const { data: categoryStats, error: categoryError } = await supabase
+        const { data: categoryStats, error: categoryError } = await adminClient
             .from('admin_product_stats')
             .select('*');
 
         // 获取最近7天趋势
-        const { data: weeklyTrend, error: weeklyError } = await supabase
+        const { data: weeklyTrend, error: weeklyError } = await adminClient
             .from('admin_daily_stats')
             .select('*')
             .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
             .order('date', { ascending: true });
 
         // 获取最新商品
-        const { data: recentProducts, error: recentError } = await supabase
+        const { data: recentProducts, error: recentError } = await adminClient
             .from('products')
             .select(`
         id,

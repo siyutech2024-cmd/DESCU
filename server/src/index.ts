@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-// import dotenv from 'dotenv'; // Removed for Vercel Production
-// dotenv.config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 export const app = express();
 const PORT = process.env.PORT || 3000;

@@ -55,6 +55,8 @@ export const createProduct = async (req: any, res: Response) => {
             is_promoted: false
         };
 
+        console.log('[Product] Creating product with status:', productData.status);
+
         // Create a scoped Supabase client for this user to pass RLS
         const scopedSupabase = createClient(
             process.env.SUPABASE_URL!,
