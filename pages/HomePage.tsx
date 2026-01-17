@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Product, Category } from '../types';
 import { ProductCard } from '../components/ProductCard';
-import { RefreshCw, MapPinOff, SearchX, Package, Car, Home, Smartphone, Briefcase, Armchair, Shirt, Book, Trophy } from 'lucide-react';
+import { RefreshCw, MapPinOff, MapPin, SearchX, Package, Car, Home, Smartphone, Briefcase, Armchair, Shirt, Book, Trophy } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useRegion } from '../contexts/RegionContext';
+import { Product, Category, Region } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useSEO } from '../hooks/useSEO';
 
@@ -37,6 +38,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     onLoadMore
 }) => {
     const { t } = useLanguage();
+    const { region, setRegion } = useRegion();
     const navigate = useNavigate();
 
     useSEO({
@@ -73,6 +75,34 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tighter drop-shadow-sm">DESCU</h1>
                 </div>
                 <p className="text-gray-500 text-[10px] md:text-base font-bold mt-2 tracking-wide bg-white/60 px-3 py-1 rounded-full backdrop-blur-md border border-white/50 text-center shadow-sm max-w-[80vw] truncate">{t('hero.subtitle')}</p>
+
+                {/* Mobile Region Selector */}
+                <div className="md:hidden mt-4 relative">
+                    <div className="flex items-center gap-2 bg-gray-100/80 backdrop-blur-md px-4 py-2 rounded-full border border-gray-200 shadow-sm animate-fade-in">
+                        <MapPin size={14} className="text-brand-600" />
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Deliver to:</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-base">
+                                {region === 'MX' ? '🇲🇽' : region === 'US' ? '🇺🇸' : region === 'CN' ? '🇨🇳' : region === 'EU' ? '🇪🇺' : region === 'JP' ? '🇯🇵' : '🌍'}
+                            </span>
+                            <span className="text-sm font-bold text-gray-900">
+                                {region === 'MX' ? 'Mexico' : region === 'US' ? 'USA' : region === 'CN' ? 'China' : region === 'EU' ? 'Europe' : region === 'JP' ? 'Japan' : 'Global'}
+                            </span>
+                        </div>
+                    </div>
+                    <select
+                        value={region}
+                        onChange={(e) => setRegion(e.target.value as Region)}
+                        className="absolute inset-0 w-full h-full opacity-0 z-10"
+                    >
+                        <option value="MX">Mexico</option>
+                        <option value="US">USA</option>
+                        <option value="CN">China</option>
+                        <option value="EU">Europe</option>
+                        <option value="JP">Japan</option>
+                        <option value="Global">Global</option>
+                    </select>
+                </div>
             </div>
 
             {/* Category Filter - Glass Pills */}

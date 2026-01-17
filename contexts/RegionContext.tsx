@@ -31,7 +31,10 @@ const REGION_CONFIG: Record<Region, { currency: Currency; flag: string; label: s
     Global: { currency: 'USD', flag: '🌍', label: 'Global' },
 };
 
+import { useLanguage } from './LanguageContext';
+
 export const RegionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { setLanguage } = useLanguage();
     const [region, setRegion] = useState<Region>(() => {
         const saved = localStorage.getItem('app_region') as Region;
         return (saved && REGION_CONFIG[saved]) ? saved : 'MX';
@@ -39,6 +42,22 @@ export const RegionProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     useEffect(() => {
         localStorage.setItem('app_region', region);
+
+        // Auto-sync Language with Region
+        switch (region) {
+            case 'CN':
+                setLanguage('zh');
+                break;
+            case 'US':
+            case 'EU':
+            case 'JP':
+            case 'Global':
+                setLanguage('en');
+                break;
+            case 'MX':
+                setLanguage('es');
+                break;
+        }
     }, [region]);
 
     const currency = REGION_CONFIG[region].currency;

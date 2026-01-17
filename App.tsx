@@ -15,6 +15,11 @@ import { createOrGetConversation, sendMessage as sendMessageApi, getUserConversa
 import { GlassToast, ToastType } from './components/GlassToast';
 import { reverseGeocode } from './services/locationService';
 import { Toaster } from 'react-hot-toast';
+import { OnboardingModal } from './components/OnboardingModal';
+import { LoginModal } from './components/LoginModal';
+import { CameraSellFlow } from './components/CameraSellFlow';
+
+// Pages
 
 // Pages
 // Pages
@@ -238,6 +243,8 @@ const AppContent: React.FC = () => {
 
   const [cart, setCart] = useState<Product[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); // [NEW]
+  const [isCameraFlowOpen, setIsCameraFlowOpen] = useState(false); // [NEW]
 
   // Chat State
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -501,9 +508,11 @@ const AppContent: React.FC = () => {
   // Handlers
   const handleSellClick = () => {
     if (!user) {
-      handleLogin();
+      setIsLoginModalOpen(true); // Trigger Action-Based Login
     } else {
-      setIsSellModalOpen(true);
+      // Phase 3: Camera First Mode
+      setIsCameraFlowOpen(true);
+      // setIsSellModalOpen(true); // Legacy Manual Mode
     }
   };
 
@@ -593,7 +602,7 @@ const AppContent: React.FC = () => {
 
   const addToCart = (product: Product) => {
     if (!user) {
-      handleLogin();
+      setIsLoginModalOpen(true); // Trigger Action-Based Login
       return;
     }
     if (!cart.some(item => item.id === product.id)) {
@@ -612,7 +621,7 @@ const AppContent: React.FC = () => {
 
   const handleContactSeller = async (product: Product) => {
     if (!user) {
-      handleLogin();
+      setIsLoginModalOpen(true); // Trigger Action-Based Login
       return;
     }
 
@@ -876,6 +885,22 @@ const AppContent: React.FC = () => {
         onCheckout={handleCheckout}
       />
 
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLogin={handleLogin}
+      />
+
+      <CameraSellFlow
+        isOpen={isCameraFlowOpen}
+        onClose={() => setIsCameraFlowOpen(false)}
+        onPostProduct={(data) => {
+          setIsCameraFlowOpen(false);
+          handleProductSubmit(data);
+        }}
+        userLocation={location}
+      />
+
       <GlassToast
         isVisible={toast.show}
         message={toast.message}
@@ -891,6 +916,7 @@ const App: React.FC = () => {
     <LanguageProvider>
       <RegionProvider>
         <Toaster />
+        <OnboardingModal />
         <AppContent />
       </RegionProvider>
     </LanguageProvider>

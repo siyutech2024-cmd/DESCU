@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { X, Trash2, ShoppingBag, CreditCard, CheckCircle2, Truck, Handshake } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
@@ -32,19 +33,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     return sum + converted;
   }, 0);
 
-  const handleCheckout = () => {
-    setIsProcessing(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsProcessing(false);
-      setIsSuccess(true);
-      setTimeout(() => {
-        onCheckout();
-        setIsSuccess(false);
-        onClose();
-      }, 2000);
-    }, 1500);
-  };
+  const navigate = useNavigate();
 
   if (!isOpen) return null;
 
@@ -58,7 +47,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between bg-white z-10">
             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
               <ShoppingBag className="text-brand-600" size={20} />
-              {t('cart.title')} ({cartItems.length})
+              {t('nav.favorites') || 'Saved Items'} ({cartItems.length})
             </h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
               <X size={20} />
@@ -77,7 +66,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               </div>
             ) : (
               cartItems.map((item) => (
-                <div key={item.id} className="flex gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div
+                  key={item.id}
+                  onClick={() => { onClose(); navigate(`/product/${item.id}`); }}
+                  className="flex gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:border-brand-300 transition-all"
+                >
                   <div className="w-20 h-20 flex-shrink-0 bg-white rounded-lg overflow-hidden border border-gray-200">
                     <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover" />
                   </div>
@@ -103,7 +96,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         {formatCurrency(item.price, item.currency || 'MXN')}
                       </span>
                       <button
-                        onClick={() => onRemoveItem(item.id)}
+                        onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
                         className="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
                       >
                         <Trash2 size={16} />
@@ -115,39 +108,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             )}
           </div>
 
-          {/* Footer / Checkout */}
-          {cartItems.length > 0 && (
-            <div className="p-4 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-600">{t('cart.total')} ({userCurrency})</span>
-                <span className="text-2xl font-bold text-brand-600">
-                  {formatCurrency(totalPrice, userCurrency)}
-                </span>
-              </div>
-
-              {isSuccess ? (
-                <div className="w-full bg-green-500 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold animate-pulse">
-                  <CheckCircle2 size={20} />
-                  {t('cart.success')}
-                </div>
-              ) : (
-                <button
-                  onClick={handleCheckout}
-                  disabled={isProcessing}
-                  className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? (
-                    t('cart.processing')
-                  ) : (
-                    <>
-                      <CreditCard size={18} />
-                      {t('cart.checkout')}
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          )}
+          {/* Footer Removed - P2P items are bought correctly on Product Page */}
         </div>
       </div>
     </div>

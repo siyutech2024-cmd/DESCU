@@ -36,13 +36,13 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     setToast({ show: true, message, type });
   };
 
-  const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; currency: string; deliveryType: DeliveryType }>({
+  const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; currency: string; deliveryType: DeliveryType | null }>({
     title: '',
     description: '',
     category: Category.Other,
     price: '',
     currency: 'MXN',
-    deliveryType: DeliveryType.Both,
+    deliveryType: null, // Force user selection
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,7 +57,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         category: Category.Other,
         price: '',
         currency: regionCurrency,
-        deliveryType: DeliveryType.Both
+        deliveryType: null
       });
       setIsAnalyzing(false);
       setIsUploading(false);
@@ -122,7 +122,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         currency: formData.currency || 'MXN',
         images: [publicUrl], // Send URL, not Base64!
         category: formData.category as Category,
-        deliveryType: formData.deliveryType,
+        deliveryType: formData.deliveryType!,
         location: userLocation,
         locationName: language === 'es' ? 'CDMX' : 'Nearby',
       });
@@ -285,6 +285,49 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
               />
             </div>
 
+            {/* Delivery Type Selection */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">{t('modal.label.delivery')}</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, deliveryType: DeliveryType.Meetup })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.deliveryType === DeliveryType.Meetup
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-gray-100 bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                >
+                  <Handshake size={24} className="mb-1" />
+                  <span className="text-[10px] md:text-xs font-bold">{t('del.meetup')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, deliveryType: DeliveryType.Shipping })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.deliveryType === DeliveryType.Shipping
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-gray-100 bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                >
+                  <Truck size={24} className="mb-1" />
+                  <span className="text-[10px] md:text-xs font-bold">{t('del.shipping')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, deliveryType: DeliveryType.Both })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${formData.deliveryType === DeliveryType.Both
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-gray-100 bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                >
+                  <div className="flex gap-1 mb-1">
+                    <Handshake size={14} />
+                    <Truck size={14} />
+                  </div>
+                  <span className="text-[10px] md:text-xs font-bold">{t('del.both')}</span>
+                </button>
+              </div>
+            </div>
+
             <div className="bg-gray-50 rounded-lg p-3 flex items-center gap-3">
               <div className={`p-2 rounded-full ${userLocation ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
                 <MapPin size={18} />
@@ -301,7 +344,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white">
           <button
             onClick={handleSubmit}
-            disabled={!imagePreview || !userLocation || isAnalyzing || isUploading}
+            disabled={!imagePreview || !userLocation || !formData.deliveryType || isAnalyzing || isUploading}
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-200 hover:shadow-brand-300 transition-all active:scale-[0.98] text-lg flex items-center justify-center gap-2"
           >
             {isAnalyzing ? (
