@@ -13,15 +13,15 @@ export interface User {
 }
 
 export enum Category {
-  Electronics = 'electronics',
-  Furniture = 'furniture',
-  Clothing = 'clothing',
-  Books = 'books',
-  Sports = 'sports',
-  Vehicles = 'vehicles',
-  RealEstate = 'real_estate',
-  Services = 'services',
-  Other = 'other',
+  Electronics = 'Electronics',
+  Furniture = 'Furniture',
+  Clothing = 'Clothing',
+  Books = 'Books',
+  Sports = 'Sports',
+  Vehicles = 'Vehicles',
+  RealEstate = 'RealEstate',
+  Services = 'Services',
+  Other = 'Other',
 }
 
 export enum DeliveryType {
@@ -50,6 +50,7 @@ export interface Product {
   createdAt: number;
   distance?: number;
   isPromoted?: boolean; // New: Boosted status
+  status?: 'active' | 'pending_review' | 'rejected' | 'sold' | 'deleted';
 }
 
 export interface AISuggestion {

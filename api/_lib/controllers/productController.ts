@@ -106,7 +106,7 @@ export const productsHealthCheck = (req: Request, res: Response) => {
 
 export const getProducts = async (req: Request, res: Response) => {
     try {
-        const { lang, limit = '50', offset = '0' } = req.query; // Added limit/offset support
+        const { lang, limit = '50', offset = '0', status, seller_id } = req.query; // Added limit/offset/status/seller_id support
         const authHeader = req.headers.authorization;
 
         let client = supabase;
@@ -134,9 +134,26 @@ export const getProducts = async (req: Request, res: Response) => {
         let query = client
             .from('products')
             .select('*')
-            .is('deleted_at', null)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false });
+            .is('deleted_at', null);
+
+        // Filter by seller_id if provided
+        if (seller_id) {
+            query = query.eq('seller_id', seller_id);
+        }
+
+        // Status Logic:
+        // Default to 'active' unless 'status' param is provided
+        // Use 'all' to fetch all statuses (RLS policies will still apply)
+        if (status) {
+            if (status !== 'all') {
+                query = query.eq('status', status);
+            }
+        } else {
+            // Default behavior: Public feed only shows active products
+            query = query.eq('status', 'active');
+        }
+
+        query = query.order('created_at', { ascending: false });
 
         // Apply Pagination (Range)
         const limitVal = parseInt(String(limit)) || 20;

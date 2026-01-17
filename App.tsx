@@ -307,8 +307,21 @@ const AppContent: React.FC = () => {
     }
   };
 
-  const handleUpdateUser = (updatedUser: User) => {
-    setUser(updatedUser);
+  const handleUpdateUser = async (updatedUser: User) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          full_name: updatedUser.name,
+          avatar_url: updatedUser.avatar
+        }
+      });
+      if (error) throw error;
+      setUser(updatedUser);
+      showToast('个人资料已更新', 'success');
+    } catch (error) {
+      console.error('更新失败:', error);
+      showToast('更新失败', 'error');
+    }
   };
 
   const handleVerifyUser = () => {
@@ -370,6 +383,7 @@ const AppContent: React.FC = () => {
           locationName: p.location_name || 'Unknown',
           createdAt: new Date(p.created_at).getTime(),
           isPromoted: p.is_promoted || false,
+          status: p.status,
         }));
 
         if (convertedProducts.length < limit) {
@@ -516,6 +530,54 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+
+  // Load Favorites
+  useEffect(() => {
+    if (!user) {
+      setFavorites(new Set());
+      return;
+    }
+    // Lazy load service to avoid cyclic deps if any
+    import('./services/favoriteService').then(({ getFavorites }) => {
+      getFavorites(user.id).then(ids => {
+        setFavorites(new Set(ids));
+      });
+    });
+  }, [user]);
+
+  const handleToggleFavorite = async (product: Product) => {
+    if (!user) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
+    const isFav = favorites.has(product.id);
+    // Optimistic Update
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (isFav) next.delete(product.id);
+      else next.add(product.id);
+      return next;
+    });
+
+    try {
+      const { toggleFavorite } = await import('./services/favoriteService');
+      await toggleFavorite(user.id, product.id);
+      showToast(isFav ? 'Removed from favorites' : 'Added to favorites', 'success');
+    } catch (error) {
+      console.error('Favorite toggle failed', error);
+      // Revert
+      setFavorites(prev => {
+        const next = new Set(prev);
+        if (isFav) next.add(product.id);
+        else next.delete(product.id);
+        return next;
+      });
+      showToast('Failed to update favorite', 'error');
+    }
+  };
+
   const handleProductSubmit = async (newProductData: Omit<Product, 'id' | 'createdAt' | 'distance'>) => {
     if (!user) {
       showToast('请先登录', 'warning');
@@ -528,9 +590,7 @@ const AppContent: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      if (!token) {
-        throw new Error('请先登录验证身份');
-      }
+      if (!token) throw new Error('请先登录验证身份');
 
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
@@ -586,6 +646,7 @@ const AppContent: React.FC = () => {
         locationName: savedProduct.location_name,
         createdAt: new Date(savedProduct.created_at).getTime(),
         isPromoted: savedProduct.is_promoted || false,
+        status: savedProduct.status // Added status mapping
       };
 
       setProducts(prev => [productForApp, ...prev]);
@@ -814,6 +875,8 @@ const AppContent: React.FC = () => {
                 hasMore={hasMore}
                 isLoadingMore={isLoadingMore}
                 onLoadMore={handleLoadMore}
+                favorites={favorites}
+                onToggleFavorite={handleToggleFavorite}
               />
             } />
             <Route path="/product/:id" element={

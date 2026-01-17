@@ -49,60 +49,52 @@ export const ChatList: React.FC<ChatListProps> = ({
             <div
               key={conv.id}
               onClick={() => onSelectConversation(conv.id)}
-              className="group relative flex items-center gap-4 glass-panel p-4 rounded-2xl cursor-pointer overflow-hidden hover:shadow-glass hover:-translate-y-1 transition-all duration-300 active:scale-[0.98]"
+              className="group relative flex items-center gap-4 bg-white p-4 rounded-2xl cursor-pointer hover:shadow-md transition-all duration-300 border border-gray-100 active:scale-[0.99]"
               style={{ animationDelay: `${idx * 100}ms` }}
             >
-              {/* Hover highlight bar */}
-              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brand-400 to-brand-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
               {/* Avatar Section */}
               <div className="relative flex-shrink-0">
                 <img
                   src={conv.otherUser.avatar}
                   alt={conv.otherUser.name}
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-white shadow-sm group-hover:scale-105 transition-transform duration-300 ease-out"
+                  className="w-14 h-14 rounded-full object-cover border border-gray-200"
                 />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1.5 bg-gradient-to-r from-brand-600 to-pink-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full ring-2 ring-white shadow-lg animate-bounce-slow">
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full ring-2 ring-white shadow-sm">
                     {unreadCount}
                   </span>
                 )}
               </div>
 
               {/* Content Section */}
-              <div className="flex-1 min-w-0 py-1">
-                <div className="flex justify-between items-start mb-1.5">
-                  <h3 className="font-bold text-gray-900 text-lg truncate pr-2 group-hover:text-brand-600 transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline mb-1">
+                  <h3 className="font-bold text-gray-900 text-base truncate pr-2 group-hover:text-brand-600 transition-colors">
                     {conv.otherUser.name}
                   </h3>
-                  <span className="flex items-center gap-1 text-[11px] font-medium text-gray-400 bg-gray-50/50 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    <Clock size={10} />
+                  <span className="text-[11px] font-medium text-gray-400 flex-shrink-0">
                     {lastMsg ? new Date(lastMsg.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 mb-2">
-                  <p className={`text-sm truncate flex-1 leading-relaxed ${unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
-                    {lastMsg?.senderId === currentUser.id && <span className="text-brand-600 font-medium mr-1">{t('chat.you')}:</span>}
+                <div className="flex items-center justify-between gap-4">
+                  <p className={`text-sm truncate leading-relaxed max-w-[70%] ${unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
+                    {lastMsg?.senderId === currentUser.id && <span className="text-gray-400 font-normal mr-1">{t('chat.you')}:</span>}
                     {lastMsg?.text || t('chat.no_msgs')}
                   </p>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="text-[10px] font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md truncate max-w-[200px] border border-gray-100 group-hover:border-brand-200 group-hover:bg-brand-50 group-hover:text-brand-700 transition-all">
-                    Product: {conv.productTitle}
+                  {/* Product Tag - Subtle */}
+                  <div className="flex items-center gap-1.5 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded-lg border border-gray-100 transition-colors max-w-[30%]">
+                    <img
+                      src={conv.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'}
+                      className="w-4 h-4 rounded object-cover opacity-80"
+                      alt=""
+                    />
+                    <span className="text-[10px] font-medium text-gray-600 truncate">
+                      {conv.productTitle}
+                    </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Product Image & Arrow */}
-              <div className="flex flex-col items-end gap-2 pl-2">
-                <img
-                  src={conv.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'}
-                  alt="Product"
-                  className="w-14 h-14 rounded-xl object-cover border border-white shadow-sm group-hover:rotate-3 transition-transform duration-300 bg-gray-100"
-                />
-                <ChevronRight size={16} className="text-gray-300 group-hover:text-brand-500 transition-colors group-hover:translate-x-1" />
               </div>
             </div>
           );

@@ -167,6 +167,11 @@ app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 app.get('/sitemap.xml', generateSitemap);
 app.get('/api/location/reverse', reverseGeocodeProxy);
 
+// Rating & Reviews
+import { submitRating, getUserRatingStats } from './_lib/controllers/ratingController.js';
+app.post('/api/ratings', requireAuth, submitRating);
+app.get('/api/ratings/:userId/stats', getUserRatingStats);
+
 // Test Route
 app.get('/api/test_ping', (req, res) => {
     const debug: any = {

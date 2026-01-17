@@ -9,9 +9,11 @@ interface ProductCardProps {
   onAddToCart: (product: Product) => void;
   isInCart: boolean;
   onClick: (product: Product) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (product: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, isInCart, onClick }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, isInCart, onClick, isFavorite, onToggleFavorite }) => {
   const { t } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
   const isNearby = product.distance !== undefined && product.distance <= 5.0;
@@ -37,6 +39,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
           <Zap size={8} fill="currentColor" className="md:w-[10px] md:h-[10px]" />
           {t('card.promoted')}
         </div>
+      )}
+
+      {/* Favorite Button */}
+      {onToggleFavorite && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite(product);
+          }}
+          className="absolute top-2 right-2 z-10 p-2 rounded-full bg-white/50 backdrop-blur-md hover:bg-white text-gray-400 hover:text-red-500 transition-colors shadow-sm active:scale-90"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill={isFavorite ? "currentColor" : "none"}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`w-5 h-5 ${isFavorite ? "text-red-500" : ""}`}
+          >
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+          </svg>
+        </button>
       )}
 
       {/* Image Container - Aspect Square (1:1) */}

@@ -55,6 +55,14 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 
   const [bankDetails, setBankDetails] = useState({ bankName: '', accountNumber: '', holderName: '' });
   const [isSavingBank, setIsSavingBank] = useState(false);
+  const [ratingStats, setRatingStats] = useState({ total_reviews: 0, average_rating: 0 });
+
+  // Load Rating Stats
+  React.useEffect(() => {
+    import('../services/ratingService').then(({ getUserRatingStats }) => {
+      getUserRatingStats(user.id).then(setRatingStats);
+    });
+  }, [user.id]);
 
   const handleSaveBankDetails = async () => {
     setIsSavingBank(true);
@@ -171,11 +179,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex text-yellow-500">
-                  {[1, 2, 3, 4, 5].map(i => <Star key={i} size={16} fill="currentColor" />)}
+                  <Star size={16} fill="currentColor" />
                 </div>
-                <span className="font-bold text-gray-900">5.0</span>
+                <span className="font-bold text-gray-900">{ratingStats.average_rating ? Number(ratingStats.average_rating).toFixed(1) : 'New'}</span>
               </div>
-              <span className="text-xs font-bold text-orange-600 bg-white px-2 py-1 rounded-full shadow-sm">12 Reviews</span>
+              <span className="text-xs font-bold text-orange-600 bg-white px-2 py-1 rounded-full shadow-sm">
+                {ratingStats.total_reviews} Reviews
+              </span>
             </div>
 
             <div className="space-y-4">
@@ -246,7 +256,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                     <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
                     <div className="flex items-center justify-between mt-1">
                       <p className="font-bold text-red-500">¥{product.price}</p>
-                      {!product.isPromoted && onBoostProduct && (
+                      {!product.isPromoted && onBoostProduct && product.status === 'active' && (
                         <button
                           onClick={() => onBoostProduct(product.id)}
                           className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition-colors flex items-center gap-1"
@@ -254,6 +264,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                           <Zap size={10} />
                           {t('profile.boost')}
                         </button>
+                      )}
+                      {product.status && product.status !== 'active' && (
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1
+                          ${product.status === 'pending_review' ? 'bg-orange-100 text-orange-700' :
+                            product.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                              product.status === 'sold' ? 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'
+                          }`}>
+                          {product.status === 'pending_review' ? '审核中' :
+                            product.status === 'rejected' ? '已拒绝' :
+                              product.status === 'sold' ? '已售出' : product.status}
+                        </span>
                       )}
                     </div>
                   </div>

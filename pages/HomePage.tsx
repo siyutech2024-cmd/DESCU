@@ -21,6 +21,8 @@ interface HomePageProps {
     hasMore: boolean;
     isLoadingMore: boolean;
     onLoadMore: () => void;
+    favorites: Set<string>;
+    onToggleFavorite: (product: Product) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -35,7 +37,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     cart,
     hasMore,
     isLoadingMore,
-    onLoadMore
+    onLoadMore,
+    favorites,
+    onToggleFavorite
 }) => {
     const { t } = useLanguage();
     const { region, setRegion } = useRegion();
@@ -173,6 +177,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                                 onAddToCart={onAddToCart}
                                 isInCart={cart.some(item => item.id === product.id)}
                                 onClick={(p) => navigate(`/product/${p.id}`)}
+                                isFavorite={favorites.has(product.id)}
+                                onToggleFavorite={onToggleFavorite}
                             />
                         ))}
                     </div>
