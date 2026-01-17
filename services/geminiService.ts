@@ -22,7 +22,7 @@ export const analyzeImageWithGemini = async (imageBase64: string): Promise<AIAna
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     // Clean base64 string if needed (remove data:image/jpeg;base64, prefix)
     const base64Data = imageBase64.split(',')[1] || imageBase64;
