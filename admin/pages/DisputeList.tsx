@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
-import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { judgeDisputeWithGemini } from '../../services/geminiService';
 
 const DisputeList = () => {
     const [disputes, setDisputes] = useState<any[]>([]);
@@ -64,6 +65,25 @@ const DisputeList = () => {
         }
     };
 
+    const handleAiJudge = async (dispute: any) => {
+        const toastId = alert('AI is analyzing... (Check console/wait for popup)');
+
+        const verdict = await judgeDisputeWithGemini({
+            reason: dispute.reason,
+            description: dispute.description
+        });
+
+        if (verdict) {
+            const msg = `🤖 AI Suggestion:\n\nVerdict: ${verdict.verdict}\nReason: ${verdict.reasoning}\nConfidence: ${(verdict.confidence * 100).toFixed(0)}%\n\nApply this verdict?`;
+            if (confirm(msg)) {
+                if (verdict.verdict.includes('Refund')) handleResolve(dispute.id, 'refund');
+                else if (verdict.verdict.includes('Release')) handleResolve(dispute.id, 'release');
+            }
+        } else {
+            alert('AI could not determine a verdict.');
+        }
+    };
+
     if (loading) return <div>Loading...</div>;
 
     return (
@@ -77,6 +97,14 @@ const DisputeList = () => {
                                 <h3 className="font-bold">Dispute #{d.id.slice(0, 8)}</h3>
                                 <p className="text-sm text-gray-500">Reason: {d.reason}</p>
                                 <p className="text-sm">Status: <span className="font-bold">{d.status}</span></p>
+                                {d.status === 'open' && (
+                                    <button
+                                        onClick={() => handleAiJudge(d)}
+                                        className="text-xs text-purple-600 flex items-center gap-1 mt-1 hover:underline"
+                                    >
+                                        <Sparkles size={12} /> AI Suggestion
+                                    </button>
+                                )}
                             </div>
                             <div className="flex gap-2">
                                 {d.status === 'open' && (

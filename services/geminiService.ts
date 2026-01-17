@@ -75,3 +75,84 @@ export const analyzeImageWithGemini = async (imageBase64: string): Promise<AIAna
     return null;
   }
 };
+
+export interface AIAuditResult {
+  isSafe: boolean;
+  categoryCorrect: boolean;
+  suggestedCategory: string;
+  flaggedReason?: string;
+  confidence: number;
+}
+
+export const auditProductWithGemini = async (product: { title: string; description: string; category: string; images?: string[] }): Promise<AIAuditResult | null> => {
+  if (!genAI) return null;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const prompt = `
+      You are an AI Moderator for a second-hand marketplace.
+      Audit this product for:
+      1. Safety/Ethics: Is it illegal, hateful, explicit, or prohibited (weapons, drugs)?
+      2. Category Accuracy: Is the category "${product.category}" correct?
+
+      Product:
+      Title: "${product.title}"
+      Description: "${product.description}"
+
+      Return JSON:
+      {
+        "isSafe": boolean,
+        "flaggedReason": "Reason if unsafe, else null",
+        "categoryCorrect": boolean,
+        "suggestedCategory": "Correct category if incorrect, else null",
+        "confidence": number (0.0-1.0)
+      }
+    `;
+
+    // Note: We are only sending text for now to save bandwidth/complexity, 
+    // but could send image URL if we fetch it first.
+    // For now, text audit is a good first step.
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanedText) as AIAuditResult;
+  } catch (error) {
+    console.error("AI Audit Failed:", error);
+    return null;
+  }
+};
+
+export interface AIDisputeVerdict {
+  verdict: 'Refund Buyer' | 'Release to Seller' | 'Split/Manual';
+  reasoning: string;
+  confidence: number;
+}
+
+export const judgeDisputeWithGemini = async (dispute: { reason: string; description?: string; sellerHistory?: string }): Promise<AIDisputeVerdict | null> => {
+  if (!genAI) return null;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const prompt = `
+      You are an expert impartial arbitrator. Judge this e-commerce dispute.
+      Buyer Reason: "${dispute.reason}"
+      Additional Details: "${dispute.description || 'N/A'}"
+      
+      Return JSON:
+      {
+        "verdict": "Refund Buyer" OR "Release to Seller" OR "Split/Manual",
+        "reasoning": "Clear explanation citing fair trade principles (max 50 words)",
+        "confidence": number
+      }
+    `;
+
+    const result = await model.generateContent(prompt);
+    const text = (await result.response).text().replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text) as AIDisputeVerdict;
+  } catch (error) {
+    console.error("AI Judge Failed:", error);
+    return null;
+  }
+};

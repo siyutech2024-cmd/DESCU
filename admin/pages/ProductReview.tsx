@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { showToast } from '../utils/toast';
-import { CheckCircle, XCircle, MessageSquare, Eye, Package } from 'lucide-react';
+import { CheckCircle, XCircle, MessageSquare, Eye, Package, Sparkles } from 'lucide-react';
+import { auditProductWithGemini } from '../../services/geminiService';
 
 export const ProductReview: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -87,161 +88,211 @@ export const ProductReview: React.FC = () => {
         } finally {
             setProcessing(false);
         }
-    };
+        const handleAiAudit = async () => {
+            if (!confirm(`AI将自动扫描这 ${products.length} 个商品。安全且分类正确的商品将自动通过，有风险的将被标记。\n确定开始吗？`)) return;
 
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-black text-gray-900">商品审核</h1>
-                    <p className="text-gray-600 mt-1">审核待发布的商品</p>
-                </div>
-                {products.length > 0 && (
-                    <button
-                        onClick={handleBatchApprove}
-                        disabled={processing}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
+            setProcessing(true);
+            let approvedCount = 0;
+            let flaggedCount = 0;
+
+            try {
+                // Process sequentially to be safe with rate limits, or parallel batches of 3
+                // Batch processing 3 at a time
+                for (let i = 0; i < products.length; i += 3) {
+                    const batch = products.slice(i, i + 3);
+                    await Promise.all(batch.map(async (product) => {
+                        // 1. Audit
+                        const audit = await auditProductWithGemini({
+                            title: product.title,
+                            description: product.description || '',
+                            category: product.category || 'Other'
+                        });
+
+                        if (audit) {
+                            if (audit.isSafe && audit.categoryCorrect && audit.confidence > 0.8) {
+                                // Auto Approve
+                                await adminApi.updateProduct(product.id, {
+                                    status: 'active',
+                                    review_note: `[AI] Auto-approved. Confidence: ${(audit.confidence * 100).toFixed(0)}%`
+                                });
+                                approvedCount++;
+                            } else {
+                                // Flag / Leave for review
+                                // Optionally update note even if not approving
+                                // await adminApi.updateProduct(product.id, { review_note: `[AI Flag] ${audit.flaggedReason || 'Category Mismatch'}` });
+                                flaggedCount++;
+                            }
+                        }
+                    }));
+                }
+
+                showToast.success(`AI 审核完成: 自动通过 ${approvedCount} 个，标记需人工复核 ${flaggedCount} 个`);
+                fetchPendingProducts();
+            } catch (error) {
+                console.error("AI Audit Error", error);
+                showToast.error("AI 审核过程中发生错误");
+            } finally {
+                setProcessing(false);
+            }
+        };
+
+        return (
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-black text-gray-900">商品审核</h1>
+                        <p className="text-gray-600 mt-1">审核待发布的商品</p>
+                    </div>
+                    {products.length > 0 && (
                         批量通过全部
                     </button>
                 )}
+                <button
+                    onClick={handleAiAudit}
+                    disabled={processing || products.length === 0}
+                    className="ml-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                    <Sparkles size={16} />
+                    AI 智能审核
+                </button>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-xl p-6 shadow-sm border">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">待审核</p>
-                            <p className="text-3xl font-bold text-yellow-600 mt-2">
-                                {products.length}
-                            </p>
-                        </div>
-                        <Package className="w-12 h-12 text-yellow-600 opacity-20" />
+            {/* Stats */ }
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-gray-600">待审核</p>
+                        <p className="text-3xl font-bold text-yellow-600 mt-2">
+                            {products.length}
+                        </p>
                     </div>
-                </div>
-                <div className="bg-white rounded-xl p-6 shadow-sm border">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">今日已审核</p>
-                            <p className="text-3xl font-bold text-green-600 mt-2">0</p>
-                        </div>
-                        <CheckCircle className="w-12 h-12 text-green-600 opacity-20" />
-                    </div>
-                </div>
-                <div className="bg-white rounded-xl p-6 shadow-sm border">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-gray-600">今日已拒绝</p>
-                            <p className="text-3xl font-bold text-red-600 mt-2">0</p>
-                        </div>
-                        <XCircle className="w-12 h-12 text-red-600 opacity-20" />
-                    </div>
+                    <Package className="w-12 h-12 text-yellow-600 opacity-20" />
                 </div>
             </div>
-
-            {/* Product List */}
-            <div className="bg-white rounded-xl shadow-sm border">
-                {loading ? (
-                    <div className="p-12 text-center text-gray-500">加载中...</div>
-                ) : products.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4 opacity-50" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">审核完成！</h3>
-                        <p className="text-gray-600">当前没有待审核的商品</p>
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-gray-600">今日已审核</p>
+                        <p className="text-3xl font-bold text-green-600 mt-2">0</p>
                     </div>
-                ) : (
-                    <div className="divide-y">
-                        {products.map((product) => (
-                            <div key={product.id} className="p-6 hover:bg-gray-50 transition-colors">
-                                <div className="flex gap-6">
-                                    {/* Image */}
-                                    <img
-                                        src={product.images?.[0] || 'https://via.placeholder.com/120'}
-                                        alt={product.title}
-                                        className="w-32 h-32 rounded-lg object-cover border"
-                                    />
+                    <CheckCircle className="w-12 h-12 text-green-600 opacity-20" />
+                </div>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-gray-600">今日已拒绝</p>
+                        <p className="text-3xl font-bold text-red-600 mt-2">0</p>
+                    </div>
+                    <XCircle className="w-12 h-12 text-red-600 opacity-20" />
+                </div>
+            </div>
+        </div>
 
-                                    {/* Content */}
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-bold text-gray-900 mb-2">
-                                            {product.title}
-                                        </h3>
-                                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                                            {product.description}
-                                        </p>
-                                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                                            <span className="font-semibold text-orange-600">
-                                                ${product.price} {product.currency || 'MXN'}
-                                            </span>
-                                            <span>分类: {product.category}</span>
-                                            <span>卖家: {product.seller_name}</span>
-                                        </div>
-                                    </div>
+        {/* Product List */ }
+        <div className="bg-white rounded-xl shadow-sm border">
+            {loading ? (
+                <div className="p-12 text-center text-gray-500">加载中...</div>
+            ) : products.length === 0 ? (
+                <div className="p-12 text-center">
+                    <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">审核完成！</h3>
+                    <p className="text-gray-600">当前没有待审核的商品</p>
+                </div>
+            ) : (
+                <div className="divide-y">
+                    {products.map((product) => (
+                        <div key={product.id} className="p-6 hover:bg-gray-50 transition-colors">
+                            <div className="flex gap-6">
+                                {/* Image */}
+                                <img
+                                    src={product.images?.[0] || 'https://via.placeholder.com/120'}
+                                    alt={product.title}
+                                    className="w-32 h-32 rounded-lg object-cover border"
+                                />
 
-                                    {/* Actions */}
-                                    <div className="flex flex-col gap-2">
-                                        <button
-                                            onClick={() => setSelectedProduct(product)}
-                                            className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2"
-                                        >
-                                            <Eye className="w-4 h-4" />
-                                            查看详情
-                                        </button>
-                                        <button
-                                            onClick={() => handleReview(product.id, true)}
-                                            disabled={processing}
-                                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                                        >
-                                            <CheckCircle className="w-4 h-4" />
-                                            通过
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setSelectedProduct(product);
-                                            }}
-                                            disabled={processing}
-                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-                                        >
-                                            <XCircle className="w-4 h-4" />
-                                            拒绝
-                                        </button>
+                                {/* Content */}
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                        {product.title}
+                                    </h3>
+                                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                                        {product.description}
+                                    </p>
+                                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                                        <span className="font-semibold text-orange-600">
+                                            ${product.price} {product.currency || 'MXN'}
+                                        </span>
+                                        <span>分类: {product.category}</span>
+                                        <span>卖家: {product.seller_name}</span>
                                     </div>
                                 </div>
+
+                                {/* Actions */}
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        onClick={() => setSelectedProduct(product)}
+                                        className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                        查看详情
+                                    </button>
+                                    <button
+                                        onClick={() => handleReview(product.id, true)}
+                                        disabled={processing}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        <CheckCircle className="w-4 h-4" />
+                                        通过
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setSelectedProduct(product);
+                                        }}
+                                        disabled={processing}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        <XCircle className="w-4 h-4" />
+                                        拒绝
+                                    </button>
+                                </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                            第 {page} 页，共 {totalPages} 页
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                disabled={page === 1}
-                                onClick={() => setPage(p => p - 1)}
-                                className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
-                            >
-                                上一页
-                            </button>
-                            <button
-                                disabled={page === totalPages}
-                                onClick={() => setPage(p => p + 1)}
-                                className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
-                            >
-                                下一页
-                            </button>
                         </div>
-                    </div>
-                )}
-            </div>
+                    ))}
+                </div>
+            )}
 
-            {/* Review Modal */}
-            {selectedProduct && (
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                        第 {page} 页，共 {totalPages} 页
+                    </span>
+                    <div className="flex gap-2">
+                        <button
+                            disabled={page === 1}
+                            onClick={() => setPage(p => p - 1)}
+                            className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
+                        >
+                            上一页
+                        </button>
+                        <button
+                            disabled={page === totalPages}
+                            onClick={() => setPage(p => p + 1)}
+                            className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
+                        >
+                            下一页
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+
+        {/* Review Modal */ }
+        {
+            selectedProduct && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b">
@@ -308,7 +359,8 @@ export const ProductReview: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+        }
+        </div >
     );
 };
