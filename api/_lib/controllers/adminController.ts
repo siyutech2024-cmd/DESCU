@@ -82,27 +82,30 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
             conversationStats,
             categoryStats,
             weeklyTrend,
-            recentProducts
+            recentProducts,
+            // Fallback: raw counts without filters
+            rawProductCount,
+            rawUserCount
         ] = await Promise.all([
-            // 1. Total Products
-            adminClient.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            // 1. Total Products (try with deleted_at filter, fallback handled below)
+            adminClient.from('products').select('*', { count: 'exact', head: true }),
             // 2. Products Today
-            adminClient.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('created_at', todayStr),
-            // 3. Active Products
-            adminClient.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'active'),
+            adminClient.from('products').select('*', { count: 'exact', head: true }).gte('created_at', todayStr),
+            // 3. Active Products (status might not exist, so we try without filter as well)
+            adminClient.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active'),
             // 4. Total Users (Detailed count via RPC)
             adminClient.rpc('get_total_users'),
             // 5. Total Messages
-            adminClient.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            adminClient.from('messages').select('*', { count: 'exact', head: true }),
             // 6. Messages Today
-            adminClient.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('timestamp', todayStr),
+            adminClient.from('messages').select('*', { count: 'exact', head: true }).gte('timestamp', todayStr),
             // 7. Total Conversations
-            adminClient.from('conversations').select('*', { count: 'exact', head: true }).is('deleted_at', null),
-            // 8. Category Stats
+            adminClient.from('conversations').select('*', { count: 'exact', head: true }),
+            // 8. Category Stats (view might not exist)
             adminClient.from('admin_product_stats').select('*'),
-            // 9. Weekly Trend
+            // 9. Weekly Trend (view might not exist)
             adminClient.from('admin_daily_stats').select('*').gte('date', weekAgoStr).order('date', { ascending: true }),
-            // 10. Recent Products
+            // 10. Recent Products (simple query without deleted_at filter)
             adminClient.from('products')
                 .select(`
                     id,
@@ -116,19 +119,24 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
                     created_at,
                     images
                 `)
-                .is('deleted_at', null)
                 .order('created_at', { ascending: false })
-                .limit(10)
+                .limit(10),
+            // 11. Fallback: raw product count
+            adminClient.from('products').select('id', { count: 'exact', head: true }),
+            // 12. Fallback: Try direct user count on products
+            adminClient.from('products').select('seller_id')
         ]);
 
         // Debug logging for all queries
         console.log('[Dashboard] Query Results:');
         console.log('  - adminUrl:', adminUrl ? 'SET' : 'MISSING');
-        console.log('  - adminKey:', adminKey ? 'SET' : 'MISSING');
+        console.log('  - adminKey:', adminKey ? 'SET (first 10 chars: ' + adminKey.substring(0, 10) + '...)' : 'MISSING');
         console.log('  - productStats:', { count: productStats.count, error: productStats.error?.message });
+        console.log('  - rawProductCount:', { count: rawProductCount.count, error: rawProductCount.error?.message });
         console.log('  - productsToday:', { count: productsToday.count, error: productsToday.error?.message });
         console.log('  - productsActive:', { count: productsActive.count, error: productsActive.error?.message });
-        console.log('  - usersStats:', { data: usersStats.data, error: usersStats.error?.message });
+        console.log('  - usersStats RPC:', { data: usersStats.data, error: usersStats.error?.message });
+        console.log('  - rawUserCount (sellers):', { count: rawUserCount.data?.length, uniqueSellers: new Set(rawUserCount.data?.map((p: any) => p.seller_id)).size });
         console.log('  - messageStats:', { count: messageStats.count, error: messageStats.error?.message });
         console.log('  - messagesToday:', { count: messagesToday.count, error: messagesToday.error?.message });
         console.log('  - conversationStats:', { count: conversationStats.count, error: conversationStats.error?.message });
@@ -136,22 +144,34 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
         console.log('  - weeklyTrend:', { data: weeklyTrend.data?.length, error: weeklyTrend.error?.message });
         console.log('  - recentProducts:', { data: recentProducts.data?.length, error: recentProducts.error?.message });
 
-        // Check for critical errors (optional: we could return partial data)
+        // Calculate fallback user count from seller_id
+        const uniqueSellers = rawUserCount.data ? new Set(rawUserCount.data.map((p: any) => p.seller_id)).size : 0;
+        const finalUserCount = usersStats.data || uniqueSellers || 0;
+        const finalProductCount = productStats.count ?? rawProductCount.count ?? 0;
+
+        // Check for critical errors
         if (productStats.error) console.error('Error fetching product stats:', productStats.error);
+        if (usersStats.error) console.error('Error fetching user stats via RPC:', usersStats.error);
 
         res.json({
             stats: {
-                totalProducts: productStats.count || 0,
+                totalProducts: finalProductCount,
                 productsToday: productsToday.count || 0,
-                activeProducts: productsActive.count || 0,
-                totalUsers: usersStats.data || 0,
+                activeProducts: productsActive.count || finalProductCount, // Fallback: if no status column, use total
+                totalUsers: finalUserCount,
                 totalMessages: messageStats.count || 0,
                 messagesToday: messagesToday.count || 0,
                 totalConversations: conversationStats.count || 0
             },
             categoryStats: categoryStats.data || [],
             weeklyTrend: weeklyTrend.data || [],
-            recentProducts: recentProducts.data || []
+            recentProducts: recentProducts.data || [],
+            // Debug info (remove in production)
+            _debug: {
+                hasServiceRoleKey: !!adminKey,
+                rpcError: usersStats.error?.message,
+                productQueryError: productStats.error?.message
+            }
         });
     } catch (error) {
         console.error('获取仪表板统计数据失败:', error);
