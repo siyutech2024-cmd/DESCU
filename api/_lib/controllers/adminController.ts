@@ -121,6 +121,21 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
                 .limit(10)
         ]);
 
+        // Debug logging for all queries
+        console.log('[Dashboard] Query Results:');
+        console.log('  - adminUrl:', adminUrl ? 'SET' : 'MISSING');
+        console.log('  - adminKey:', adminKey ? 'SET' : 'MISSING');
+        console.log('  - productStats:', { count: productStats.count, error: productStats.error?.message });
+        console.log('  - productsToday:', { count: productsToday.count, error: productsToday.error?.message });
+        console.log('  - productsActive:', { count: productsActive.count, error: productsActive.error?.message });
+        console.log('  - usersStats:', { data: usersStats.data, error: usersStats.error?.message });
+        console.log('  - messageStats:', { count: messageStats.count, error: messageStats.error?.message });
+        console.log('  - messagesToday:', { count: messagesToday.count, error: messagesToday.error?.message });
+        console.log('  - conversationStats:', { count: conversationStats.count, error: conversationStats.error?.message });
+        console.log('  - categoryStats:', { data: categoryStats.data?.length, error: categoryStats.error?.message });
+        console.log('  - weeklyTrend:', { data: weeklyTrend.data?.length, error: weeklyTrend.error?.message });
+        console.log('  - recentProducts:', { data: recentProducts.data?.length, error: recentProducts.error?.message });
+
         // Check for critical errors (optional: we could return partial data)
         if (productStats.error) console.error('Error fetching product stats:', productStats.error);
 
