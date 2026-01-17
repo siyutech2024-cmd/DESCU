@@ -53,18 +53,18 @@ export const logAdminAction = async (
 export const getDashboardStats = async (req: AdminRequest, res: Response) => {
     try {
         // 获取商品统计
-        const { data: productStats, error: productError } = await supabase
+        const { count: totalProducts, error: productError } = await supabase
             .from('products')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null);
 
-        const { data: productsTodayStats, error: productsTodayError } = await supabase
+        const { count: productsToday, error: productsTodayError } = await supabase
             .from('products')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null)
             .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
 
-        const { data: productsActiveStats, error: productsActiveError } = await supabase
+        const { count: activeProducts, error: productsActiveError } = await supabase
             .from('products')
             .select('*', { count: 'exact', head: true })
             .is('deleted_at', null)
@@ -72,7 +72,7 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
 
         // 获取用户统计（从 auth.users via Admin API）
         const { data: { users: authUsers }, error: usersError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-        const totalUsers = authUsers?.length || 0;
+        const totalUserCount = authUsers?.length || 0;
 
         // 获取消息统计
         const { count: totalMessages, error: messagesError } = await supabase
@@ -125,10 +125,10 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
 
         res.json({
             stats: {
-                totalProducts: productStats?.length || 0,
-                productsToday: productsTodayStats?.length || 0,
-                activeProducts: productsActiveStats?.length || 0,
-                totalUsers: totalUsers || 0,
+                totalProducts: totalProducts || 0,
+                productsToday: productsToday || 0,
+                activeProducts: activeProducts || 0,
+                totalUsers: totalUserCount || 0,
                 totalMessages: totalMessages || 0,
                 messagesToday: messagesToday || 0,
                 totalConversations: totalConversations || 0
