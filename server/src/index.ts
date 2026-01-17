@@ -112,6 +112,7 @@ app.post('/api/payment/webhook', handleStripeWebhook);
 // Protected Payment & Order Routes (REQUIRE AUTH)
 app.post('/api/payment/create-intent', requireAuth, createPaymentIntent);
 app.post('/api/payment/connect', requireAuth, createConnectAccount);
+app.post('/api/payment/payout-method', requireAuth, updatePayoutMethod); // NEW
 app.post('/api/payment/bank-info', requireAuth, updateSellerBankInfo);
 app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink);
 app.post('/api/orders/ship', requireAuth, markOrderAsShipped);

@@ -42,13 +42,13 @@ const getStripe = () => {
 export const createConnectAccount = async (req: Request, res: Response) => {
     try {
         const authReq = req as AuthenticatedRequest;
-        const userId = authReq.user?.id; // Use authenticated ID
-        const email = authReq.user?.email || req.body.email; // Fallback to body email if auth email missing, but ID must be auth
+        const userId = authReq.user?.id;
+        const email = authReq.user?.email || req.body.email;
 
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         // 1. Check if seller record exists
-        let { data: seller, error: fetchError } = await supabase
+        let { data: seller } = await supabase
             .from('sellers')
             .select('*')
             .eq('user_id', userId)
@@ -56,16 +56,18 @@ export const createConnectAccount = async (req: Request, res: Response) => {
 
         let accountId = seller?.stripe_connect_id;
 
-        // 2. If not, create Stripe Account
+        // 2. If not, create Stripe Custom Account
         if (!accountId) {
             const account = await getStripe().accounts.create({
-                type: 'express',
-                country: 'MX', // Defaulting to Mexico
+                type: 'custom',
+                country: 'MX',
                 email: email,
                 capabilities: {
                     card_payments: { requested: true },
                     transfers: { requested: true },
                 },
+                business_type: 'individual',
+                metadata: { userId }
             });
             accountId = account.id;
 
@@ -81,18 +83,84 @@ export const createConnectAccount = async (req: Request, res: Response) => {
             if (upsertError) throw upsertError;
         }
 
-        // 3. Create Account Link (for onboarding)
-        const accountLink = await getStripe().accountLinks.create({
-            account: accountId,
-            refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`,
-            return_url: `${req.headers.origin}/profile?onboarding_success=true`,
-            type: 'account_onboarding',
-        });
+        // 3. Check requirements
+        const account = await getStripe().accounts.retrieve(accountId);
+        const requirements = account.requirements?.currently_due || [];
 
-        res.json({ url: accountLink.url });
+        if (requirements.length > 0) {
+            // For Custom accounts, we use account links for "onboarding" only if strictly needed (Identity)
+            // or we handle it via API.
+            // For this MVP, we return a link in case they need to upload ID.
+            try {
+                const accountLink = await getStripe().accountLinks.create({
+                    account: accountId,
+                    refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`,
+                    return_url: `${req.headers.origin}/profile?onboarding_success=true`,
+                    type: 'account_onboarding',
+                    collect: 'eventually_due'
+                });
+                return res.json({
+                    accountId,
+                    requirements,
+                    onboardingUrl: accountLink.url
+                });
+            } catch (e) {
+                // Sometime custom accounts can't use hosted onboarding easily without config
+                console.warn("Could not create onboarding link for custom account, user might need API verification", e);
+            }
+        }
+
+        res.json({ accountId, requirements, onboardingUrl: null });
 
     } catch (error: any) {
         console.error('Error creating connect account:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Add External Account (Card/Bank)
+export const updatePayoutMethod = async (req: Request, res: Response) => {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const userId = authReq.user?.id;
+        const { token } = req.body; // Token from Stripe Elements (tok_...)
+
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!token) return res.status(400).json({ error: 'Token is required' });
+
+        // 1. Get Seller
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller?.stripe_connect_id) {
+            return res.status(404).json({ error: 'Seller account not found. Create account first.' });
+        }
+
+        // 2. Attach External Account
+        const bankAccount = await getStripe().accounts.createExternalAccount(
+            seller.stripe_connect_id,
+            {
+                external_account: token,
+                default_for_currency: true
+            }
+        );
+
+        // 3. Update DB
+        await supabase
+            .from('sellers')
+            .update({
+                payout_method_id: bankAccount.id,
+                onboarding_complete: true // Assume ready if they added a card
+            })
+            .eq('user_id', userId);
+
+        res.json({ success: true, payoutMethod: bankAccount });
+
+    } catch (error: any) {
+        console.error('Error updating payout method:', error);
         res.status(500).json({ error: error.message });
     }
 };

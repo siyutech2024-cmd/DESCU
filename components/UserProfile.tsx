@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import OrderList from './OrderList';
+import { PayoutModal } from './PayoutModal';
 import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -33,6 +34,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [isUploadingID, setIsUploadingID] = useState(false);
   const [activeTab, setActiveTab] = useState<'listings' | 'buying' | 'selling'>('listings');
   const [orders, setOrders] = useState<any[]>([]);
+  const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   // orders would be fetched based on tab. Simplification: fetching in useEffect when tab changes.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,37 +89,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   };
 
   const handleSetupPayouts = async () => {
-    setIsPayoutLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        alert("Please log in again.");
-        setIsPayoutLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/payment/connect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        console.error('No onboarding url returned', data);
-        alert(data.error || 'Failed to start onboarding');
-        setIsPayoutLoading(false);
-      }
-    } catch (error) {
-      console.error('Error starting payouts setup:', error);
-      setIsPayoutLoading(false);
-    }
+    setIsPayoutModalOpen(true);
   };
 
   const handleDashboard = async () => {
@@ -370,6 +342,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             </div>
           </div>
         </div>
+
+        <PayoutModal
+          isOpen={isPayoutModalOpen}
+          onClose={() => setIsPayoutModalOpen(false)}
+          userId={user.id}
+          email={user.email}
+          onSuccess={() => {
+            alert("Payout method added successfully!");
+            // Optionally refresh user state
+          }}
+        />
 
       </div>
     </div>
