@@ -70,10 +70,9 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
             .is('deleted_at', null)
             .eq('status', 'active');
 
-        // 获取用户统计（从 auth.users - 需要使用 service role key）
-        const { count: totalUsers, error: usersError } = await supabase
-            .from('products')
-            .select('seller_id', { count: 'exact', head: true });
+        // 获取用户统计（从 auth.users via Admin API）
+        const { data: { users: authUsers }, error: usersError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+        const totalUsers = authUsers?.length || 0;
 
         // 获取消息统计
         const { count: totalMessages, error: messagesError } = await supabase
