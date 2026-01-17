@@ -155,15 +155,15 @@ export const ProductList: React.FC = () => {
 
     const categories = [
         { value: 'all', label: '全部分类' },
-        { value: 'electronics', label: '电子产品' },
-        { value: 'furniture', label: '家具' },
-        { value: 'clothing', label: '服装' },
-        { value: 'books', label: '图书' },
-        { value: 'sports', label: '运动' },
-        { value: 'vehicles', label: '车辆' },
-        { value: 'real_estate', label: '房产' },
-        { value: 'services', label: '服务' },
-        { value: 'other', label: '其他' },
+        { value: 'Electronics', label: '电子产品' },
+        { value: 'Furniture', label: '家具' },
+        { value: 'Clothing', label: '服装' },
+        { value: 'Books', label: '图书' },
+        { value: 'Sports', label: '运动' },
+        { value: 'Vehicles', label: '车辆' },
+        { value: 'RealEstate', label: '房产' },
+        { value: 'Services', label: '服务' },
+        { value: 'Other', label: '其他' },
     ];
 
     return (

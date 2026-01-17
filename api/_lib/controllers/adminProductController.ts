@@ -52,9 +52,9 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
             query = query.or(`title.ilike.%${search}%,seller_name.ilike.%${search}%,seller_email.ilike.%${search}%`);
         }
 
-        // 基础筛选
+        // 基础筛选 - 使用 ilike 进行不区分大小写的匹配
         if (category && category !== 'all' && category !== 'undefined') {
-            query = query.eq('category', category);
+            query = query.ilike('category', String(category));
         }
         if (status && status !== 'all' && status !== 'undefined') {
             query = query.eq('status', status);
