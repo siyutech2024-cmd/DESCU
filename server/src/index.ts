@@ -39,7 +39,6 @@ app.use(express.json({ limit: '10mb' }));
 // import { requireAdmin } from './middleware/adminAuth';
 
 /* TEMPORARILY DISABLED FOR DEBUGGING - SAFETY MODE */
-/*
 // Chat Controller Imports
 import {
     createConversation,
@@ -87,7 +86,6 @@ import {
     deleteAdminMessage,
     flagAdminMessage
 } from './controllers/adminMessageController';
-*/
 
 // API Endpoints
 // app.post('/api/analyze', analyzeImage);
@@ -97,7 +95,7 @@ import {
 // app.get('/api/products/:id', getProductById);
 
 
-/*
+
 // Chat Endpoints
 app.post('/api/conversations', createConversation);
 app.get('/api/users/:userId/conversations', getUserConversations);
@@ -164,7 +162,7 @@ app.get('/api/admin/reports', requireAdmin, getReportsData);
 app.get('/api/admin/settings', requireAdmin, getSystemSettings);
 app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
 app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
-*/
+// System Settings
 
 // SEO
 // import { generateSitemap } from './controllers/seoController';
