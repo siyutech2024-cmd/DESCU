@@ -145,222 +145,227 @@ export const ProductReview: React.FC = () => {
                         <p className="text-gray-600 mt-1">审核待发布的商品</p>
                     </div>
                     {products.length > 0 && (
-                        批量通过全部
+                        <button
+                            onClick={handleBatchApprove}
+                            disabled={processing}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                        >
+                            批量通过全部
+                        </button>
+                    )}
+                    <button
+                        onClick={handleAiAudit}
+                        disabled={processing || products.length === 0}
+                        className="ml-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                    >
+                        <Sparkles size={16} />
+                        AI 智能审核
                     </button>
-                )}
-                <button
-                    onClick={handleAiAudit}
-                    disabled={processing || products.length === 0}
-                    className="ml-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                    <Sparkles size={16} />
-                    AI 智能审核
-                </button>
-            </div>
+                </div>
 
-            {/* Stats */ }
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-600">待审核</p>
-                        <p className="text-3xl font-bold text-yellow-600 mt-2">
-                            {products.length}
-                        </p>
+                {/* Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white rounded-xl p-6 shadow-sm border">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600">待审核</p>
+                                <p className="text-3xl font-bold text-yellow-600 mt-2">
+                                    {products.length}
+                                </p>
+                            </div>
+                            <Package className="w-12 h-12 text-yellow-600 opacity-20" />
+                        </div>
                     </div>
-                    <Package className="w-12 h-12 text-yellow-600 opacity-20" />
-                </div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-600">今日已审核</p>
-                        <p className="text-3xl font-bold text-green-600 mt-2">0</p>
+                    <div className="bg-white rounded-xl p-6 shadow-sm border">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600">今日已审核</p>
+                                <p className="text-3xl font-bold text-green-600 mt-2">0</p>
+                            </div>
+                            <CheckCircle className="w-12 h-12 text-green-600 opacity-20" />
+                        </div>
                     </div>
-                    <CheckCircle className="w-12 h-12 text-green-600 opacity-20" />
-                </div>
-            </div>
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm text-gray-600">今日已拒绝</p>
-                        <p className="text-3xl font-bold text-red-600 mt-2">0</p>
+                    <div className="bg-white rounded-xl p-6 shadow-sm border">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-gray-600">今日已拒绝</p>
+                                <p className="text-3xl font-bold text-red-600 mt-2">0</p>
+                            </div>
+                            <XCircle className="w-12 h-12 text-red-600 opacity-20" />
+                        </div>
                     </div>
-                    <XCircle className="w-12 h-12 text-red-600 opacity-20" />
                 </div>
-            </div>
-        </div>
 
-        {/* Product List */ }
-        <div className="bg-white rounded-xl shadow-sm border">
-            {loading ? (
-                <div className="p-12 text-center text-gray-500">加载中...</div>
-            ) : products.length === 0 ? (
-                <div className="p-12 text-center">
-                    <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4 opacity-50" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">审核完成！</h3>
-                    <p className="text-gray-600">当前没有待审核的商品</p>
-                </div>
-            ) : (
-                <div className="divide-y">
-                    {products.map((product) => (
-                        <div key={product.id} className="p-6 hover:bg-gray-50 transition-colors">
-                            <div className="flex gap-6">
-                                {/* Image */}
-                                <img
-                                    src={product.images?.[0] || 'https://via.placeholder.com/120'}
-                                    alt={product.title}
-                                    className="w-32 h-32 rounded-lg object-cover border"
-                                />
+                {/* Product List */}
+                <div className="bg-white rounded-xl shadow-sm border">
+                    {loading ? (
+                        <div className="p-12 text-center text-gray-500">加载中...</div>
+                    ) : products.length === 0 ? (
+                        <div className="p-12 text-center">
+                            <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4 opacity-50" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">审核完成！</h3>
+                            <p className="text-gray-600">当前没有待审核的商品</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y">
+                            {products.map((product) => (
+                                <div key={product.id} className="p-6 hover:bg-gray-50 transition-colors">
+                                    <div className="flex gap-6">
+                                        {/* Image */}
+                                        <img
+                                            src={product.images?.[0] || 'https://via.placeholder.com/120'}
+                                            alt={product.title}
+                                            className="w-32 h-32 rounded-lg object-cover border"
+                                        />
 
-                                {/* Content */}
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-2">
-                                        {product.title}
-                                    </h3>
-                                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                                        {product.description}
-                                    </p>
-                                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                                        <span className="font-semibold text-orange-600">
-                                            ${product.price} {product.currency || 'MXN'}
-                                        </span>
-                                        <span>分类: {product.category}</span>
-                                        <span>卖家: {product.seller_name}</span>
+                                        {/* Content */}
+                                        <div className="flex-1">
+                                            <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                                {product.title}
+                                            </h3>
+                                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                                                {product.description}
+                                            </p>
+                                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                <span className="font-semibold text-orange-600">
+                                                    ${product.price} {product.currency || 'MXN'}
+                                                </span>
+                                                <span>分类: {product.category}</span>
+                                                <span>卖家: {product.seller_name}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex flex-col gap-2">
+                                            <button
+                                                onClick={() => setSelectedProduct(product)}
+                                                className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                                查看详情
+                                            </button>
+                                            <button
+                                                onClick={() => handleReview(product.id, true)}
+                                                disabled={processing}
+                                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                            >
+                                                <CheckCircle className="w-4 h-4" />
+                                                通过
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedProduct(product);
+                                                }}
+                                                disabled={processing}
+                                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                                            >
+                                                <XCircle className="w-4 h-4" />
+                                                拒绝
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+                            <span className="text-sm text-gray-600">
+                                第 {page} 页，共 {totalPages} 页
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={page === 1}
+                                    onClick={() => setPage(p => p - 1)}
+                                    className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
+                                >
+                                    上一页
+                                </button>
+                                <button
+                                    disabled={page === totalPages}
+                                    onClick={() => setPage(p => p + 1)}
+                                    className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
+                                >
+                                    下一页
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Review Modal */}
+                {
+                    selectedProduct && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                                <div className="p-6 border-b">
+                                    <h2 className="text-2xl font-bold">商品详情审核</h2>
+                                </div>
+
+                                <div className="p-6 space-y-4">
+                                    <div>
+                                        <h3 className="font-semibold mb-2">{selectedProduct.title}</h3>
+                                        <p className="text-gray-600">{selectedProduct.description}</p>
+                                    </div>
+
+                                    {selectedProduct.images && selectedProduct.images.length > 0 && (
+                                        <div className="grid grid-cols-3 gap-4">
+                                            {selectedProduct.images.map((img, idx) => (
+                                                <img
+                                                    key={idx}
+                                                    src={img}
+                                                    alt={`商品图片 ${idx + 1}`}
+                                                    className="w-full h-32 object-cover rounded-lg border"
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            审核备注（可选）
+                                        </label>
+                                        <textarea
+                                            value={reviewNote}
+                                            onChange={(e) => setReviewNote(e.target.value)}
+                                            placeholder="输入审核备注..."
+                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            rows={3}
+                                        />
                                     </div>
                                 </div>
 
-                                {/* Actions */}
-                                <div className="flex flex-col gap-2">
-                                    <button
-                                        onClick={() => setSelectedProduct(product)}
-                                        className="px-4 py-2 border rounded-lg hover:bg-gray-50 flex items-center gap-2"
-                                    >
-                                        <Eye className="w-4 h-4" />
-                                        查看详情
-                                    </button>
-                                    <button
-                                        onClick={() => handleReview(product.id, true)}
-                                        disabled={processing}
-                                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                        <CheckCircle className="w-4 h-4" />
-                                        通过
-                                    </button>
+                                <div className="p-6 border-t flex gap-3">
                                     <button
                                         onClick={() => {
-                                            setSelectedProduct(product);
+                                            setSelectedProduct(null);
+                                            setReviewNote('');
                                         }}
-                                        disabled={processing}
-                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                                        className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
                                     >
-                                        <XCircle className="w-4 h-4" />
+                                        取消
+                                    </button>
+                                    <button
+                                        onClick={() => handleReview(selectedProduct.id, false)}
+                                        disabled={processing}
+                                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                                    >
                                         拒绝
+                                    </button>
+                                    <button
+                                        onClick={() => handleReview(selectedProduct.id, true)}
+                                        disabled={processing}
+                                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                        通过
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
-                    <span className="text-sm text-gray-600">
-                        第 {page} 页，共 {totalPages} 页
-                    </span>
-                    <div className="flex gap-2">
-                        <button
-                            disabled={page === 1}
-                            onClick={() => setPage(p => p - 1)}
-                            className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
-                        >
-                            上一页
-                        </button>
-                        <button
-                            disabled={page === totalPages}
-                            onClick={() => setPage(p => p + 1)}
-                            className="px-4 py-2 border rounded-lg hover:bg-white disabled:opacity-50"
-                        >
-                            下一页
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-
-        {/* Review Modal */ }
-        {
-            selectedProduct && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b">
-                            <h2 className="text-2xl font-bold">商品详情审核</h2>
-                        </div>
-
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <h3 className="font-semibold mb-2">{selectedProduct.title}</h3>
-                                <p className="text-gray-600">{selectedProduct.description}</p>
-                            </div>
-
-                            {selectedProduct.images && selectedProduct.images.length > 0 && (
-                                <div className="grid grid-cols-3 gap-4">
-                                    {selectedProduct.images.map((img, idx) => (
-                                        <img
-                                            key={idx}
-                                            src={img}
-                                            alt={`商品图片 ${idx + 1}`}
-                                            className="w-full h-32 object-cover rounded-lg border"
-                                        />
-                                    ))}
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    审核备注（可选）
-                                </label>
-                                <textarea
-                                    value={reviewNote}
-                                    onChange={(e) => setReviewNote(e.target.value)}
-                                    placeholder="输入审核备注..."
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                    rows={3}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="p-6 border-t flex gap-3">
-                            <button
-                                onClick={() => {
-                                    setSelectedProduct(null);
-                                    setReviewNote('');
-                                }}
-                                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-                            >
-                                取消
-                            </button>
-                            <button
-                                onClick={() => handleReview(selectedProduct.id, false)}
-                                disabled={processing}
-                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-                            >
-                                拒绝
-                            </button>
-                            <button
-                                onClick={() => handleReview(selectedProduct.id, true)}
-                                disabled={processing}
-                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                            >
-                                通过
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )
-        }
-        </div >
-    );
-};
+                    )
+                }
+            </div >
+        );
+    };
