@@ -81,7 +81,11 @@ export const createProduct = async (req: any, res: Response) => {
             throw error;
         }
 
-        res.status(201).json(data);
+        res.status(201).json({
+            ...data,
+            _debug_requested_status: 'pending_review',
+            _debug_persisted_status: data.status
+        });
     } catch (error: any) {
         console.error('Error creating product:', error);
         res.status(500).json({ error: error.message || 'Failed to create product' });

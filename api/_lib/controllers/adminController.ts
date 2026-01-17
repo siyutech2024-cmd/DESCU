@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AdminRequest } from '../middleware/adminAuth.js';
 import { supabase } from '../db/supabase.js';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
 // --- LAZY STRIPE INIT ---
@@ -58,6 +59,17 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
         const todayStr = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
         const weekAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+        // Create a dedicated Admin Client to ensure we bypass RLS
+        const adminUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        // Fallback to global client if key missing (will likely fail for RLS but handles dev cases)
+        const adminClient = (adminUrl && adminKey)
+            ? createClient(adminUrl, adminKey, { auth: { autoRefreshToken: false, persistSession: false } })
+            : supabase;
+
+        console.log('[Dashboard] Using Admin Client:', !!(adminUrl && adminKey));
+
         // Use Promise.all to run queries in parallel
         const [
             productStats,
@@ -73,25 +85,25 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
             recentProducts
         ] = await Promise.all([
             // 1. Total Products
-            supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            adminClient.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null),
             // 2. Products Today
-            supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('created_at', todayStr),
+            adminClient.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('created_at', todayStr),
             // 3. Active Products
-            supabase.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'active'),
+            adminClient.from('products').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', 'active'),
             // 4. Total Users (Detailed count via RPC)
-            supabase.rpc('get_total_users'),
+            adminClient.rpc('get_total_users'),
             // 5. Total Messages
-            supabase.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            adminClient.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null),
             // 6. Messages Today
-            supabase.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('timestamp', todayStr),
+            adminClient.from('messages').select('*', { count: 'exact', head: true }).is('deleted_at', null).gte('timestamp', todayStr),
             // 7. Total Conversations
-            supabase.from('conversations').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+            adminClient.from('conversations').select('*', { count: 'exact', head: true }).is('deleted_at', null),
             // 8. Category Stats
-            supabase.from('admin_product_stats').select('*'),
+            adminClient.from('admin_product_stats').select('*'),
             // 9. Weekly Trend
-            supabase.from('admin_daily_stats').select('*').gte('date', weekAgoStr).order('date', { ascending: true }),
+            adminClient.from('admin_daily_stats').select('*').gte('date', weekAgoStr).order('date', { ascending: true }),
             // 10. Recent Products
-            supabase.from('products')
+            adminClient.from('products')
                 .select(`
                     id,
                     title,

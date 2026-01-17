@@ -49,11 +49,13 @@ export const createProduct = async (req: any, res: Response) => {
             latitude: latitude || 0,
             longitude: longitude || 0,
             location_name: location_name || '',
-            status: 'active',
+            status: 'pending_review',
             views_count: 0,
             reported_count: 0,
             is_promoted: false
         };
+
+        console.log('[Product] Creating product with status:', productData.status);
 
         // Create a scoped Supabase client for this user to pass RLS
         const scopedSupabase = createClient(
