@@ -10,6 +10,8 @@ export interface User {
   email: string;
   avatar: string;
   isVerified?: boolean; // New: Verified status
+  country?: string;     // New: User country code from IP
+  city?: string;        // New: User city from IP
 }
 
 export enum Category {
@@ -47,6 +49,8 @@ export interface Product {
   deliveryType: DeliveryType;
   location: Coordinates;
   locationName: string;
+  country?: string;  // New: Product country code (e.g., "MX", "US")
+  city?: string;     // New: Product city name
   createdAt: number;
   distance?: number;
   isPromoted?: boolean; // New: Boosted status

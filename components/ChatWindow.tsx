@@ -183,7 +183,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto pt-[72px] pb-[90px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
+      <div className="flex-1 overflow-y-auto pt-[72px] pb-[120px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
 
         {/* Product Context Card */}
         <div className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex items-center gap-3 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow">
@@ -256,7 +256,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Floating Input Area - FIXED TO VIEWPORT BOTTOM */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 to-transparent z-[60] sm:absolute sm:bottom-0 sm:left-0 sm:right-0">
+      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 to-transparent z-[100] sm:absolute sm:bottom-0 sm:left-0 sm:right-0 pb-safe">
 
         {/* Emoji Picker Popover */}
         {showEmojiPicker && (
@@ -280,7 +280,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         <form
           onSubmit={handleSend}
-          className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50 mb-safe"
+          className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50"
         >
           <button
             type="button"

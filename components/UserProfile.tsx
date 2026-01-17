@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import OrderList from './OrderList';
 import { PayoutModal } from './PayoutModal';
-import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star } from 'lucide-react';
+import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFullDataUrl } from '../services/utils';
@@ -16,6 +16,8 @@ interface UserProfileProps {
   onProductClick: (product: Product) => void;
   onVerifyUser?: () => void;
   onBoostProduct?: (productId: string) => void;
+  favorites?: Set<string>;
+  allProducts?: Product[];
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({
@@ -25,15 +27,18 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   onBack,
   onProductClick,
   onVerifyUser,
-  onBoostProduct
+  onBoostProduct,
+  favorites = new Set(),
+  allProducts = []
 }) => {
   const { t } = useLanguage();
   const [name, setName] = useState(user.name);
   const [avatar, setAvatar] = useState(user.avatar);
   const [isSaved, setIsSaved] = useState(false);
   const [isUploadingID, setIsUploadingID] = useState(false);
-  const [activeTab, setActiveTab] = useState<'listings' | 'buying' | 'selling'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'buying' | 'selling' | 'favorites'>('listings');
   const [orders, setOrders] = useState<any[]>([]);
+  const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   // orders would be fetched based on tab. Simplification: fetching in useEffect when tab changes.
 
@@ -58,11 +63,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [ratingStats, setRatingStats] = useState({ total_reviews: 0, average_rating: 0 });
 
   // Load Rating Stats
-  React.useEffect(() => {
+  useEffect(() => {
     import('../services/ratingService').then(({ getUserRatingStats }) => {
       getUserRatingStats(user.id).then(setRatingStats);
     });
   }, [user.id]);
+
+  // Load Favorite Products
+  useEffect(() => {
+    const favProds = allProducts.filter(p => favorites.has(p.id));
+    setFavoriteProducts(favProds);
+  }, [favorites, allProducts]);
 
   const handleSaveBankDetails = async () => {
     setIsSavingBank(true);
@@ -223,10 +234,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             {t('profile.listings')}
           </button>
           <button
+            onClick={() => setActiveTab('favorites')}
+            className={`flex-1 pb-3 text-sm font-bold transition-colors flex items-center justify-center gap-1 ${activeTab === 'favorites' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Heart size={14} />
+            {t('nav.favorites') || 'Favorites'} ({favorites.size})
+          </button>
+          <button
             onClick={() => setActiveTab('buying')}
             className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'buying' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            {t('profile.buying') || 'My Orders'}
+            {t('profile.buying') || 'Orders'}
           </button>
           <button
             onClick={() => setActiveTab('selling')}
@@ -285,6 +303,38 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400">
               <ShoppingBag size={48} className="mx-auto mb-3 opacity-20" />
               <p>{t('profile.no_listings')}</p>
+            </div>
+          )
+        )}
+
+        {/* Favorites Tab */}
+        {activeTab === 'favorites' && (
+          favoriteProducts.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4">
+              {favoriteProducts.map(product => (
+                <div
+                  key={product.id}
+                  onClick={() => onProductClick(product)}
+                  className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer relative"
+                >
+                  <div className="aspect-square bg-gray-100">
+                    <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="font-bold text-red-500">¥{product.price}</p>
+                      <Heart size={16} className="text-red-500" fill="currentColor" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400">
+              <Heart size={48} className="mx-auto mb-3 opacity-20" />
+              <p>{t('profile.no_favorites') || 'No favorites yet'}</p>
+              <p className="text-xs mt-2">Tap the heart icon on products to save them here</p>
             </div>
           )
         )}

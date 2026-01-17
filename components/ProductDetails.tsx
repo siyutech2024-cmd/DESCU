@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Share2, Facebook, Link as LinkIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Share2, Facebook, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
@@ -8,6 +8,7 @@ import { ReportModal } from './ReportModal';
 import { CheckoutModal } from './CheckoutModal';
 import { RatingModal } from './RatingModal';
 import { User } from '../types';
+import { canPurchaseProduct } from '../services/locationService';
 
 interface ProductDetailsProps {
   product: Product;
@@ -30,6 +31,22 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+
+  // Check if user can purchase this product based on location
+  const [purchaseEligibility, setPurchaseEligibility] = useState<{ canPurchase: boolean; reason?: string }>({ canPurchase: true });
+
+  useEffect(() => {
+    if (user && user.country && product.country) {
+      const eligibility = canPurchaseProduct(
+        user.country,
+        user.city || '',
+        product.country,
+        product.city || '',
+        product.deliveryType
+      );
+      setPurchaseEligibility(eligibility);
+    }
+  }, [user, product]);
 
   const getRelativeTime = (timestamp: number) => {
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
@@ -149,7 +166,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 </div>
 
                 {/* Delivery Method Info */}
-                <div className="glass-card rounded-2xl p-4 mb-8 flex items-center gap-4 bg-white/40">
+                <div className="glass-card rounded-2xl p-4 mb-4 flex items-center gap-4 bg-white/40">
                   <div className={`p-3 rounded-full ${product.deliveryType === DeliveryType.Shipping ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
                     {product.deliveryType === DeliveryType.Shipping ? <Truck size={24} /> : <Handshake size={24} />}
                   </div>
@@ -158,6 +175,23 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                     <p className="text-lg font-bold text-gray-900">{getDeliveryLabel(product.deliveryType)}</p>
                   </div>
                 </div>
+
+                {/* Region Restriction Badge */}
+                {product.country && (
+                  <div className="glass-card rounded-2xl p-4 mb-8 flex items-start gap-3 bg-blue-50/50 border border-blue-100">
+                    <MapPin size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-bold text-blue-900 mb-1">Product Location</h4>
+                      <p className="text-sm text-blue-700">{product.city}, {product.country}</p>
+                      {!purchaseEligibility.canPurchase && (
+                        <div className="mt-2 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg p-2">
+                          <AlertCircle size={16} className="text-orange-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-orange-800 font-medium">{purchaseEligibility.reason}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="prose prose-sm text-gray-600 mb-8 bg-white/30 p-6 rounded-2xl border border-white/40 backdrop-blur-sm">
                   <h3 className="text-gray-900 font-bold mb-2 text-lg">{t('detail.desc_title')}</h3>
@@ -177,11 +211,15 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
                 <button
                   onClick={() => setIsCheckoutOpen(true)}
-                  disabled={!user}
-                  className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+                  disabled={!user || !purchaseEligibility.canPurchase}
+                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${!user || !purchaseEligibility.canPurchase
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
+                    }`}
+                  title={!purchaseEligibility.canPurchase ? purchaseEligibility.reason : ''}
                 >
                   <ShoppingBag size={22} />
-                  Lo quiero
+                  {!purchaseEligibility.canPurchase ? 'Not Available' : 'Lo quiero'}
                 </button>
               </div>
 

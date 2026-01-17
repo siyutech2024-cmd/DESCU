@@ -261,29 +261,44 @@ const AppContent: React.FC = () => {
 
   // Supabase Auth State Listener
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const loadUserWithLocation = async (session: any) => {
+      if (!session?.user) return null;
+
+      const baseUser = {
+        id: session.user.id,
+        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+        email: session.user.email || '',
+        avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`,
+        isVerified: false,
+      };
+
+      // Get user location from IP
+      try {
+        const { getLocationFromIP } = await import('./services/locationService');
+        const locationInfo = await getLocationFromIP();
+        if (locationInfo) {
+          return { ...baseUser, country: locationInfo.country, city: locationInfo.city };
+        }
+      } catch (error) {
+        console.error('Failed to get IP location:', error);
+      }
+
+      return baseUser;
+    };
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-          email: session.user.email || '',
-          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`,
-          isVerified: false,
-        });
+        const userWithLocation = await loadUserWithLocation(session);
+        if (userWithLocation) setUser(userWithLocation);
       }
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-          email: session.user.email || '',
-          avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`,
-          isVerified: false,
-        });
+        const userWithLocation = await loadUserWithLocation(session);
+        if (userWithLocation) setUser(userWithLocation);
       } else {
         setUser(null);
       }
@@ -381,6 +396,8 @@ const AppContent: React.FC = () => {
             longitude: p.longitude || coords.longitude || 0,
           },
           locationName: p.location_name || 'Unknown',
+          country: p.country,
+          city: p.city,
           createdAt: new Date(p.created_at).getTime(),
           isPromoted: p.is_promoted || false,
           status: p.status,
@@ -614,6 +631,8 @@ const AppContent: React.FC = () => {
           latitude: newProductData.location.latitude,
           longitude: newProductData.location.longitude,
           location_name: newProductData.locationName,
+          country: user.country || 'Unknown',  // From user's IP location
+          city: user.city || 'Unknown',        // From user's IP location
         }),
       });
 
@@ -644,6 +663,8 @@ const AppContent: React.FC = () => {
           longitude: savedProduct.longitude,
         },
         locationName: savedProduct.location_name,
+        country: savedProduct.country,
+        city: savedProduct.city,
         createdAt: new Date(savedProduct.created_at).getTime(),
         isPromoted: savedProduct.is_promoted || false,
         status: savedProduct.status // Added status mapping
@@ -896,6 +917,8 @@ const AppContent: React.FC = () => {
                 onUpdateUser={handleUpdateUser}
                 onVerifyUser={handleVerifyUser}
                 onBoostProduct={handleBoostProduct}
+                favorites={favorites}
+                allProducts={sortedProducts}
               />
             } />
             <Route path="/chat" element={

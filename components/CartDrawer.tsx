@@ -47,7 +47,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between bg-white z-10">
             <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
               <ShoppingBag className="text-brand-600" size={20} />
-              {t('nav.favorites') || 'Saved Items'} ({cartItems.length})
+              {t('nav.cart') || 'Shopping Cart'} ({cartItems.length})
             </h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-500">
               <X size={20} />

@@ -67,29 +67,29 @@ export const HomePage: React.FC<HomePageProps> = ({
         <main className="max-w-5xl mx-auto px-2 md:px-4 pb-24 w-full overflow-x-hidden">
             {/* DESCU Brand Header */}
             {/* DESCU Brand Header - More Compact on Mobile */}
-            <div className="flex flex-col items-center justify-center pt-6 pb-4 md:pt-10 md:pb-8">
+            <div className="flex flex-col items-center justify-center pt-4 pb-3 md:pt-10 md:pb-8">
                 <div className="flex items-center gap-2 md:gap-3 animate-fade-in-up">
-                    <div className="w-10 h-10 md:w-16 md:h-16 bg-brand-600 text-white flex items-center justify-center rounded-xl md:rounded-2xl shadow-xl shadow-brand-500/30">
-                        <svg viewBox="0 0 100 100" className="w-6 h-6 md:w-10 md:h-10 fill-none stroke-white" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="w-8 h-8 md:w-16 md:h-16 bg-brand-600 text-white flex items-center justify-center rounded-lg md:rounded-2xl shadow-lg shadow-brand-500/30">
+                        <svg viewBox="0 0 100 100" className="w-5 h-5 md:w-10 md:h-10 fill-none stroke-white" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M30 20 H50 C70 20 85 35 85 50 C85 65 70 80 50 80 H30 Z" />
                             <circle cx="45" cy="40" r="5" fill="white" stroke="none" />
                             <path d="M30 20 V80" />
                         </svg>
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tighter drop-shadow-sm">DESCU</h1>
+                    <h1 className="text-2xl md:text-5xl font-black text-gray-900 tracking-tighter drop-shadow-sm">DESCU</h1>
                 </div>
-                <p className="text-gray-500 text-[10px] md:text-base font-bold mt-2 tracking-wide bg-white/60 px-3 py-1 rounded-full backdrop-blur-md border border-white/50 text-center shadow-sm max-w-[80vw] truncate">{t('hero.subtitle')}</p>
+                <p className="text-gray-500 text-[10px] md:text-base font-bold mt-1.5 tracking-wide bg-white/60 px-3 py-0.5 rounded-full backdrop-blur-md border border-white/50 text-center shadow-sm max-w-[80vw] truncate">{t('hero.subtitle')}</p>
 
                 {/* Mobile Region Selector */}
-                <div className="md:hidden mt-4 relative">
-                    <div className="flex items-center gap-2 bg-gray-100/80 backdrop-blur-md px-4 py-2 rounded-full border border-gray-200 shadow-sm animate-fade-in">
-                        <MapPin size={14} className="text-brand-600" />
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Deliver to:</span>
+                <div className="md:hidden mt-3 relative">
+                    <div className="flex items-center gap-2 bg-gray-100/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-gray-200 shadow-sm animate-fade-in">
+                        <MapPin size={13} className="text-brand-600" />
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Deliver to:</span>
                         <div className="flex items-center gap-1">
-                            <span className="text-base">
+                            <span className="text-sm">
                                 {region === 'MX' ? '🇲🇽' : region === 'US' ? '🇺🇸' : region === 'CN' ? '🇨🇳' : region === 'EU' ? '🇪🇺' : region === 'JP' ? '🇯🇵' : '🌍'}
                             </span>
-                            <span className="text-sm font-bold text-gray-900">
+                            <span className="text-xs font-bold text-gray-900">
                                 {region === 'MX' ? 'Mexico' : region === 'US' ? 'USA' : region === 'CN' ? 'China' : region === 'EU' ? 'Europe' : region === 'JP' ? 'Japan' : 'Global'}
                             </span>
                         </div>
@@ -110,20 +110,20 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
 
             {/* Category Filter - Glass Pills */}
-            <div className="flex gap-4 overflow-x-auto pb-6 mb-6 no-scrollbar px-1">
+            <div className="flex gap-3 overflow-x-auto pb-4 mb-4 no-scrollbar px-1">
                 {CATEGORIES.map(cat => (
                     <button
                         key={cat.id}
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`flex flex-col items-center flex-shrink-0 gap-2 min-w-[76px] group transition-all duration-300 ${selectedCategory === cat.id ? 'opacity-100 scale-105' : 'opacity-100 hover:scale-105'}`}
+                        className={`flex flex-col items-center flex-shrink-0 gap-1.5 min-w-[68px] group transition-all duration-300 ${selectedCategory === cat.id ? 'opacity-100 scale-105' : 'opacity-100 hover:scale-105'}`}
                     >
-                        <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all duration-300 ${selectedCategory === cat.id
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${selectedCategory === cat.id
                             ? 'bg-gradient-to-br from-brand-600 to-brand-800 text-white shadow-lg shadow-brand-600/40' // Darker brand color
                             : 'bg-white text-gray-700 shadow-sm border border-gray-200 group-hover:bg-gray-50 group-hover:border-brand-200' // Solid white, darker text
                             }`}>
-                            <cat.icon size={26} strokeWidth={selectedCategory === cat.id ? 2.5 : 2} />
+                            <cat.icon size={22} strokeWidth={selectedCategory === cat.id ? 2.5 : 2} />
                         </div>
-                        <span className={`text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded-full ${selectedCategory === cat.id
+                        <span className={`text-[10px] font-bold whitespace-nowrap px-2 py-0.5 rounded-full ${selectedCategory === cat.id
                             ? 'text-brand-800 bg-brand-100'
                             : 'text-gray-700 group-hover:text-gray-900'
                             }`}>

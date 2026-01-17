@@ -12,6 +12,8 @@ interface ProfilePageProps {
     onUpdateUser: (user: User) => void;
     onVerifyUser: () => void;
     onBoostProduct: (productId: string) => void;
+    favorites?: Set<string>;
+    allProducts?: Product[];
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
@@ -20,7 +22,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     onLogin,
     onUpdateUser,
     onVerifyUser,
-    onBoostProduct
+    onBoostProduct,
+    favorites = new Set(),
+    allProducts = []
 }) => {
     const { t } = useLanguage();
     const navigate = useNavigate();
@@ -86,6 +90,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             onProductClick={(p) => navigate(`/product/${p.id}`)}
             onVerifyUser={onVerifyUser}
             onBoostProduct={onBoostProduct}
+            favorites={favorites}
+            allProducts={allProducts}
         />
     );
 };
