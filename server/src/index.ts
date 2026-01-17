@@ -33,7 +33,7 @@ app.use(express.json({ limit: '10mb' }));
 // Routes
 import { analyzeImage } from './controllers/aiController';
 import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
-import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController';
+import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck, updatePayoutMethod } from './controllers/paymentController';
 
 import { requireAuth } from './middleware/userAuth'; // Keep for products
 import { requireAdmin } from './middleware/adminAuth';
