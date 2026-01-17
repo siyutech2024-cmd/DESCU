@@ -11,8 +11,7 @@ interface NavbarProps {
   onLogin: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  cartCount: number;
-  onCartClick: () => void;
+  // cartCount and onCartClick removed - direct purchase model
   onProfileClick: () => void;
   onSellClick: () => void;
   onLogoClick: () => void;
@@ -26,8 +25,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogin,
   searchQuery,
   onSearchChange,
-  cartCount,
-  onCartClick,
   onProfileClick,
   onSellClick,
   onLogoClick,
@@ -149,16 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          <button onClick={onCartClick} className="text-gray-500 hover:text-brand-600 hover:bg-brand-50 p-2 rounded-full transition-all relative" title={t('nav.cart')}>
-            <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
-              {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full ring-2 ring-white shadow-sm">
-                  {cartCount}
-                </span>
-              )}
-            </div>
-          </button>
+          {/* Cart button removed - direct purchase model */}
 
           {user ? (
             <div className="flex items-center gap-4 pl-2">

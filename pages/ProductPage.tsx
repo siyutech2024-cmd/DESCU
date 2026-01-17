@@ -9,17 +9,14 @@ import { API_BASE_URL } from '../services/apiConfig';
 
 interface ProductPageProps {
     products: Product[];
-    onAddToCart: (product: Product) => void;
+    // onAddToCart and cart removed - direct purchase model
     onContactSeller: (product: Product) => void;
-    cart: Product[];
     user: User | null;
 }
 
 export const ProductPage: React.FC<ProductPageProps> = ({
     products,
-    onAddToCart,
     onContactSeller,
-    cart,
     user
 }) => {
     const { id } = useParams<{ id: string }>();
@@ -105,9 +102,8 @@ export const ProductPage: React.FC<ProductPageProps> = ({
         <ProductDetails
             product={product}
             onBack={() => navigate('/')}
-            onAddToCart={onAddToCart}
             onContactSeller={onContactSeller}
-            isInCart={cart.some(p => p.id === product.id)}
+            isInCart={false}
             user={user}
         />
     );

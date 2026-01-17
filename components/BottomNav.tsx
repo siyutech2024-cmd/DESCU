@@ -7,8 +7,7 @@ interface BottomNavProps {
   currentView: string;
   onChangeView: (view: 'home' | 'profile' | 'chat-list') => void;
   onSellClick: () => void;
-  onCartClick: () => void;
-  cartCount: number;
+  // cart removed - direct purchase model
   unreadCount: number;
 }
 
@@ -16,8 +15,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   currentView,
   onChangeView,
   onSellClick,
-  onCartClick,
-  cartCount,
   unreadCount
 }) => {
   const { t } = useLanguage();
@@ -65,20 +62,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
         {/* Right Group */}
         <div className="flex items-center justify-around w-2/5 h-full">
-          <button
-            onClick={onCartClick}
-            className="flex flex-col items-center justify-center w-full h-full gap-1 text-gray-400 hover:text-gray-600 transition-all active:scale-95"
-          >
-            <div className="relative">
-              <ShoppingBag size={24} strokeWidth={2} className="opacity-70" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-brand-600 text-white text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full ring-2 ring-white">
-                  {cartCount}
-                </span>
-              )}
-            </div>
-            <span className="text-[9px] font-bold opacity-0 transition-all">Cart</span>
-          </button>
+          {/* Cart button removed - direct purchase model */}
 
           <button
             onClick={() => onChangeView('profile')}

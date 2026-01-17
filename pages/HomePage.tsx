@@ -16,8 +16,7 @@ interface HomePageProps {
     permissionDenied: boolean;
     searchQuery: string;
     onSellClick: () => void;
-    onAddToCart: (product: Product) => void;
-    cart: Product[];
+    // cart and onAddToCart removed - direct purchase model
     hasMore: boolean;
     isLoadingMore: boolean;
     onLoadMore: () => void;
@@ -33,8 +32,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     permissionDenied,
     searchQuery,
     onSellClick,
-    onAddToCart,
-    cart,
     hasMore,
     isLoadingMore,
     onLoadMore,
@@ -174,8 +171,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                             <ProductCard
                                 key={product.id}
                                 product={product}
-                                onAddToCart={onAddToCart}
-                                isInCart={cart.some(item => item.id === product.id)}
+                                // onAddToCart removed
+                                isInCart={false}
                                 onClick={(p) => navigate(`/product/${p.id}`)}
                                 isFavorite={favorites.has(product.id)}
                                 onToggleFavorite={onToggleFavorite}

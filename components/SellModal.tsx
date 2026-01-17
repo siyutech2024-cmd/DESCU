@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Sparkles, MapPin, Loader2, Camera, DollarSign, Truck, Handshake, Info, AlertCircle } from 'lucide-react';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
@@ -8,6 +9,38 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
 import { GlassToast, ToastType } from './GlassToast';
 import { uploadProductImage } from '../services/supabase';
+
+// Smart category mapping from AI response to Category enum
+const mapCategoryFromAI = (aiCategory: string): Category => {
+  const normalized = aiCategory.toLowerCase().trim();
+  const mapping: Record<string, Category> = {
+    'electronics': Category.Electronics,
+    'electronic': Category.Electronics,
+    'tech': Category.Electronics,
+    'furniture': Category.Furniture,
+    'home': Category.Furniture,
+    'clothing': Category.Clothing,
+    'clothes': Category.Clothing,
+    'fashion': Category.Clothing,
+    'apparel': Category.Clothing,
+    'books': Category.Books,
+    'book': Category.Books,
+    'sports': Category.Sports,
+    'sport': Category.Sports,
+    'fitness': Category.Sports,
+    'vehicles': Category.Vehicles,
+    'vehicle': Category.Vehicles,
+    'car': Category.Vehicles,
+    'auto': Category.Vehicles,
+    'realestate': Category.RealEstate,
+    'real estate': Category.RealEstate,
+    'property': Category.RealEstate,
+    'house': Category.RealEstate,
+    'services': Category.Services,
+    'service': Category.Services,
+  };
+  return mapping[normalized] || Category.Other;
+};
 
 interface SellModalProps {
   isOpen: boolean;
@@ -89,7 +122,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
             ...prev,
             title: result.title,
             description: result.description,
-            category: result.category as Category,
+            category: mapCategoryFromAI(result.category), // Smart mapping
             price: result.price.toString(),
             deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
           }));

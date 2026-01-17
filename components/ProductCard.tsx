@@ -6,14 +6,14 @@ import { useRegion } from '../contexts/RegionContext';
 
 interface ProductCardProps {
   product: Product;
-  onAddToCart: (product: Product) => void;
+  // onAddToCart removed - direct purchase model
   isInCart: boolean;
   onClick: (product: Product) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (product: Product) => void;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, isInCart, onClick, isFavorite, onToggleFavorite }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onClick, isFavorite, onToggleFavorite }) => {
   const { t } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
   const isNearby = product.distance !== undefined && product.distance <= 5.0;
@@ -115,23 +115,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-gray-200/50">
-            <span className="text-[9px] md:text-[10px] font-medium text-gray-500 bg-white/60 px-1.5 py-0.5 rounded border border-white/40 truncate max-w-[60%]">
-              {t(`cat.${product.category}`)}
-            </span>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToCart(product);
-              }}
-              disabled={isInCart}
-              className={`p-1.5 md:p-2 rounded-full transition-all duration-300 z-10 ${isInCart
-                ? 'bg-gray-100 text-gray-300'
-                : 'bg-white text-brand-600 shadow-sm border border-gray-100 hover:bg-brand-600 hover:text-white active:scale-90'
-                }`}
-            >
-              <ShoppingBag size={14} fill={isInCart ? "currentColor" : "none"} className="md:w-4 md:h-4" />
-            </button>
+            {/* Cart button removed - direct purchase model */}
           </div>
         </div>
       </div>

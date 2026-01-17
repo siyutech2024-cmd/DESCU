@@ -13,13 +13,13 @@ import { canPurchaseProduct } from '../services/locationService';
 interface ProductDetailsProps {
   product: Product;
   onBack: () => void;
-  onAddToCart: (product: Product) => void;
+  // onAddToCart removed - direct purchase model
   onContactSeller: (product: Product) => void;
   isInCart: boolean;
   user: User | null;
 }
 
-export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddToCart, onContactSeller, isInCart, user }) => {
+export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onContactSeller, isInCart, user }) => {
   const { t } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
 
