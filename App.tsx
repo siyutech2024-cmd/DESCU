@@ -510,9 +510,9 @@ const AppContent: React.FC = () => {
     if (!user) {
       setIsLoginModalOpen(true); // Trigger Action-Based Login
     } else {
-      // Phase 3: Camera First Mode
-      setIsCameraFlowOpen(true);
-      // setIsSellModalOpen(true); // Legacy Manual Mode
+      // Reverted to Manual Mode per user request (Camera flow poor on desktop)
+      // setIsCameraFlowOpen(true);
+      setIsSellModalOpen(true);
     }
   };
 
