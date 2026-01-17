@@ -35,15 +35,20 @@ export const analyzeImageWithGemini = async (imageBase64: string): Promise<AIAna
       - currency: "MXN".
       - description: A brief description highlighting condition and key features (max 30 words).
       - category: One of ["Vehicles", "RealEstate", "Electronics", "Services", "Furniture", "Clothing", "Sports", "Books", "Other"].
-      - deliveryType: Best delivery method ("Meetup" for large/expensive items, "Shipping" for small items, "Both" for others).
+      Category Rules:
+      - "Electronics": Phones, Laptops, Cameras, Gadgets. (NOT for clothes/shoes).
+      - "Clothing": Shirts, Pants, Jackets, Shoes, Accessories, Bags.
+      - "Furniture": Tables, Chairs, Sofas, Home Decor.
+      - "Sports": Gym equipment, Bicycles, Balls.
+      - deliveryType: Best delivery method ("Meetup" for bulky/expensive, "Shipping" for small/shippable, "Both" for flexibility).
 
       Example format:
       {
-        "title": "iPhone 12 Pro - 128GB",
-        "price": 8500,
+        "title": "Nike Windbreaker Jacket",
+        "price": 350,
         "currency": "MXN",
-        "description": "Used iPhone 12 Pro in good condition. Minor scratches on bezel. Battery health 88%.",
-        "category": "Electronics",
+        "description": "Black and white windbreaker. Size M. Great condition.",
+        "category": "Clothing",
         "deliveryType": "Shipping"
       }
     `;
