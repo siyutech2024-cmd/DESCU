@@ -30,7 +30,14 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
 
         const offset = (Number(page) - 1) * Number(limit);
 
-        let query = supabase
+        // Create a dedicated Admin Client to ensure we bypass RLS
+        const adminUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const adminClient = (adminUrl && adminKey)
+            ? require('@supabase/supabase-js').createClient(adminUrl, adminKey, { auth: { autoRefreshToken: false, persistSession: false } })
+            : supabase;
+
+        let query = adminClient
             .from('products')
             .select('*', { count: 'exact' });
 
