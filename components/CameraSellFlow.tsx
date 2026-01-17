@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, RefreshCw, Zap, CheckCircle } from 'lucide-react';
+import { X, Camera, RefreshCw, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import { Product, Category, DeliveryType } from '../types';
+import { analyzeImageWithGemini } from '../services/geminiService';
 
 interface CameraSellFlowProps {
     isOpen: boolean;
@@ -14,14 +15,15 @@ export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose,
     const [step, setStep] = useState<'camera' | 'analyzing' | 'confirm'>('camera');
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const [error, setError] = useState<string | null>(null);
 
-    // Mock AI Result
+    // AI Result State
     const [aiResult, setAiResult] = useState({
-        title: 'MacBook Pro 16-inch (2021)',
-        price: 12500,
+        title: '',
+        price: 0,
         currency: 'MXN',
-        description: 'Detected: Apple Laptop, Space Gray. Good condition. Includes charger.',
-        category: Category.Electronics,
+        description: '',
+        category: Category.Other,
         deliveryType: DeliveryType.Both
     });
 
@@ -54,19 +56,43 @@ export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose,
         }
     };
 
-    const handleCapture = () => {
-        // Determine image source: Real camera frame or Mock image
-        // For demo stability, we'll force a high-quality mock image related to our "AI Result"
-        const MOCK_IMAGE = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&q=80"; // Macbook
+    const handleCapture = async () => {
+        if (!videoRef.current) return;
 
-        setCapturedImage(MOCK_IMAGE);
+        // 1. Capture Image from Video Stream
+        const canvas = document.createElement('canvas');
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(videoRef.current, 0, 0);
+        const imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+        setCapturedImage(imageBase64);
         setStep('analyzing');
         stopCamera();
 
-        // Simulate AI Delay
-        setTimeout(() => {
-            setStep('confirm');
-        }, 2500);
+        // 2. Call Gemini API
+        try {
+            const analysis = await analyzeImageWithGemini(imageBase64);
+
+            if (analysis) {
+                setAiResult({
+                    title: analysis.title,
+                    price: analysis.price,
+                    currency: analysis.currency,
+                    description: analysis.description,
+                    category: analysis.category as Category, // Assume AI returns valid category string, fallback if not
+                    deliveryType: analysis.deliveryType === 'Meetup' ? DeliveryType.Meetup : analysis.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both
+                });
+                setStep('confirm');
+            } else {
+                throw new Error("AI could not identify the item.");
+            }
+        } catch (err) {
+            console.error(err);
+            setError("AI Analysis failed. Please try again.");
+            setStep('camera'); // Go back
+        }
     };
 
     const handlePost = () => {
@@ -109,6 +135,18 @@ export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose,
                         </div>
                         <div className="w-10" />
                     </div>
+
+                    {/* Error Message */}
+                    {error && (
+                        <div className="absolute top-20 left-4 right-4 z-20 bg-red-500/90 backdrop-blur text-white px-4 py-3 rounded-xl flex items-center justify-between animate-fade-in-down shadow-lg">
+                            <span className="text-sm font-medium flex items-center gap-2">
+                                <AlertCircle size={18} /> {error}
+                            </span>
+                            <button onClick={() => setError(null)} className="opacity-80 hover:opacity-100">
+                                <X size={18} />
+                            </button>
+                        </div>
+                    )}
 
                     {/* Viewport */}
                     <div className="flex-1 relative overflow-hidden bg-gray-900">
@@ -210,11 +248,15 @@ export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose,
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-500">Delivery</span>
-                                <span className="font-semibold text-gray-900">Meetup & Shipping</span>
+                                <span className="font-semibold text-gray-900">
+                                    {aiResult.deliveryType === DeliveryType.Both ? 'Meetup & Shipping' : aiResult.deliveryType}
+                                </span>
                             </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">Params</span>
-                                <span className="font-semibold text-gray-900">Space Gray • 2021</span>
+                            <div className="text-sm border-t border-gray-200 mt-2 pt-2">
+                                <span className="text-gray-500 block mb-1">Details</span>
+                                <p className="font-medium text-gray-900 line-clamp-2 leading-relaxed">
+                                    {aiResult.description}
+                                </p>
                             </div>
                         </div>
 
