@@ -41,7 +41,7 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
-            const response = await fetch(`${API_BASE_URL}/api/stripe/express-status`, {
+            const response = await fetch(`${API_BASE_URL}/api/stripe/v2/account-status`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
 
@@ -66,7 +66,7 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/stripe/create-express-account`, {
+            const response = await fetch(`${API_BASE_URL}/api/stripe/v2/create-account`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
-            const response = await fetch(`${API_BASE_URL}/api/stripe/dashboard-link`, {
+            const response = await fetch(`${API_BASE_URL}/api/stripe/v2/dashboard-link`, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
 

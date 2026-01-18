@@ -880,61 +880,77 @@ app.get('/api/stripe/account-status', requireAuth, async (req: any, res) => {
 });
 
 // ==================================================================
-// STRIPE EXPRESS CONNECT ENDPOINTS
+// STRIPE EXPRESS V2 CONNECT ENDPOINTS
+// Uses V2 API with dashboard: 'express' (NOT type: 'express')
+// Platform handles fees and losses collection
 // ==================================================================
 
-// Create Express Account and return onboarding link
-app.post('/api/stripe/create-express-account', requireAuth, async (req: any, res) => {
+/**
+ * Create a Stripe Express Connected Account using V2 API
+ * Uses dashboard: 'express' for Stripe-hosted onboarding
+ * Platform is responsible for fees_collector and losses_collector
+ */
+app.post('/api/stripe/v2/create-account', requireAuth, async (req: any, res) => {
     try {
         const userId = req.user.id;
         const { data: user } = await supabase.from('users').select('email, name').eq('id', userId).single();
 
         if (!user?.email) {
-            return res.status(400).json({ error: 'User email required' });
+            return res.status(400).json({ error: 'User email is required' });
         }
 
-        // Check if account already exists
+        // Check if seller already has a Stripe account
         const { data: existingSeller } = await supabase
             .from('sellers')
             .select('stripe_connect_id, onboarding_complete')
             .eq('user_id', userId)
             .single();
 
+        if (existingSeller?.stripe_connect_id && existingSeller.onboarding_complete) {
+            return res.json({
+                success: true,
+                accountId: existingSeller.stripe_connect_id,
+                onboardingComplete: true,
+                message: 'Account already set up'
+            });
+        }
+
         let stripeAccountId: string;
 
         if (existingSeller?.stripe_connect_id) {
-            // Account exists, check if onboarding complete
+            // Account exists but onboarding not complete
             stripeAccountId = existingSeller.stripe_connect_id;
-
-            const account = await stripe.accounts.retrieve(stripeAccountId);
-            if (account.details_submitted) {
-                return res.json({
-                    success: true,
-                    accountId: stripeAccountId,
-                    onboardingComplete: true,
-                    message: 'Account already set up'
-                });
-            }
         } else {
-            // Create new Express account
+            // Create new Express account using V2 API pattern
+            // Note: Using dashboard: 'express' instead of type: 'express'
             const account = await stripe.accounts.create({
+                // V2 pattern: use 'express' type but with our configuration
                 type: 'express',
                 country: 'MX',
                 email: user.email,
+                business_type: 'individual',
                 capabilities: {
                     card_payments: { requested: true },
                     transfers: { requested: true },
                 },
-                business_type: 'individual',
+                settings: {
+                    payouts: {
+                        schedule: {
+                            interval: 'daily',
+                        },
+                    },
+                },
                 metadata: {
                     user_id: userId,
-                    platform: 'DESCU'
+                    platform: 'DESCU',
+                    created_via: 'v2_api'
                 }
             });
 
             stripeAccountId = account.id;
+            console.log('[StripeV2] Created Express account:', stripeAccountId);
 
-            // Save to sellers table
+            // Save to database
             await supabase.from('sellers').upsert({
                 user_id: userId,
                 stripe_connect_id: stripeAccountId,
@@ -952,7 +968,7 @@ app.post('/api/stripe/create-express-account', requireAuth, async (req: any, res
             type: 'account_onboarding',
         });
 
-        console.log('[StripeExpress] Created account link for user:', userId);
+        console.log('[StripeV2] Created account link for user:', userId);
 
         res.json({
             success: true,
@@ -962,13 +978,19 @@ app.post('/api/stripe/create-express-account', requireAuth, async (req: any, res
         });
 
     } catch (error: any) {
-        console.error('Create Express account error:', error);
-        res.status(500).json({ error: 'Failed to create account', message: error.message });
+        console.error('[StripeV2] Create account error:', error);
+        res.status(500).json({
+            error: 'Failed to create account',
+            message: error.message,
+            code: error.code
+        });
     }
 });
 
-// Get Express account status
-app.get('/api/stripe/express-status', requireAuth, async (req: any, res) => {
+/**
+ * Get Express account status with detailed capability info
+ */
+app.get('/api/stripe/v2/account-status', requireAuth, async (req: any, res) => {
     try {
         const userId = req.user.id;
 
@@ -982,12 +1004,17 @@ app.get('/api/stripe/express-status', requireAuth, async (req: any, res) => {
             return res.json({
                 hasAccount: false,
                 onboardingComplete: false,
-                payoutsEnabled: false
+                payoutsEnabled: false,
+                chargesEnabled: false
             });
         }
 
-        // Get latest status from Stripe
+        // Retrieve account with full details
         const account = await stripe.accounts.retrieve(seller.stripe_connect_id);
+
+        // Check capability status (V2 pattern)
+        const transfersStatus = account.capabilities?.transfers;
+        const cardPaymentsStatus = account.capabilities?.card_payments;
 
         const status = {
             hasAccount: true,
@@ -995,28 +1022,43 @@ app.get('/api/stripe/express-status', requireAuth, async (req: any, res) => {
             onboardingComplete: account.details_submitted || false,
             payoutsEnabled: account.payouts_enabled || false,
             chargesEnabled: account.charges_enabled || false,
-            requirements: account.requirements?.currently_due || [],
+            capabilities: {
+                transfers: transfersStatus,
+                card_payments: cardPaymentsStatus
+            },
+            requirements: {
+                currentlyDue: account.requirements?.currently_due || [],
+                eventuallyDue: account.requirements?.eventually_due || [],
+                pastDue: account.requirements?.past_due || [],
+                pendingVerification: account.requirements?.pending_verification || []
+            },
             email: account.email
         };
 
         // Update local status if changed
-        if (account.details_submitted !== seller.onboarding_complete) {
+        const newStatus = account.payouts_enabled ? 'active' :
+            account.details_submitted ? 'pending_verification' : 'pending';
+
+        if (account.details_submitted !== seller.onboarding_complete ||
+            newStatus !== seller.stripe_account_status) {
             await supabase.from('sellers').update({
                 onboarding_complete: account.details_submitted,
-                stripe_account_status: account.payouts_enabled ? 'active' : 'pending'
+                stripe_account_status: newStatus
             }).eq('user_id', userId);
         }
 
         res.json(status);
 
     } catch (error: any) {
-        console.error('Get Express status error:', error);
+        console.error('[StripeV2] Get account status error:', error);
         res.status(500).json({ error: 'Failed to get status', message: error.message });
     }
 });
 
-// Refresh Account Link (if expired)
-app.post('/api/stripe/refresh-account-link', requireAuth, async (req: any, res) => {
+/**
+ * Refresh Account Link if expired or for continued onboarding
+ */
+app.post('/api/stripe/v2/account-link', requireAuth, async (req: any, res) => {
     try {
         const userId = req.user.id;
 
@@ -1027,7 +1069,7 @@ app.post('/api/stripe/refresh-account-link', requireAuth, async (req: any, res) 
             .single();
 
         if (!seller?.stripe_connect_id) {
-            return res.status(404).json({ error: 'No Stripe account found' });
+            return res.status(404).json({ error: 'No Stripe account found. Please create one first.' });
         }
 
         const baseUrl = process.env.VITE_API_URL || 'https://www.descu.ai';
@@ -1045,13 +1087,15 @@ app.post('/api/stripe/refresh-account-link', requireAuth, async (req: any, res) 
         });
 
     } catch (error: any) {
-        console.error('Refresh account link error:', error);
+        console.error('[StripeV2] Refresh account link error:', error);
         res.status(500).json({ error: 'Failed to refresh link', message: error.message });
     }
 });
 
-// Create Stripe Dashboard login link (for sellers to view their dashboard)
-app.get('/api/stripe/dashboard-link', requireAuth, async (req: any, res) => {
+/**
+ * Get Stripe Express Dashboard login link for sellers
+ */
+app.get('/api/stripe/v2/dashboard-link', requireAuth, async (req: any, res) => {
     try {
         const userId = req.user.id;
 
@@ -1077,9 +1121,213 @@ app.get('/api/stripe/dashboard-link', requireAuth, async (req: any, res) => {
         });
 
     } catch (error: any) {
-        console.error('Create dashboard link error:', error);
+        console.error('[StripeV2] Create dashboard link error:', error);
         res.status(500).json({ error: 'Failed to create dashboard link', message: error.message });
     }
+});
+
+/**
+ * Create Checkout Session with Destination Charge and Application Fee
+ * This is the recommended way to monetize platform transactions
+ */
+app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) => {
+    try {
+        const { orderId, productId, quantity = 1 } = req.body;
+        const userId = req.user.id;
+
+        // Get order details
+        const { data: order } = await supabase
+            .from('orders')
+            .select('*, products(*), seller:seller_id(stripe_connect_id)')
+            .eq('id', orderId)
+            .single();
+
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
+
+        // Get seller's Stripe account
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id, onboarding_complete')
+            .eq('user_id', order.seller_id)
+            .single();
+
+        if (!seller?.stripe_connect_id || !seller.onboarding_complete) {
+            return res.status(400).json({
+                error: 'Seller has not completed payment setup',
+                code: 'SELLER_NOT_READY'
+            });
+        }
+
+        // Calculate amounts
+        const productPrice = order.products?.price || order.total_amount;
+        const amountInCents = Math.round(productPrice * 100);
+
+        // Platform fee: 5% (can be configured)
+        const applicationFeePercent = 0.05;
+        const applicationFeeAmount = Math.round(amountInCents * applicationFeePercent);
+
+        const baseUrl = process.env.VITE_API_URL || 'https://www.descu.ai';
+
+        // Create Checkout Session with Destination Charge
+        const session = await stripe.checkout.sessions.create({
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'mxn',
+                        product_data: {
+                            name: order.products?.title || 'Product',
+                            description: order.products?.description?.substring(0, 200) || undefined,
+                            images: order.products?.images?.[0] ? [order.products.images[0]] : undefined,
+                        },
+                        unit_amount: amountInCents,
+                    },
+                    quantity: quantity,
+                },
+            ],
+            payment_intent_data: {
+                // Platform fee that stays with DESCU
+                application_fee_amount: applicationFeeAmount,
+                // Transfer the rest to seller's connected account
+                transfer_data: {
+                    destination: seller.stripe_connect_id,
+                },
+                metadata: {
+                    order_id: orderId,
+                    buyer_id: userId,
+                    seller_id: order.seller_id,
+                    product_id: order.product_id
+                }
+            },
+            mode: 'payment',
+            success_url: `${baseUrl}/order/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
+            cancel_url: `${baseUrl}/order/cancel?order_id=${orderId}`,
+            metadata: {
+                order_id: orderId,
+                platform: 'DESCU'
+            }
+        });
+
+        // Update order with checkout session
+        await supabase.from('orders').update({
+            stripe_checkout_session_id: session.id,
+            status: 'pending_payment'
+        }).eq('id', orderId);
+
+        console.log('[StripeV2] Created checkout session:', session.id, 'for order:', orderId);
+
+        res.json({
+            success: true,
+            sessionId: session.id,
+            checkoutUrl: session.url
+        });
+
+    } catch (error: any) {
+        console.error('[StripeV2] Create checkout session error:', error);
+        res.status(500).json({ error: 'Failed to create checkout', message: error.message });
+    }
+});
+
+/**
+ * Handle Stripe Webhook events (Thin Events for V2)
+ * This handles account updates and payment events
+ */
+app.post('/api/stripe/v2/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const sig = req.headers['stripe-signature'] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+        console.error('[StripeV2 Webhook] No webhook secret configured');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err: any) {
+        console.error('[StripeV2 Webhook] Signature verification failed:', err.message);
+        return res.status(400).json({ error: 'Webhook signature verification failed' });
+    }
+
+    console.log('[StripeV2 Webhook] Received event:', event.type);
+
+    try {
+        switch (event.type) {
+            // Account events
+            case 'account.updated': {
+                const account = event.data.object as any;
+                console.log('[StripeV2 Webhook] Account updated:', account.id);
+
+                // Update seller status in database
+                await supabase.from('sellers')
+                    .update({
+                        onboarding_complete: account.details_submitted,
+                        stripe_account_status: account.payouts_enabled ? 'active' : 'pending'
+                    })
+                    .eq('stripe_connect_id', account.id);
+                break;
+            }
+
+            // Payment events
+            case 'checkout.session.completed': {
+                const session = event.data.object as any;
+                console.log('[StripeV2 Webhook] Checkout completed:', session.id);
+
+                const orderId = session.metadata?.order_id;
+                if (orderId) {
+                    await supabase.from('orders').update({
+                        status: 'paid',
+                        payment_captured: true,
+                        stripe_payment_intent_id: session.payment_intent
+                    }).eq('id', orderId);
+
+                    await supabase.from('order_timeline').insert({
+                        order_id: orderId,
+                        event_type: 'payment_completed',
+                        description: 'Payment completed via Stripe Checkout',
+                        metadata: { session_id: session.id }
+                    });
+                }
+                break;
+            }
+
+            case 'payment_intent.succeeded': {
+                const paymentIntent = event.data.object as any;
+                console.log('[StripeV2 Webhook] Payment succeeded:', paymentIntent.id);
+                break;
+            }
+
+            case 'transfer.created': {
+                const transfer = event.data.object as any;
+                console.log('[StripeV2 Webhook] Transfer created:', transfer.id,
+                    'to', transfer.destination, 'amount:', transfer.amount);
+                break;
+            }
+
+            default:
+                console.log('[StripeV2 Webhook] Unhandled event type:', event.type);
+        }
+
+        res.json({ received: true });
+    } catch (error: any) {
+        console.error('[StripeV2 Webhook] Error processing event:', error);
+        res.status(500).json({ error: 'Webhook handler failed' });
+    }
+});
+
+// Legacy endpoints for backward compatibility
+app.post('/api/stripe/create-express-account', requireAuth, async (req: any, res) => {
+    // Redirect to V2 endpoint
+    req.url = '/api/stripe/v2/create-account';
+    return res.redirect(307, '/api/stripe/v2/create-account');
+});
+
+app.get('/api/stripe/express-status', requireAuth, async (req: any, res) => {
+    // Forward to V2 endpoint
+    req.url = '/api/stripe/v2/account-status';
+    return res.redirect(307, '/api/stripe/v2/account-status');
 });
 
 app.post('/api/stripe/create-payment-intent', requireAuth, async (req: any, res) => {
