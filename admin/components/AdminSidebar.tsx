@@ -12,7 +12,8 @@ import {
     ChevronRight,
     Shield,
     CheckCircle,
-    ShoppingBag
+    ShoppingBag,
+    Banknote
 } from 'lucide-react';
 
 import { adminApi } from '../services/adminApi';
@@ -103,6 +104,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     icon: ShoppingBag,
                     label: '全部订单',
                     color: 'text-blue-600'
+                },
+                {
+                    path: 'payouts',
+                    icon: Banknote,
+                    label: '转账管理',
+                    color: 'text-emerald-600'
                 },
                 {
                     path: 'disputes',

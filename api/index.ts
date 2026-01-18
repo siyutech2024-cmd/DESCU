@@ -185,6 +185,174 @@ app.get('/api/admin/settings', requireAdmin, getSystemSettings);
 app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
 app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 
+// ==================================================================
+// PAYOUT MANAGEMENT (Manual Bank Transfer)
+// ==================================================================
+
+// Get all orders pending payout (admin)
+app.get('/api/admin/payouts', requireAdmin, async (req: any, res) => {
+    try {
+        const status = req.query.status || 'pending';
+
+        // Get orders that are completed but not yet paid out
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                id,
+                total_amount,
+                platform_fee,
+                status,
+                payout_status,
+                payout_at,
+                payout_reference,
+                created_at,
+                completed_at,
+                seller_id,
+                buyer_id,
+                products:product_id(id, title, images),
+                seller:seller_id(
+                    id,
+                    name,
+                    email,
+                    sellers(bank_clabe, bank_name, bank_holder_name)
+                )
+            `)
+            .in('status', ['completed', 'delivered'])
+            .eq('payout_status', status === 'all' ? undefined : status)
+            .order('completed_at', { ascending: true });
+
+        if (error) throw error;
+
+        // Calculate payout amounts (total - platform fee)
+        const payouts = (orders || []).map(order => ({
+            ...order,
+            payoutAmount: order.total_amount - (order.platform_fee || order.total_amount * 0.05),
+            sellerBank: order.seller?.sellers?.[0] || null
+        }));
+
+        // Get summary stats
+        const stats = {
+            pending: payouts.filter(p => p.payout_status === 'pending' || !p.payout_status).length,
+            processing: payouts.filter(p => p.payout_status === 'processing').length,
+            completed: payouts.filter(p => p.payout_status === 'completed').length,
+            totalPendingAmount: payouts
+                .filter(p => p.payout_status === 'pending' || !p.payout_status)
+                .reduce((sum, p) => sum + p.payoutAmount, 0)
+        };
+
+        res.json({ payouts, stats });
+    } catch (error: any) {
+        console.error('Get payouts error:', error);
+        res.status(500).json({ error: 'Failed to get payouts', message: error.message });
+    }
+});
+
+// Mark order as paid out (admin)
+app.post('/api/admin/payouts/:orderId/complete', requireAdmin, async (req: any, res) => {
+    try {
+        const { orderId } = req.params;
+        const { reference, notes } = req.body;
+        const adminId = req.admin?.id;
+
+        // Update order payout status
+        const { data: order, error } = await supabase
+            .from('orders')
+            .update({
+                payout_status: 'completed',
+                payout_at: new Date().toISOString(),
+                payout_reference: reference || `MANUAL-${Date.now()}`
+            })
+            .eq('id', orderId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // Add to order timeline
+        await supabase.from('order_timeline').insert({
+            order_id: orderId,
+            event_type: 'payout_completed',
+            description: `Payout completed via bank transfer${reference ? `: ${reference}` : ''}`,
+            created_by: adminId,
+            metadata: { reference, notes }
+        });
+
+        console.log('[Payout] Marked as completed:', orderId, 'reference:', reference);
+
+        res.json({ success: true, order });
+    } catch (error: any) {
+        console.error('Complete payout error:', error);
+        res.status(500).json({ error: 'Failed to complete payout', message: error.message });
+    }
+});
+
+// Mark order payout as processing (admin)
+app.post('/api/admin/payouts/:orderId/processing', requireAdmin, async (req: any, res) => {
+    try {
+        const { orderId } = req.params;
+
+        const { data: order, error } = await supabase
+            .from('orders')
+            .update({ payout_status: 'processing' })
+            .eq('id', orderId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, order });
+    } catch (error: any) {
+        console.error('Processing payout error:', error);
+        res.status(500).json({ error: 'Failed to update payout', message: error.message });
+    }
+});
+
+// Get seller's payout history (user)
+app.get('/api/users/payouts', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { data: payouts, error } = await supabase
+            .from('orders')
+            .select(`
+                id,
+                total_amount,
+                platform_fee,
+                payout_status,
+                payout_at,
+                payout_reference,
+                completed_at,
+                products:product_id(id, title, images)
+            `)
+            .eq('seller_id', userId)
+            .in('status', ['completed', 'delivered'])
+            .order('completed_at', { ascending: false })
+            .limit(50);
+
+        if (error) throw error;
+
+        // Calculate payout amounts
+        const result = (payouts || []).map(p => ({
+            ...p,
+            payoutAmount: p.total_amount - (p.platform_fee || p.total_amount * 0.05),
+            status: p.payout_status || 'pending'
+        }));
+
+        // Get summary
+        const summary = {
+            totalEarned: result.reduce((sum, p) => sum + p.payoutAmount, 0),
+            pending: result.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.payoutAmount, 0),
+            completed: result.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.payoutAmount, 0)
+        };
+
+        res.json({ payouts: result, summary });
+    } catch (error: any) {
+        console.error('Get user payouts error:', error);
+        res.status(500).json({ error: 'Failed to get payouts', message: error.message });
+    }
+});
+
+
 // SEO & Location
 app.get('/sitemap.xml', generateSitemap);
 app.get('/api/location/reverse', reverseGeocodeProxy);

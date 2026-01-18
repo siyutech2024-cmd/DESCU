@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import OrderList from './OrderList';
-import { StripeExpressCard } from './StripeExpressCard';
+import { SellerPayoutCard } from './SellerPayoutCard';
 import { CreditBadge } from './CreditBadge';
 import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart } from 'lucide-react';
 import { User, Product } from '../types';
@@ -408,7 +408,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Settings & Account</h3>
 
           {/* Stripe Express Payout Section */}
-          <StripeExpressCard userId={user.id} />
+          <SellerPayoutCard userId={user.id} />
 
           {/* Verification Banner */}
           <div className={`rounded-xl p-5 mb-8 border transition-all ${user.isVerified ? 'bg-blue-50 border-blue-100' : 'bg-gray-100 border-gray-200'}`}>

@@ -14,6 +14,7 @@ import { RolePermissions } from './pages/RolePermissions';
 import { ProductReview } from './pages/ProductReview';
 import DisputeList from './pages/DisputeList';
 import OrderList from './pages/OrderList';
+import PayoutManagement from './pages/PayoutManagement';
 
 export const AdminApp: React.FC = () => {
     return (
@@ -34,6 +35,7 @@ export const AdminApp: React.FC = () => {
                     <Route path="reviews" element={<ProductReview />} />
                     <Route path="orders" element={<OrderList />} />
                     <Route path="disputes" element={<DisputeList />} />
+                    <Route path="payouts" element={<PayoutManagement />} />
                 </Route>
             </Routes>
         </>
