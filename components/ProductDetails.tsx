@@ -116,8 +116,16 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 <img
                   src={product.images[0]} // TODO: Add state for selected image
                   alt={product.title}
-                  className="w-full h-full object-cover transform transition-transform duration-700 hover:scale-105"
+                  className={`w-full h-full object-cover transform transition-transform duration-700 hover:scale-105 ${product.status === 'sold' ? 'grayscale' : ''}`}
                 />
+                {/* SOLD Overlay */}
+                {product.status === 'sold' && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                    <div className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-3xl transform -rotate-12 shadow-2xl border-4 border-white">
+                      已售出 / SOLD
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Thumbnails (Mock implementation as product might only have 1 image in mock) */}
@@ -125,7 +133,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                   {product.images.map((img, idx) => (
                     <button key={idx} className="w-16 h-16 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-500 focus:border-brand-500 transition-all flex-shrink-0">
-                      <img src={img} className="w-full h-full object-cover" alt="" />
+                      <img src={img} className={`w-full h-full object-cover ${product.status === 'sold' ? 'grayscale' : ''}`} alt="" />
                     </button>
                   ))}
                   {/* Mock extra images if only 1 exists, just to show UI? No, stick to real data */}
@@ -215,23 +223,27 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               <div className="pt-2 grid grid-cols-2 gap-4 mb-8">
                 <button
                   onClick={() => onContactSeller(product)}
-                  className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm transition-all"
+                  disabled={product.status === 'sold'}
+                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all ${product.status === 'sold'
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm'
+                    }`}
                 >
                   <MessageCircle size={22} />
-                  {t('detail.contact')}
+                  {product.status === 'sold' ? '已售出 / Vendido' : t('detail.contact')}
                 </button>
 
                 <button
                   onClick={() => setIsCheckoutOpen(true)}
-                  disabled={!user || !purchaseEligibility.canPurchase}
-                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${!user || !purchaseEligibility.canPurchase
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
+                  disabled={!user || !purchaseEligibility.canPurchase || product.status === 'sold'}
+                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${!user || !purchaseEligibility.canPurchase || product.status === 'sold'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
                     }`}
                   title={!purchaseEligibility.canPurchase ? purchaseEligibility.reason : ''}
                 >
                   <ShoppingBag size={22} />
-                  {!purchaseEligibility.canPurchase ? 'Not Available' : 'Lo quiero'}
+                  {product.status === 'sold' ? '已售出 / Vendido' : (!purchaseEligibility.canPurchase ? 'No disponible' : 'Lo quiero')}
                 </button>
               </div>
 

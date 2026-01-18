@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { supabase } from '../services/supabase';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
 import { OrderStatusMessage } from './chat/OrderStatusMessage';
@@ -45,6 +46,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showLocation, setShowLocation] = useState(false); // For location sharing
   const [showImages, setShowImages] = useState(false); // For image sharing
   const [showMeetupTime, setShowMeetupTime] = useState(false); // For meetup time
+  const [productPrice, setProductPrice] = useState<number>(0); // For price negotiation
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -61,6 +63,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       navigate(`/product/${conversation.productId}`);
     }
   };
+
+  // Fetch product price when negotiation is opened
+  useEffect(() => {
+    if (showNegotiation && conversation.productId && productPrice === 0) {
+      const fetchProductPrice = async () => {
+        try {
+          const { data } = await supabase
+            .from('products')
+            .select('price')
+            .eq('id', conversation.productId)
+            .single();
+          if (data?.price) {
+            setProductPrice(data.price);
+          }
+        } catch (err) {
+          console.error('Error fetching product price:', err);
+        }
+      };
+      fetchProductPrice();
+    }
+  }, [showNegotiation, conversation.productId]);
 
   const handleAddEmoji = (emoji: string) => {
     setNewMessage(prev => prev + emoji);
@@ -181,7 +204,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           <h2 className="font-bold text-gray-900 truncate leading-tight">{conversation.otherUser.name}</h2>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-            <p className="text-xs text-brand-600 font-medium truncate">Online now</p>
+            <p className="text-xs text-brand-600 font-medium truncate">活跃中 / En línea</p>
           </div>
         </div>
 
@@ -215,13 +238,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   onClick={() => { setShowMenu(false); alert('User reported'); }}
                   className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-500 text-sm font-medium transition-colors border-b border-gray-100"
                 >
-                  Report User
+                  举报用户 / Reportar
                 </button>
                 <button
                   onClick={() => { setShowMenu(false); alert('User blocked'); }}
                   className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
                 >
-                  Block User
+                  屏蔽用户 / Bloquear
                 </button>
               </div>
             </>
@@ -255,12 +278,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     {activeOrder.status.replace('_', ' ')}
                   </span>
                 ) : (
-                  <span className="text-xs font-bold text-gray-900">Ask Price</span>
+                  <span className="text-xs font-bold text-gray-900">{t('chat.ask_price')}</span>
                 )}
               </div>
 
               <div className="flex justify-between items-center mt-1">
-                <p className="text-xs text-brand-600 font-medium">Click to view details</p>
+                <p className="text-xs text-brand-600 font-medium">点击查看详情 / Ver detalles</p>
                 {!activeOrder && (conversation.sellerId || (conversation as any).seller_id) !== currentUser.id && (
                   <button
                     onClick={(e) => {
@@ -269,7 +292,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     }}
                     className="text-[10px] bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-sm"
                   >
-                    Ask Price
+                    {t('chat.ask_price')}
                   </button>
                 )}
               </div>
@@ -291,7 +314,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               )}
               <div className="mt-2 pt-2 border-t border-blue-100/50">
                 <p className="text-[10px] text-blue-600 text-center font-medium">
-                  Both parties must confirm meetup to release funds.
+                  双方确认后自动放款。
                 </p>
               </div>
             </div>
@@ -323,7 +346,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   <span>加载中...</span>
                 </>
               ) : (
-                <span>加载更早的消息</span>
+                <span>加载更早的消息 / Cargar más</span>
               )}
             </button>
           </div>
@@ -457,7 +480,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         {showNegotiation && conversation.productId && (
           <div className="max-w-4xl mx-auto mb-3 px-2">
             <PriceNegotiationSender
-              currentPrice={0} // TODO: Get actual product price
+              currentPrice={productPrice}
               productId={conversation.productId}
               conversationId={conversation.id}
               onSent={() => {

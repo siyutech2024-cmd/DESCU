@@ -34,12 +34,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
             const fetchProduct = async () => {
                 setLoading(true);
                 try {
-                    // Import API_BASE_URL dynamically or assume global/env. 
-                    // Since we are in a component, we use the const from services
-                    const API_BASE_URL = 'http://localhost:3000'; // Or use explicit import if possible.
-                    // Better: use relative path if proxied, or hardcode for now based on context
-
-                    const response = await fetch(`${'http://localhost:3000'}/api/products/${id}?lang=${language}`);
+                    const response = await fetch(`${API_BASE_URL}/api/products/${id}?lang=${language}`);
                     if (response.ok) {
                         const dbProduct = await response.json();
                         // Transform to App Product Type
@@ -65,7 +60,8 @@ export const ProductPage: React.FC<ProductPageProps> = ({
                             },
                             locationName: dbProduct.location_name,
                             createdAt: new Date(dbProduct.created_at).getTime(),
-                            isPromoted: dbProduct.is_promoted
+                            isPromoted: dbProduct.is_promoted,
+                            status: dbProduct.status  // Include status for sold products
                         };
                         setFetchedProduct(transformed);
                     }

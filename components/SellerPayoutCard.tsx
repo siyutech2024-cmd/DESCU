@@ -8,7 +8,6 @@ import {
     ChevronUp,
     Wallet,
     Building2,
-    AlertCircle,
     Edit3
 } from 'lucide-react';
 import { API_BASE_URL } from '../services/apiConfig';
@@ -100,7 +99,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
 
     const handleSaveBank = async () => {
         if (!bankForm.clabe || bankForm.clabe.length !== 18) {
-            alert('CLABE 必须是 18 位数字');
+            alert('CLABE 必须是 18 位数字 / CLABE debe tener 18 dígitos');
             return;
         }
 
@@ -125,7 +124,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
             setEditingBank(false);
         } catch (err) {
             console.error('Save bank info error:', err);
-            alert('保存失败');
+            alert('保存失败 / Error al guardar');
         } finally {
             setSaving(false);
         }
@@ -144,9 +143,9 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
 
     const getStatusLabel = (status: string) => {
         switch (status) {
-            case 'completed': return '已到账';
-            case 'processing': return '处理中';
-            default: return '待转账';
+            case 'completed': return '已到账 / Recibido';
+            case 'processing': return '处理中 / Procesando';
+            default: return '待转账 / Pendiente';
         }
     };
 
@@ -161,6 +160,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
     }
 
     const displayPayouts = showAll ? payouts : payouts.slice(0, 3);
+    const showBankForm = editingBank || !bankInfo;
 
     return (
         <div className="space-y-4 mb-4">
@@ -182,7 +182,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                     {/* Stats */}
                     <div className="grid grid-cols-3 gap-3 mb-4">
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-emerald-100 text-xs">总收入</p>
+                            <p className="text-emerald-100 text-xs">总收入 / Total</p>
                             <p className="text-white font-bold text-lg">${summary.totalEarned.toLocaleString()}</p>
                         </div>
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
@@ -208,30 +208,37 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                         <Building2 size={18} className="text-gray-600" />
                         <span className="font-bold text-gray-800">银行账户 / Cuenta Bancaria</span>
                     </div>
-                    <button
-                        onClick={() => setEditingBank(!editingBank)}
-                        className="text-emerald-600 text-sm font-medium flex items-center gap-1"
-                    >
-                        <Edit3 size={14} />
-                        {editingBank ? '取消' : '编辑'}
-                    </button>
+                    {bankInfo && !editingBank && (
+                        <button
+                            onClick={() => setEditingBank(true)}
+                            className="text-emerald-600 text-sm font-medium flex items-center gap-1"
+                        >
+                            <Edit3 size={14} />
+                            编辑 / Editar
+                        </button>
+                    )}
                 </div>
 
-                {editingBank ? (
+                {showBankForm ? (
                     <div className="space-y-3">
                         <div>
-                            <label className="text-xs text-gray-500 block mb-1">CLABE (18 位)</label>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="text-xs text-gray-500">CLABE (18 位数字 / dígitos)</label>
+                                <span className={`text-xs font-mono ${bankForm.clabe.length === 18 ? 'text-green-500' : 'text-gray-400'}`}>
+                                    {bankForm.clabe.length}/18
+                                </span>
+                            </div>
                             <input
                                 type="text"
                                 value={bankForm.clabe}
                                 onChange={e => setBankForm({ ...bankForm, clabe: e.target.value.replace(/\D/g, '').slice(0, 18) })}
-                                placeholder="012345678901234567"
-                                className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono"
+                                placeholder="输入 18 位 CLABE 号码"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono text-lg tracking-wider"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-xs text-gray-500 block mb-1">银行</label>
+                                <label className="text-xs text-gray-500 block mb-1">银行名称 / Banco</label>
                                 <input
                                     type="text"
                                     value={bankForm.bankName}
@@ -241,12 +248,12 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500 block mb-1">账户持有人</label>
+                                <label className="text-xs text-gray-500 block mb-1">持有人姓名 / Titular</label>
                                 <input
                                     type="text"
                                     value={bankForm.holderName}
                                     onChange={e => setBankForm({ ...bankForm, holderName: e.target.value })}
-                                    placeholder="姓名"
+                                    placeholder="Nombre completo"
                                     className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                                 />
                             </div>
@@ -254,29 +261,42 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                         <button
                             onClick={handleSaveBank}
                             disabled={saving || bankForm.clabe.length !== 18}
-                            className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            className={`w-full font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 ${bankForm.clabe.length === 18
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
                         >
                             {saving && <Loader2 size={16} className="animate-spin" />}
-                            保存 / Guardar
+                            {bankForm.clabe.length === 18 ? '保存 / Guardar' : `还需输入 ${18 - bankForm.clabe.length} 位`}
                         </button>
+                        {bankInfo && (
+                            <button
+                                onClick={() => {
+                                    setEditingBank(false);
+                                    setBankForm({
+                                        clabe: bankInfo.bank_clabe,
+                                        bankName: bankInfo.bank_name,
+                                        holderName: bankInfo.bank_holder_name
+                                    });
+                                }}
+                                className="w-full text-gray-500 text-sm py-2"
+                            >
+                                取消 / Cancelar
+                            </button>
+                        )}
                     </div>
-                ) : bankInfo ? (
+                ) : (
                     <div className="bg-gray-50 rounded-xl p-3">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="font-medium text-gray-800">{bankInfo.bank_name || 'Banco'}</p>
+                                <p className="font-medium text-gray-800">{bankInfo!.bank_name || 'Banco'}</p>
                                 <p className="font-mono text-sm text-gray-600">
-                                    {bankInfo.bank_clabe.slice(0, 4)}...{bankInfo.bank_clabe.slice(-4)}
+                                    {bankInfo!.bank_clabe.slice(0, 4)}...{bankInfo!.bank_clabe.slice(-4)}
                                 </p>
-                                <p className="text-xs text-gray-500">{bankInfo.bank_holder_name}</p>
+                                <p className="text-xs text-gray-500">{bankInfo!.bank_holder_name}</p>
                             </div>
                             <Check size={20} className="text-green-500" />
                         </div>
-                    </div>
-                ) : (
-                    <div className="bg-yellow-50 rounded-xl p-3 flex items-center gap-2 text-yellow-700">
-                        <AlertCircle size={18} />
-                        <span className="text-sm">请添加银行账户以接收转账</span>
                     </div>
                 )}
             </div>
@@ -295,7 +315,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-gray-200 rounded-lg overflow-hidden">
                                         {payout.products?.images?.[0] ? (
-                                            <img src={payout.products.images[0]} className="w-full h-full object-cover" />
+                                            <img src={payout.products.images[0]} className="w-full h-full object-cover" alt="" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">N/A</div>
                                         )}
@@ -326,9 +346,9 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                             className="w-full mt-3 text-emerald-600 text-sm font-medium flex items-center justify-center gap-1"
                         >
                             {showAll ? (
-                                <>收起 <ChevronUp size={16} /></>
+                                <>收起 / Ocultar <ChevronUp size={16} /></>
                             ) : (
-                                <>查看全部 ({payouts.length}) <ChevronDown size={16} /></>
+                                <>查看全部 / Ver todo ({payouts.length}) <ChevronDown size={16} /></>
                             )}
                         </button>
                     )}
