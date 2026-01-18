@@ -223,18 +223,31 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
                 </div>
             </div>
 
-            {/* Product Snapshot */}
-            {order.product && (
-                <div className="flex items-center gap-3 p-3 bg-white/40 rounded-xl mb-2">
-                    <div className="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex-shrink-0">
-                        {order.product.images?.[0] && <img src={order.product.images[0]} className="w-full h-full object-cover" />}
+            {/* Product Snapshot - Always show something even if product data is missing */}
+            <div
+                className="flex items-center gap-4 p-3 bg-gray-50/80 rounded-xl mb-4 cursor-pointer hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200 group/product"
+                onClick={() => window.location.href = `/products/${order.product_id}`}
+            >
+                <div className="w-16 h-16 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-gray-200 shadow-sm flex items-center justify-center">
+                    {order.product?.images?.[0] ? (
+                        <img src={order.product.images[0]} className="w-full h-full object-cover group-hover/product:scale-105 transition-transform duration-500" />
+                    ) : (
+                        <Package size={28} className="text-gray-300" />
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-bold text-gray-900 truncate text-base mb-1">
+                        {order.product?.title || <span className="text-gray-400 italic">Product information unavailable</span>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="font-bold text-gray-800 truncate text-sm">{order.product.title}</div>
-                        <div className="text-xs text-gray-500">Includes {(order.shipping_fee || 0) > 0 ? 'Shipping' : 'Protection'}</div>
+                    <div className="text-xs text-gray-500 flex flex-wrap items-center gap-2">
+                        {order.product?.price && <span className="bg-white px-2 py-0.5 rounded border border-gray-100 shadow-sm font-medium text-gray-700">${order.product.price}</span>}
+                        <span className="bg-white px-2 py-0.5 rounded border border-gray-100 shadow-sm text-gray-500">
+                            ID: {order.product_id.slice(0, 8)}
+                        </span>
                     </div>
                 </div>
-            )}
+                <ChevronRight size={20} className="text-gray-300 group-hover/product:text-gray-600 transition-colors" />
+            </div>
 
             {/* Status Content */}
             {renderContent()}
