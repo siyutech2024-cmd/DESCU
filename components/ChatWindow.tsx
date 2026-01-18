@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Send, CheckCheck, Loader2, MoreVertical, Phone, Video,
+  ArrowLeft, Send, CheckCheck, Loader2, MoreVertical,
   Image as ImageIcon, Smile, MapPin, Clock, DollarSign
 } from 'lucide-react';
 import { Conversation, User } from '../types';
@@ -160,12 +160,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </button>
           )}
 
-          <button className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors hidden sm:block">
-            <Phone size={20} />
-          </button>
-          <button className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors hidden sm:block">
-            <Video size={20} />
-          </button>
+
+
           <button
             onClick={() => setShowMenu(!showMenu)}
             className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors"
