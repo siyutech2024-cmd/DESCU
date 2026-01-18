@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CheckCircle, XCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { API_BASE_URL } from '../../services/apiConfig';
 
@@ -64,138 +64,137 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
     };
 
     const getStatusBadge = () => {
-        switch (status) {
-            case 'accepted':
-                return (
-                    <div className="flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1.5 rounded-full text-sm font-medium">
-                        <CheckCircle size={16} />
-                        <span>已接受</span>
-                    </div>
-                );
-            case 'rejected':
-                return (
-                    <div className="flex items-center gap-2 bg-red-100 text-red-800 px-3 py-1.5 rounded-full text-sm font-medium">
-                        <XCircle size={16} />
-                        <span>已拒绝</span>
-                    </div>
-                );
-            case 'countered':
-                return (
-                    <div className="flex items-center gap-2 bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium">
-                        <RefreshCw size={16} />
-                        <span>卖家还价</span>
-                    </div>
-                );
-            case 'pending':
-                return (
-                    <div className="flex items-center gap-2 bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-full text-sm font-medium">
-                        <DollarSign size={16} />
-                        <span>待响应</span>
-                    </div>
-                );
-        }
+        const badges = {
+            accepted: { bg: 'from-green-400 to-emerald-500', icon: CheckCircle, text: '已接受' },
+            rejected: { bg: 'from-red-400 to-rose-500', icon: XCircle, text: '已拒绝' },
+            countered: { bg: 'from-blue-400 to-indigo-500', icon: RefreshCw, text: '卖家还价' },
+            pending: { bg: 'from-amber-400 to-orange-500', icon: DollarSign, text: '待响应' }
+        };
+        const config = badges[status];
+        const Icon = config.icon;
+        return (
+            <div className={`flex items-center gap-1.5 bg-gradient-to-r ${config.bg} text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg`}>
+                <Icon size={14} />
+                <span>{config.text}</span>
+            </div>
+        );
     };
 
     return (
-        <div className="bg-gradient-to-br from-yellow-50 via-orange-50 to-pink-50 rounded-2xl p-5 border-2 border-yellow-200 shadow-lg">
+        <div className="relative overflow-hidden rounded-3xl shadow-xl max-w-sm">
+            {/* 渐变背景 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-pink-500 opacity-95" />
+
+            {/* 装饰性气泡 */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+            <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-                        <DollarSign className="text-white" size={20} />
+            <div className="relative flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg">
+                        <DollarSign className="text-white drop-shadow-lg" size={24} />
                     </div>
                     <div>
-                        <h4 className="font-bold text-gray-900">议价请求</h4>
-                        <p className="text-xs text-gray-600 truncate max-w-[200px]">{productTitle}</p>
+                        <div className="flex items-center gap-1.5">
+                            <Sparkles size={12} className="text-yellow-300" />
+                            <span className="text-xs font-bold text-white/90 uppercase tracking-wider">议价</span>
+                        </div>
+                        <p className="text-sm text-white/80 truncate max-w-[140px]">{productTitle}</p>
                     </div>
                 </div>
                 {getStatusBadge()}
             </div>
 
             {/* Price Comparison */}
-            <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">原价:</span>
-                    <span className="text-gray-500 line-through font-medium">${originalPrice.toFixed(2)}</span>
+            <div className="relative px-4 space-y-3 mb-4">
+                <div className="flex justify-between items-center bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2">
+                    <span className="text-sm text-white/80">原价</span>
+                    <span className="text-white/60 line-through font-medium">${originalPrice.toFixed(2)}</span>
                 </div>
 
-                <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-900">买家出价:</span>
+                <div className="flex justify-between items-center bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
+                    <span className="text-sm font-bold text-white">出价</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-green-600">${proposedPrice.toFixed(2)}</span>
-                        <div className={`flex items-center gap-1 text-sm ${isDiscount ? 'text-green-600' : 'text-red-600'}`}>
-                            {isDiscount ? <TrendingDown size={16} /> : <TrendingUp size={16} />}
-                            <span>{Math.abs(parseFloat(priceChange))}%</span>
+                        <span className="text-2xl font-black text-white">${proposedPrice.toFixed(2)}</span>
+                        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${isDiscount ? 'bg-green-400/30 text-green-100' : 'bg-red-400/30 text-red-100'}`}>
+                            {isDiscount ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
+                            {Math.abs(parseFloat(priceChange))}%
                         </div>
                     </div>
                 </div>
 
                 {counterPrice && (
-                    <div className="flex justify-between items-center pt-2 border-t border-yellow-200">
-                        <span className="text-sm font-medium text-gray-900">卖家报价:</span>
-                        <span className="text-2xl font-bold text-blue-600">${counterPrice.toFixed(2)}</span>
+                    <div className="flex justify-between items-center bg-blue-500/30 backdrop-blur-sm rounded-xl px-4 py-3 border border-blue-300/30">
+                        <span className="text-sm font-bold text-white">卖家报价</span>
+                        <span className="text-2xl font-black text-white">${counterPrice.toFixed(2)}</span>
                     </div>
                 )}
 
                 {finalPrice && (
-                    <div className="flex justify-between items-center pt-2 border-t-2 border-green-300">
-                        <span className="text-sm font-bold text-green-900">成交价:</span>
-                        <span className="text-2xl font-bold text-green-700">${finalPrice.toFixed(2)}</span>
+                    <div className="flex justify-between items-center bg-green-500/40 backdrop-blur-sm rounded-xl px-4 py-3 border-2 border-green-300/50">
+                        <span className="text-sm font-black text-white">成交价</span>
+                        <span className="text-2xl font-black text-white">${finalPrice.toFixed(2)}</span>
                     </div>
                 )}
             </div>
 
             {/* Actions for Seller */}
             {status === 'pending' && isSeller && !showCounterInput && (
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => handleRespond('accept')}
-                        disabled={isResponding}
-                        className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white py-2.5 rounded-lg font-medium hover:from-green-600 hover:to-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        <CheckCircle size={18} />
-                        <span>接受</span>
-                    </button>
-                    <button
-                        onClick={() => setShowCounterInput(true)}
-                        disabled={isResponding}
-                        className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 rounded-lg font-medium hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        <RefreshCw size={18} />
-                        <span>还价</span>
-                    </button>
-                    <button
-                        onClick={() => handleRespond('reject')}
-                        disabled={isResponding}
-                        className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white py-2.5 rounded-lg font-medium hover:from-gray-600 hover:to-gray-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        <XCircle size={18} />
-                        <span>拒绝</span>
-                    </button>
+                <div className="relative px-4 pb-4 space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                        <button
+                            onClick={() => handleRespond('accept')}
+                            disabled={isResponding}
+                            className="bg-white text-green-600 py-3 rounded-xl font-bold text-sm hover:bg-green-50 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-lg active:scale-95"
+                        >
+                            <CheckCircle size={16} />
+                            接受
+                        </button>
+                        <button
+                            onClick={() => setShowCounterInput(true)}
+                            disabled={isResponding}
+                            className="bg-white/20 backdrop-blur-sm text-white py-3 rounded-xl font-bold text-sm hover:bg-white/30 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 border border-white/30 active:scale-95"
+                        >
+                            <RefreshCw size={16} />
+                            还价
+                        </button>
+                        <button
+                            onClick={() => handleRespond('reject')}
+                            disabled={isResponding}
+                            className="bg-white/10 backdrop-blur-sm text-white/80 py-3 rounded-xl font-bold text-sm hover:bg-white/20 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                            <XCircle size={16} />
+                            拒绝
+                        </button>
+                    </div>
                 </div>
             )}
 
             {/* Counter Price Input */}
             {showCounterInput && (
-                <div className="space-y-2">
-                    <input
-                        type="number"
-                        value={counterInput}
-                        onChange={(e) => setCounterInput(e.target.value)}
-                        placeholder="输入您的报价"
-                        className="w-full px-4 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:border-blue-500"
-                    />
+                <div className="relative px-4 pb-4 space-y-2">
+                    <div className="relative">
+                        <span className="absolute left-4 top-3 text-white/60 font-bold">$</span>
+                        <input
+                            type="number"
+                            value={counterInput}
+                            onChange={(e) => setCounterInput(e.target.value)}
+                            placeholder="输入您的报价"
+                            className="w-full pl-8 pr-4 py-3 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-xl focus:outline-none focus:border-white/50 text-white placeholder-white/50 font-bold"
+                        />
+                    </div>
                     <div className="flex gap-2">
                         <button
                             onClick={() => handleRespond('counter')}
                             disabled={!counterInput || isResponding}
-                            className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+                            className="flex-1 bg-white text-orange-600 py-3 rounded-xl font-bold hover:bg-orange-50 disabled:opacity-50 shadow-lg active:scale-95"
                         >
                             确认还价
                         </button>
                         <button
                             onClick={() => setShowCounterInput(false)}
-                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                            className="px-6 py-3 bg-white/20 text-white rounded-xl font-medium hover:bg-white/30 active:scale-95"
                         >
                             取消
                         </button>
@@ -205,22 +204,20 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
 
             {/* Status Messages */}
             {status === 'accepted' && (
-                <div className="bg-green-100 text-green-800 px-4 py-3 rounded-lg text-center font-medium">
-                    ✅ 议价成功！产品价格已更新为 ${finalPrice?.toFixed(2) || proposedPrice.toFixed(2)}
+                <div className="relative mx-4 mb-4 bg-green-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center font-bold border border-green-300/30">
+                    ✅ 议价成功！价格 ${finalPrice?.toFixed(2) || proposedPrice.toFixed(2)}
                 </div>
             )}
 
             {status === 'rejected' && (
-                <div className="bg-red-100 text-red-800 px-4 py-3 rounded-lg text-center font-medium">
+                <div className="relative mx-4 mb-4 bg-red-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center font-bold border border-red-300/30">
                     ❌ 卖家拒绝了此议价
                 </div>
             )}
 
             {status === 'countered' && !isSeller && (
-                <div className="bg-blue-100 text-blue-800 px-4 py-3 rounded-lg text-center text-sm">
-                    💬 卖家提出新报价 ${counterPrice?.toFixed(2)}
-                    <br />
-                    <span className="text-xs">您可以继续协商或接受此价格</span>
+                <div className="relative mx-4 mb-4 bg-blue-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center text-sm border border-blue-300/30">
+                    💬 卖家提出新报价 <span className="font-bold">${counterPrice?.toFixed(2)}</span>
                 </div>
             )}
         </div>

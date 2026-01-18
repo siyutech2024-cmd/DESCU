@@ -124,6 +124,37 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   // ... (handleSend, showMenu state) ...
 
+  // 加载更多消息
+  const loadMoreMessages = async () => {
+    if (isLoadingMore || !hasMoreMessages) return;
+
+    setIsLoadingMore(true);
+    try {
+      const newOffset = messages.length;
+      console.log('[ChatWindow] Loading more messages, offset:', newOffset);
+
+      const olderMsgs = await getMessages(conversation.id, MESSAGE_LIMIT, newOffset);
+      console.log('[ChatWindow] Loaded', olderMsgs?.length || 0, 'older messages');
+
+      if (olderMsgs && olderMsgs.length > 0) {
+        const combined = [...olderMsgs, ...messages];
+        const sorted = combined.sort((a, b) =>
+          new Date(a.created_at || a.timestamp).getTime() -
+          new Date(b.created_at || b.timestamp).getTime()
+        );
+        setMessages(sorted);
+        setHasMoreMessages(olderMsgs.length === MESSAGE_LIMIT);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error('[ChatWindow] Error loading more messages:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+
   return (
     <div className="flex flex-col h-full fixed inset-0 z-50 bg-[#f8f9fa] sm:static sm:h-full sm:rounded-2xl sm:overflow-hidden sm:border sm:border-gray-200 animate-fade-in">
 
