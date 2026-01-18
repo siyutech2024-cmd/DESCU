@@ -144,6 +144,47 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     }
   };
 
+  const handleConnectStripe = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+
+      // Call createConnectAccount
+      const response = await fetch(`${API_BASE_URL}/api/payment/connect`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          country: 'MX' // Default to MX for now, or use user region
+        })
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        // Redirect to Stripe Onboarding
+        window.location.href = data.url;
+      } else {
+        alert('Failed to get onboarding link');
+      }
+    } catch (error) {
+      console.error('Error connecting stripe:', error);
+      alert('Connection failed');
+    }
+  };
+
+  // Check for onboarding params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('onboarding_success')) {
+      alert('Stripe account connected successfully!');
+      // Clear params
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   const handleIDUpload = () => {
     setIsUploadingID(true);
     setTimeout(() => {
