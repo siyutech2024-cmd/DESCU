@@ -8,7 +8,6 @@ import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
-import { CheckoutModal } from './CheckoutModal';
 import { OrderStatusMessage } from './chat/OrderStatusMessage';
 import { PriceNegotiationCard } from './chat/PriceNegotiationCard';
 import { PriceNegotiationSender } from './chat/PriceNegotiationSender';
@@ -229,11 +228,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIsCheckoutOpen(true);
+                      setShowNegotiation(true);
                     }}
-                    className="text-[10px] bg-black text-white px-2 py-1 rounded-lg font-bold hover:bg-gray-800 transition-colors"
+                    className="text-[10px] bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-sm"
                   >
-                    Buy Now
+                    Ask Price
                   </button>
                 )}
               </div>
@@ -551,20 +550,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </button>
         </form>
       </div>
-
-      {/* Checkout Modal */}
-      {isCheckoutOpen && conversation.productId && (
-        <CheckoutModal
-          isOpen={isCheckoutOpen}
-          product={{ id: conversation.productId } as any}
-          user={currentUser}
-          onClose={() => {
-            setIsCheckoutOpen(false);
-            // Refresh to show order
-            setTimeout(() => window.location.reload(), 500);
-          }}
-        />
-      )}
     </div>
   );
 };
