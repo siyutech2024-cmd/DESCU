@@ -81,6 +81,14 @@ export const createProduct = async (req: any, res: Response) => {
             throw error;
         }
 
+        // 🤖 异步触发AI自动审核（不阻塞响应）
+        // 动态导入以避免循环依赖
+        import('../services/autoReviewService').then(({ triggerAutoReview }) => {
+            triggerAutoReview(data.id).catch((err: any) => {
+                console.error('[Product] Auto-review failed for', data.id, err);
+            });
+        }).catch(console.error);
+
         res.status(201).json({
             ...data,
             _debug_requested_status: 'pending_review',
