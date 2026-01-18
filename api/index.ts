@@ -220,6 +220,201 @@ app.post('/api/ratings', requireAuth, submitRating);
 app.get('/api/ratings/:userId/stats', getUserRatingStats);
 
 // ------------------------------------------------------------------
+// PRICE NEGOTIATION ENDPOINTS
+// ------------------------------------------------------------------
+
+// 发起议价
+app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
+    try {
+        const { conversationId, productId, proposedPrice } = req.body;
+        const userId = req.user.id;
+
+        // 验证参数
+        if (!conversationId || !productId || !proposedPrice) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // 获取对话和产品信息
+        const { data: conversation, error: convError } = await supabase
+            .from('conversations')
+            .select('*, product:products(*)')
+            .eq('id', conversationId)
+            .single();
+
+        if (convError || !conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        // 验证用户身份（只有买家可以发起议价）
+        if (conversation.buyer_id !== userId) {
+            return res.status(403).json({ error: 'Only buyer can propose price' });
+        }
+
+        // 创建议价记录
+        const { data: negotiation, error: negError } = await supabase
+            .from('price_negotiations')
+            .insert({
+                conversation_id: conversationId,
+                product_id: productId,
+                original_price: conversation.product.price,
+                proposed_price: parseFloat(proposedPrice),
+                proposed_by: userId,
+                status: 'pending'
+            })
+            .select()
+            .single();
+
+        if (negError) throw negError;
+
+        // 发送议价卡片消息
+        await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            sender_id: userId,
+            message_type: 'price_negotiation',
+            content: JSON.stringify({
+                negotiationId: negotiation.id,
+                originalPrice: conversation.product.price,
+                proposedPrice: parseFloat(proposedPrice),
+                productTitle: conversation.product.title,
+                status: 'pending'
+            }),
+            is_pinned: true,
+            pinned_until: new Date(Date.now() + 48 * 60 * 60 * 1000) // 置顶48小时
+        });
+
+        res.json({ negotiation });
+    } catch (error: any) {
+        console.error('Propose negotiation error:', error);
+        res.status(500).json({ error: 'Failed to propose price', message: error.message });
+    }
+});
+
+// 响应议价
+app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => {
+    try {
+        const { id } = req.params;
+        const { action, counterPrice } = req.body;
+        const userId = req.user.id;
+
+        // 验证action
+        if (!['accept', 'reject', 'counter'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid action' });
+        }
+
+        // 获取议价记录
+        const { data: negotiation, error: negError } = await supabase
+            .from('price_negotiations')
+            .select('*, conversation:conversations(*), product:products(*)')
+            .eq('id', id)
+            .single();
+
+        if (negError || !negotiation) {
+            return res.status(404).json({ error: 'Negotiation not found' });
+        }
+
+        // 验证卖家身份
+        if (negotiation.conversation.seller_id !== userId) {
+            return res.status(403).json({ error: 'Only seller can respond' });
+        }
+
+        // 验证状态
+        if (negotiation.status !== 'pending') {
+            return res.status(400).json({ error: 'Negotiation already processed' });
+        }
+
+        let updateData: any = {
+            responded_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        let messageContent: any = {
+            negotiationId: id,
+            originalPrice: negotiation.original_price,
+            proposedPrice: negotiation.proposed_price,
+            productTitle: negotiation.product.title
+        };
+
+        // 处理不同响应
+        switch (action) {
+            case 'accept':
+                updateData.status = 'accepted';
+                messageContent.status = 'accepted';
+                messageContent.finalPrice = negotiation.proposed_price;
+
+                // 更新产品价格
+                await supabase
+                    .from('products')
+                    .update({ price: negotiation.proposed_price })
+                    .eq('id', negotiation.product_id);
+
+                break;
+
+            case 'reject':
+                updateData.status = 'rejected';
+                messageContent.status = 'rejected';
+                break;
+
+            case 'counter':
+                if (!counterPrice) {
+                    return res.status(400).json({ error: 'Counter price required' });
+                }
+                updateData.status = 'countered';
+                updateData.counter_price = parseFloat(counterPrice);
+                messageContent.status = 'countered';
+                messageContent.counterPrice = parseFloat(counterPrice);
+                break;
+        }
+
+        // 更新议价记录
+        await supabase
+            .from('price_negotiations')
+            .update(updateData)
+            .eq('id', id);
+
+        // 发送响应消息
+        await supabase.from('messages').insert({
+            conversation_id: negotiation.conversation_id,
+            sender_id: userId,
+            message_type: 'price_negotiation_response',
+            content: JSON.stringify(messageContent),
+            is_pinned: true,
+            pinned_until: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        });
+
+        res.json({ success: true, action, negotiation: updateData });
+    } catch (error: any) {
+        console.error('Respond to negotiation error:', error);
+        res.status(500).json({ error: 'Failed to respond', message: error.message });
+    }
+});
+
+// 获取产品的议价历史
+app.get('/api/negotiations/product/:productId', requireAuth, async (req: any, res) => {
+    try {
+        const { productId } = req.params;
+        const userId = req.user.id;
+
+        const { data: negotiations, error } = await supabase
+            .from('price_negotiations')
+            .select('*, conversation:conversations(*)')
+            .eq('product_id', productId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // 只返回用户参与的议价
+        const filtered = negotiations?.filter(n =>
+            n.conversation.buyer_id === userId || n.conversation.seller_id === userId
+        );
+
+        res.json({ negotiations: filtered || [] });
+    } catch (error: any) {
+        console.error('Get negotiations error:', error);
+        res.status(500).json({ error: 'Failed to get negotiations', message: error.message });
+    }
+});
+
+// ------------------------------------------------------------------
 // INLINED ORDER ROUTES (Hotfix for Vercel 404)
 // ------------------------------------------------------------------
 app.post('/api/orders/create', requireAuth, async (req: any, res) => {
