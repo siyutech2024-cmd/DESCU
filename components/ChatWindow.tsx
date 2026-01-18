@@ -34,8 +34,60 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false); // New state
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
-  // ... (handleProductClick, handleAddEmoji, useEffects remain the same) ...
+  // Handle product click navigation
+  const handleProductClick = () => {
+    if (conversation.productId) {
+      navigate(`/product/${conversation.productId}`);
+    }
+  };
+
+  const handleAddEmoji = (emoji: string) => {
+    setNewMessage(prev => prev + emoji);
+  };
+
+  // ... (handleSend below) ...
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMessage.trim() && !isSending) {
+      setIsSending(true);
+      const text = newMessage.trim();
+      const tempId = `temp-${Date.now()}`;
+
+      // Optimistic update
+      const tempMsg = {
+        id: tempId,
+        conversation_id: conversation.id,
+        sender_id: currentUser.id,
+        senderId: currentUser.id,
+        text: text,
+        timestamp: new Date().toISOString(),
+        is_read: false
+      };
+
+      setMessages(prev => [...prev, tempMsg]);
+      setNewMessage('');
+
+      // Keep focus on input for web
+      inputRef.current?.focus();
+
+      try {
+        const sentMsg = await sendMessage(conversation.id, currentUser.id, text);
+        setMessages(prev => prev.map(m => m.id === tempId ? sentMsg : m));
+        if (onSendMessage) onSendMessage(conversation.id, text);
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        alert('Send failed, please retry');
+      } finally {
+        setIsSending(false);
+      }
+    }
+  };
+
+
+  // Reload order when meetup arranged
 
   // Reload order when meetup arranged
   const handleMeetupSuccess = () => {
