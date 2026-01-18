@@ -8,6 +8,7 @@ import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
+import { CheckoutModal } from './CheckoutModal';
 import { OrderStatusMessage } from './chat/OrderStatusMessage';
 import { PriceNegotiationCard } from './chat/PriceNegotiationCard';
 import { PriceNegotiationSender } from './chat/PriceNegotiationSender';
