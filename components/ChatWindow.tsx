@@ -15,6 +15,8 @@ import { LocationCard } from './chat/LocationCard';
 import { LocationSender } from './chat/LocationSender';
 import { ImageSender } from './chat/ImageSender';
 import { ImagesMessage } from './chat/ImagesMessage';
+import { MeetupTimeSender } from './chat/MeetupTimeSender';
+import { MeetupTimeMessage } from './chat/MeetupTimeMessage';
 
 interface ChatWindowProps {
   conversation: Conversation;
@@ -42,6 +44,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showNegotiation, setShowNegotiation] = useState(false); // For price negotiation
   const [showLocation, setShowLocation] = useState(false); // For location sharing
   const [showImages, setShowImages] = useState(false); // For image sharing
+  const [showMeetupTime, setShowMeetupTime] = useState(false); // For meetup time
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -317,6 +320,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   {messageType === 'images' && msg.content && (
                     <ImagesMessage content={JSON.parse(msg.content)} />
                   )}
+                  {messageType === 'meetup_time' && msg.content && (
+                    <MeetupTimeMessage
+                      content={JSON.parse(msg.content)}
+                      conversationId={conversation.id}
+                      currentUserId={currentUser.id}
+                      onUpdate={() => {
+                        getMessages(conversation.id).then(setMessages);
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             );
@@ -431,6 +444,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
 
+        {/* Meetup Time Sender Area */}
+        {showMeetupTime && (
+          <div className="max-w-4xl mx-auto mb-3 px-2">
+            <MeetupTimeSender
+              conversationId={conversation.id}
+              productTitle={conversation.productTitle}
+              onSent={() => {
+                setShowMeetupTime(false);
+                getMessages(conversation.id).then(setMessages);
+              }}
+              onClose={() => setShowMeetupTime(false)}
+            />
+          </div>
+        )}
+
         <form
           onSubmit={handleSend}
           className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50"
@@ -484,6 +512,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             title="分享位置"
           >
             <MapPin size={22} />
+          </button>
+
+          {/* Meetup Time Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowMeetupTime(!showMeetupTime);
+              setShowEmojiPicker(false);
+              setShowNegotiation(false);
+              setShowLocation(false);
+              setShowImages(false);
+            }}
+            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showMeetupTime ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+            title="约定时间"
+          >
+            <Clock size={22} />
           </button>
 
           <input

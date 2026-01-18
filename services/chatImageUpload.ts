@@ -116,9 +116,9 @@ export async function uploadMultipleChatImages(
  */
 export async function compressImage(
     file: File,
-    maxWidth: number = 1920,
-    maxHeight: number = 1080,
-    quality: number = 0.8
+    maxWidth: number = 1280,  // 降低到720p以减少文件大小
+    maxHeight: number = 720,
+    quality: number = 0.7     // 降低质量到70%
 ): Promise<File> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -152,6 +152,20 @@ export async function compressImage(
 
                 ctx.drawImage(img, 0, 0, width, height);
 
+                // 动态调整质量：小文件用更好的质量
+                let finalQuality = quality;
+                if (file.size < 500 * 1024) { // 小于500KB
+                    finalQuality = 0.8;
+                } else if (file.size > 2 * 1024 * 1024) { // 大于2MB
+                    finalQuality = 0.6; // 更激进的压缩
+                }
+
+                // 优先使用WebP格式（更小更高效）
+                const testCanvas = document.createElement('canvas');
+                const supportsWebP = testCanvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+                const imageFormat = supportsWebP ? 'image/webp' : 'image/jpeg';
+                const fileExt = supportsWebP ? 'webp' : 'jpg';
+
                 canvas.toBlob(
                     (blob) => {
                         if (!blob) {
@@ -159,19 +173,20 @@ export async function compressImage(
                             return;
                         }
 
-                        const compressedFile = new File([blob], file.name, {
-                            type: 'image/jpeg',
+                        const compressedFile = new File([blob], `${file.name.split('.')[0]}.${fileExt}`, {
+                            type: imageFormat,
                             lastModified: Date.now()
                         });
 
+                        const reductionPercent = ((1 - compressedFile.size / file.size) * 100).toFixed(1);
                         console.log(
-                            `[ImageUpload] Compressed: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB`
+                            `[ImageUpload] Compressed: ${(file.size / 1024).toFixed(1)}KB → ${(compressedFile.size / 1024).toFixed(1)}KB (${reductionPercent}% reduction, ${imageFormat})`
                         );
 
                         resolve(compressedFile);
                     },
-                    'image/jpeg',
-                    quality
+                    imageFormat,
+                    finalQuality
                 );
             };
 
