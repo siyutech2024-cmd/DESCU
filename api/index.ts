@@ -979,11 +979,20 @@ app.post('/api/stripe/v2/create-account', requireAuth, async (req: any, res) => 
 
     } catch (error: any) {
         console.error('[StripeV2] Create account error:', error);
-        res.status(500).json({
+
+        // Return detailed Stripe error info for debugging
+        const errorResponse: any = {
             error: 'Failed to create account',
             message: error.message,
-            code: error.code
-        });
+        };
+
+        // Add Stripe-specific error details if available
+        if (error.type) errorResponse.stripeErrorType = error.type;
+        if (error.code) errorResponse.stripeErrorCode = error.code;
+        if (error.param) errorResponse.stripeParam = error.param;
+        if (error.raw?.message) errorResponse.stripeRawMessage = error.raw.message;
+
+        res.status(500).json(errorResponse);
     }
 });
 
