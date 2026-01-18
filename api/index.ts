@@ -181,8 +181,17 @@ app.post('/api/orders/create', requireAuth, async (req: any, res) => {
         const { productId, orderType, paymentMethod, shippingAddress, meetupLocation, meetupTime } = req.body;
         const buyerId = req.user.id;
 
+        console.log(`[CreateOrder] Received request: productId=${productId}, buyerId=${buyerId}, type=${orderType}`);
+
         const { data: product, error: pInfoError } = await supabase.from('products').select('*, seller:users!seller_id(*)').eq('id', productId).single();
-        if (pInfoError || !product) return res.status(404).json({ error: 'Product not found' });
+
+        if (pInfoError || !product) {
+            console.error('[CreateOrder] Product lookup failed:', pInfoError);
+            return res.status(404).json({ error: 'Product not found', debug_id: productId, db_error: pInfoError });
+        }
+
+        console.log(`[CreateOrder] Product found: ${product.id}, Seller: ${product.seller_id}`);
+
         if (product.seller_id === buyerId) return res.status(400).json({ error: 'Cannot buy your own product' });
 
         const productAmount = product.price;
