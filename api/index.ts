@@ -253,6 +253,54 @@ app.post('/api/users/update-location', requireAuth, async (req: any, res) => {
 });
 
 
+// Save seller bank info (simplified - no Stripe Connect)
+app.post('/api/users/bank-info', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { bankName, clabe, holderName } = req.body;
+
+        // Validate CLABE (18 digits)
+        if (!clabe || clabe.length !== 18 || !/^\d+$/.test(clabe)) {
+            return res.status(400).json({ error: 'CLABE must be 18 digits' });
+        }
+
+        if (!holderName || !bankName) {
+            return res.status(400).json({ error: 'Bank name and holder name are required' });
+        }
+
+        console.log('[BankInfo] Saving bank info for user:', userId);
+
+        // Upsert into sellers table
+        const { error } = await supabase
+            .from('sellers')
+            .upsert({
+                user_id: userId,
+                bank_clabe: clabe,
+                bank_name: bankName,
+                bank_holder_name: holderName,
+                bank_info_updated_at: new Date().toISOString(),
+                onboarding_complete: true
+            }, { onConflict: 'user_id' });
+
+        if (error) {
+            console.error('[BankInfo] Error:', error);
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            message: 'Bank info saved successfully'
+        });
+    } catch (error: any) {
+        console.error('Save bank info error:', error);
+        res.status(500).json({
+            error: 'Failed to save bank info',
+            message: error.message
+        });
+    }
+});
+
+
 // Rating & Reviews
 import { submitRating, getUserRatingStats } from './_lib/controllers/ratingController.js';
 app.post('/api/ratings', requireAuth, submitRating);

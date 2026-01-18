@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import OrderList from './OrderList';
-import { PayoutModal } from './PayoutModal';
 import { CreditBadge } from './CreditBadge';
 import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart } from 'lucide-react';
 import { User, Product } from '../types';
@@ -92,32 +91,30 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) return;
+      if (!token) {
+        alert('Please login first');
+        return;
+      }
 
-      // Call Stripe Add Bank Account API
-      // For Mexico (MX), we use CLABE as account_number. Routing number is not typically needed separately or is derived.
-      // Our backend accepts { accountNumber, accountHolderName, ... }
-      const response = await fetch(`${API_BASE_URL}/api/stripe/add-bank-account`, {
+      // Save bank details directly to database (simplified flow)
+      const response = await fetch(`${API_BASE_URL}/api/users/bank-info`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          accountHolderName: bankDetails.holderName,
-          accountNumber: bankDetails.accountNumber, // CLABE
-          // routingNumber: bankDetails.accountNumber // Some implementations might need this duplicated? Let's leave undefined first.
+          bankName: bankDetails.bankName,
+          clabe: bankDetails.accountNumber,
+          holderName: bankDetails.holderName
         }),
       });
 
       if (response.ok) {
-        alert("银行账户已绑定成功！您现在可以接收付款了。");
-        // Optionally update local user state or refresh
-        const data = await response.json();
-        console.log('Stripe Account:', data);
+        alert("¡Cuenta bancaria guardada! / 银行账户已保存！");
       } else {
         const err = await response.json();
-        alert("绑定失败: " + (err.error || '未知错误'));
+        alert("Error: " + (err.error || 'Unknown error'));
       }
     } catch (error) {
       console.error("Error saving bank details", error);
@@ -409,26 +406,77 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Settings & Account</h3>
 
-          {/* Payouts / Seller Dashboard Section */}
+          {/* Simplified Bank Info Section */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <CreditCard size={20} className="text-green-600" />
               {t('profile.payouts') || 'Payouts & Earnings'}
             </h2>
             <p className="text-sm text-gray-500 mb-4">
-              {t('profile.payouts_desc') || 'Connect your bank account to receive payments directly just like a professional store.'}
+              {t('profile.payouts_desc') || 'Add your bank account to receive payments when your orders are completed.'}
             </p>
 
-            <div className="flex gap-3">
+            <form onSubmit={handleSaveBankDetails} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('profile.bank_name') || 'Bank Name'}
+                </label>
+                <select
+                  value={bankDetails.bankName}
+                  onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all bg-white"
+                >
+                  <option value="">Select Bank</option>
+                  <option value="BBVA">BBVA México</option>
+                  <option value="Santander">Santander</option>
+                  <option value="Banorte">Banorte</option>
+                  <option value="HSBC">HSBC México</option>
+                  <option value="Citibanamex">Citibanamex</option>
+                  <option value="Scotiabank">Scotiabank</option>
+                  <option value="Banco Azteca">Banco Azteca</option>
+                  <option value="Inbursa">Inbursa</option>
+                  <option value="Nu Bank">Nu Bank</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  CLABE (18 dígitos)
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.accountNumber}
+                  onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value.replace(/\D/g, '').slice(0, 18) })}
+                  placeholder="000000000000000000"
+                  maxLength={18}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">{bankDetails.accountNumber.length}/18 digits</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('profile.holder_name') || 'Account Holder Name'}
+                </label>
+                <input
+                  type="text"
+                  value={bankDetails.holderName}
+                  onChange={(e) => setBankDetails({ ...bankDetails, holderName: e.target.value })}
+                  placeholder="Your full name as on bank account"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                />
+              </div>
+
               <button
-                onClick={handleSetupPayouts}
-                disabled={isPayoutLoading}
-                className="flex-1 bg-gray-900 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-black transition-colors"
+                type="submit"
+                disabled={isSavingBank || bankDetails.accountNumber.length !== 18 || !bankDetails.holderName || !bankDetails.bankName}
+                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isPayoutLoading ? <Loader2 size={18} className="animate-spin" /> : <ExternalLink size={18} />}
-                {t('profile.setup_payouts') || 'Setup Payouts'}
+                {isSavingBank ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {t('profile.save_bank') || 'Save Bank Details'}
               </button>
-            </div>
+            </form>
           </div>
 
           {/* Verification Banner */}
@@ -477,16 +525,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           </div>
         </div>
 
-        <PayoutModal
-          isOpen={isPayoutModalOpen}
-          onClose={() => setIsPayoutModalOpen(false)}
-          userId={user.id}
-          email={user.email}
-          onSuccess={() => {
-            alert("Payout method added successfully!");
-            // Optionally refresh user state
-          }}
-        />
+        {/* Bank info form is now inline above */}
 
       </div>
     </div>
