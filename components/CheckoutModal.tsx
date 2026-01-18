@@ -157,7 +157,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
 
             if (!res.ok) {
                 const err = await res.json();
-                throw new Error(err.error || 'Failed to create order');
+                console.error("Order creation failed:", err);
+                // Throw the detailed message from backend if available
+                throw new Error(err.message || err.error || 'Failed to create order');
             }
 
             const data = await res.json();
