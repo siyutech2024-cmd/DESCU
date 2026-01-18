@@ -51,6 +51,7 @@
 - **Hotfix (v2)**: 修复 `ChatWindow.tsx` 剩余的构建错误 (Commit `4621d5d`) - 还原了缺失的 handlers 和 state。
 - **Fix 5**: 修复个人中心崩溃 (Profile Page Crash) - 增加金额显示的空值安全检查 (`toFixed` error)。
 - **Fix 6**: 修复结账页地址保存无反应 - 优化地址表单容器布局，防止按钮不可点击，增加错误提示。
+- **Fix 7**: 修复地址 API 404 问题 - 在 Vercel 入口文件 (`api/index.ts`) 中显式添加地址管理路由。
 
 
 ## 🔗 部署链接
