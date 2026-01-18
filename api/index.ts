@@ -126,6 +126,26 @@ app.post('/api/disputes', requireAuth, createDispute);
 app.post('/api/payment/verify', requireAuth, verifyPayment);
 app.get('/api/orders', requireAuth, getUserOrders);
 
+app.get('/api/users/:userId/credit', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { data, error } = await supabase
+            .from('credit_scores')
+            .select('score')
+            .eq('user_id', userId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            throw error;
+        }
+
+        res.json({ score: data?.score || 500 }); // Default start score
+    } catch (error: any) {
+        console.error('Get credit score error:', error);
+        res.status(500).json({ error: 'Failed to get credit score', message: error.message });
+    }
+});
+
 // Admin Endpoints
 app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);
 app.get('/api/admin/auth/me', requireAdmin, getAdminInfo);
