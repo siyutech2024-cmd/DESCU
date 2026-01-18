@@ -29,6 +29,10 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
     const [isLoading, setIsLoading] = useState(false);
     const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false);
 
+    // HOTFIX: Support both 'product' and 'products' field names
+    // API should return 'product' but due to deployment delays, it might still return 'products'
+    const productData = (order as any).product || (order as any).products || null;
+
     const handleConfirm = async () => {
         if (!confirm('Are you sure you want to confirm completion? This action cannot be undone.')) return;
 
@@ -229,18 +233,18 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
                 onClick={() => window.location.href = `/products/${order.product_id}`}
             >
                 <div className="w-16 h-16 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-gray-200 shadow-sm flex items-center justify-center">
-                    {order.product?.images?.[0] ? (
-                        <img src={order.product.images[0]} className="w-full h-full object-cover group-hover/product:scale-105 transition-transform duration-500" />
+                    {productData?.images?.[0] ? (
+                        <img src={productData.images[0]} className="w-full h-full object-cover group-hover/product:scale-105 transition-transform duration-500" />
                     ) : (
                         <Package size={28} className="text-gray-300" />
                     )}
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="font-bold text-gray-900 truncate text-base mb-1">
-                        {order.product?.title || <span className="text-gray-400 italic">Product information unavailable</span>}
+                        {productData?.title || <span className="text-gray-400 italic">Product information unavailable</span>}
                     </div>
                     <div className="text-xs text-gray-500 flex flex-wrap items-center gap-2">
-                        {order.product?.price && <span className="bg-white px-2 py-0.5 rounded border border-gray-100 shadow-sm font-medium text-gray-700">${order.product.price}</span>}
+                        {productData?.price && <span className="bg-white px-2 py-0.5 rounded border border-gray-100 shadow-sm font-medium text-gray-700">${productData.price}</span>}
                         <span className="bg-white px-2 py-0.5 rounded border border-gray-100 shadow-sm text-gray-500">
                             ID: {order.product_id.slice(0, 8)}
                         </span>
