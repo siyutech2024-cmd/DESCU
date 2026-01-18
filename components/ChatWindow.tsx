@@ -49,6 +49,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
 
+  // Pagination states
+  const [messageOffset, setMessageOffset] = useState(0);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const MESSAGE_LIMIT = 10; // Load 10 messages at a time
+
   // Handle product click navigation
   const handleProductClick = () => {
     if (conversation.productId) {
@@ -272,11 +278,31 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
 
 
+        {/* Load More Button */}
+        {hasMoreMessages && (
+          <div className="flex justify-center my-4">
+            <button
+              onClick={loadMoreMessages}
+              disabled={isLoadingMore}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors disabled:opacity-50 text-sm font-medium"
+            >
+              {isLoadingMore ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>加载中...</span>
+                </>
+              ) : (
+                <span>加载更早的消息</span>
+              )}
+            </button>
+          </div>
+        )}
+
         <div className="text-center text-xs text-gray-400 font-medium my-4">
           <span className="bg-gray-100 px-3 py-1 rounded-full">{new Date(messages[0]?.timestamp || Date.now()).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
         </div>
 
-        {/* ... (Messages mapping remains same) ... */}
+        {/* Messages List */}
         {messages.map((msg, index) => {
           const senderId = msg.senderId || msg.sender_id;
           const isMe = senderId === currentUser.id;
