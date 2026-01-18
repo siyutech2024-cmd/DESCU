@@ -57,6 +57,7 @@
 - **Fix 10**: 修复 "Column expires_at not found" - 提供了 SQL 补丁 (`patch_orders_schema.sql`) 补充 orders 表缺失的字段字段。
 - **Fix 11**: 修复 "Column amount not-null constraint" - 提供了 SQL 补丁 (`fix_legacy_amount_column.sql`) 解除了旧表结构中 `amount` 字段的非空限制。
 - **Fix 12**: 修复 "Product information unavailable" - 提供了 SQL 补丁 (`fix_orders_product_fk.sql`) 修复 orders 与 products 之间的外键丢失问题。
+- **Fix 13**: 修复 "Sold products invisible" - 提供了 SQL 补丁 (`fix_products_rls.sql`) 修正产品表的 RLS 权限，确保已售出的商品在订单里依然可见。
 
 
 ## 🔗 部署链接
