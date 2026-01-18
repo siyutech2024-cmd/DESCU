@@ -5,6 +5,7 @@ import path from 'path';
 
 // Imports from Local Lib (Bundled)
 import { analyzeImage } from './_lib/controllers/aiController.js';
+import { supabase } from './_lib/db/supabase.js';
 import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController.js';
 import { requireAuth } from './_lib/middleware/userAuth.js';
 import { requireAdmin } from './_lib/middleware/adminAuth.js';
@@ -171,6 +172,113 @@ app.get('/api/location/reverse', reverseGeocodeProxy);
 import { submitRating, getUserRatingStats } from './_lib/controllers/ratingController.js';
 app.post('/api/ratings', requireAuth, submitRating);
 app.get('/api/ratings/:userId/stats', getUserRatingStats);
+
+// ------------------------------------------------------------------
+// INLINED USER ADDRESS ROUTES (Hotfix for Vercel 404)
+// ------------------------------------------------------------------
+app.get('/api/users/addresses', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { data, error } = await supabase
+            .from('user_addresses')
+            .select('*')
+            .eq('user_id', userId)
+            .order('is_default', { ascending: false })
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json({ addresses: data || [] });
+    } catch (error) {
+        console.error('Fetch addresses error:', error);
+        res.status(500).json({ error: 'Failed to fetch addresses' });
+    }
+});
+
+app.post('/api/users/addresses', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { recipient_name, phone_number, street_address, city, state, zip_code, country, is_default } = req.body;
+
+        if (!recipient_name || !phone_number || !street_address || !city || !state || !zip_code) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // If setting as default, unset others first (optional, but good practice, though trigger handles it usually)
+        if (is_default) {
+            await supabase.from('user_addresses').update({ is_default: false }).eq('user_id', userId);
+        }
+
+        const { data, error } = await supabase
+            .from('user_addresses')
+            .insert({
+                user_id: userId,
+                recipient_name,
+                phone_number,
+                street_address,
+                city,
+                state,
+                zip_code,
+                country: country || 'MX',
+                is_default: is_default || false
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ address: data });
+    } catch (error) {
+        console.error('Add address error:', error);
+        res.status(500).json({ error: 'Failed to add address' });
+    }
+});
+
+app.put('/api/users/addresses/:id', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        const updates = req.body;
+        delete updates.user_id;
+        delete updates.id;
+        delete updates.created_at;
+
+        if (updates.is_default) {
+            await supabase.from('user_addresses').update({ is_default: false }).eq('user_id', userId);
+        }
+
+        const { data, error } = await supabase
+            .from('user_addresses')
+            .update(updates)
+            .eq('id', id)
+            .eq('user_id', userId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ address: data });
+    } catch (error) {
+        console.error('Update address error:', error);
+        res.status(500).json({ error: 'Failed to update address' });
+    }
+});
+
+app.delete('/api/users/addresses/:id', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+        const { error } = await supabase
+            .from('user_addresses')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete address error:', error);
+        res.status(500).json({ error: 'Failed to delete address' });
+    }
+});
+// ------------------------------------------------------------------
 
 // Test Route
 app.get('/api/test_ping', (req, res) => {
