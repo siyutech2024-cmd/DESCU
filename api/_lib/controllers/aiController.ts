@@ -52,7 +52,7 @@ export const analyzeImage = async (req: Request, res: Response) => {
 
         try {
             const response = await ai.models.generateContent({
-                model: "gemini-2.0-flash-exp", // Switched to 2.0 per user request
+                model: "gemini-2.5-flash", // Upgraded to 2.5 for higher quota
                 contents: {
                     parts: [
                         {

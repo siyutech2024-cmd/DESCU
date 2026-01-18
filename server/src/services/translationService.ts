@@ -52,7 +52,7 @@ export const translateBatch = async (
 
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
+            model: "gemini-2.5-flash", // Upgraded to 2.5 for higher quota
             contents: {
                 parts: [{ text: prompt }]
             },
