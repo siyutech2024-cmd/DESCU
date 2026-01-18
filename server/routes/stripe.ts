@@ -79,7 +79,7 @@ router.post('/add-bank-account', authenticateToken, async (req, res) => {
             }
         );
 
-        // 4. 保存到数据库
+        // 4. 保存到数据库 (stripe_accounts)
         const { data: savedAccount, error } = await supabase
             .from('stripe_accounts')
             .upsert({
@@ -96,6 +96,15 @@ router.post('/add-bank-account', authenticateToken, async (req, res) => {
             console.error('保存账户信息失败:', error);
             return res.status(500).json({ error: '保存失败' });
         }
+
+        // 5. 同步更新 sellers 表 (确保 confirmOrder 也能找到 ID)
+        await supabase
+            .from('sellers')
+            .upsert({
+                user_id: userId,
+                stripe_connect_id: stripeAccountId,
+                onboarding_complete: true // 既然已添加银行卡，视为完成简易流程
+            }, { onConflict: 'user_id' }); // 假设 user_id 是 unique key
 
         res.json({
             success: true,

@@ -86,29 +86,38 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     setFavoriteProducts(favProds);
   }, [favorites, allProducts]);
 
-  const handleSaveBankDetails = async () => {
+  const handleSaveBankDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSavingBank(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-
       if (!token) return;
 
-      const response = await fetch(`${API_BASE_URL}/api/payment/bank-info`, {
+      // Call Stripe Add Bank Account API
+      // For Mexico (MX), we use CLABE as account_number. Routing number is not typically needed separately or is derived.
+      // Our backend accepts { accountNumber, accountHolderName, ... }
+      const response = await fetch(`${API_BASE_URL}/api/stripe/add-bank-account`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(bankDetails),
+        body: JSON.stringify({
+          accountHolderName: bankDetails.holderName,
+          accountNumber: bankDetails.accountNumber, // CLABE
+          // routingNumber: bankDetails.accountNumber // Some implementations might need this duplicated? Let's leave undefined first.
+        }),
       });
 
       if (response.ok) {
-        alert("Bank details saved successfully! You can now receive payouts manually.");
-        // Optionally update local user state if needed
+        alert("银行账户已绑定成功！您现在可以接收付款了。");
+        // Optionally update local user state or refresh
+        const data = await response.json();
+        console.log('Stripe Account:', data);
       } else {
         const err = await response.json();
-        alert("Failed to save: " + (err.error || 'Unknown error'));
+        alert("绑定失败: " + (err.error || '未知错误'));
       }
     } catch (error) {
       console.error("Error saving bank details", error);
