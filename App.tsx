@@ -137,7 +137,17 @@ const AppContent: React.FC = () => {
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const userWithLocation = await loadUserWithLocation(session);
-        if (userWithLocation) setUser(userWithLocation);
+        if (userWithLocation) {
+          setUser(userWithLocation);
+
+          // 🌍 自动更新用户位置到服务器
+          const userWithLoc = userWithLocation as any;
+          if (userWithLoc.country && userWithLoc.city) {
+            updateUserLocationToServer(userWithLoc).catch(err => {
+              console.error('[App] Failed to update user location:', err);
+            });
+          }
+        }
       } else {
         setUser(null);
       }
@@ -145,6 +155,36 @@ const AppContent: React.FC = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // 更新用户位置到服务器
+  const updateUserLocationToServer = async (user: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/users/update-location`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          country: user.country,
+          city: user.city,
+          countryName: user.country // 可以从IP API获取更详细的信息
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update location');
+      }
+
+      console.log('[App] User location updated successfully');
+    } catch (error) {
+      console.error('[App] Error updating location:', error);
+      // 不显示错误给用户，静默失败
+    }
+  };
 
   const handleLogin = async () => {
     try {

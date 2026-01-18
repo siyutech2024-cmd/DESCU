@@ -214,6 +214,44 @@ app.get('/api/location/ip', async (req, res) => {
     }
 });
 
+// Update user location
+app.post('/api/users/update-location', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { country, city, countryName, lat, lng } = req.body;
+
+        console.log('[UpdateLocation] Updating location for user:', userId, { country, city });
+
+        const { error } = await supabase
+            .from('users')
+            .update({
+                location_country: country,
+                location_city: city,
+                location_lat: lat || null,
+                location_lng: lng || null,
+                location_updated_at: new Date().toISOString()
+            })
+            .eq('id', userId);
+
+        if (error) {
+            console.error('[UpdateLocation] Error:', error);
+            throw error;
+        }
+
+        res.json({
+            success: true,
+            location: { country, city, countryName }
+        });
+    } catch (error: any) {
+        console.error('Update location error:', error);
+        res.status(500).json({
+            error: 'Failed to update location',
+            message: error.message
+        });
+    }
+});
+
+
 // Rating & Reviews
 import { submitRating, getUserRatingStats } from './_lib/controllers/ratingController.js';
 app.post('/api/ratings', requireAuth, submitRating);
