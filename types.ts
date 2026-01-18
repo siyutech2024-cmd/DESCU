@@ -79,6 +79,8 @@ export interface Conversation {
   productId: string;
   productTitle: string;
   productImage: string;
+  buyerId?: string;
+  sellerId?: string;
   messages: Message[];
   lastMessageTime: number;
 }
@@ -89,3 +91,28 @@ export type ViewState =
   | { type: 'profile' }
   | { type: 'chat-list' }
   | { type: 'chat-window', conversationId: string };
+
+export interface Order {
+  id: string;
+  product_id: string;
+  buyer_id: string;
+  seller_id: string;
+  order_type: 'meetup' | 'shipping';
+  payment_method: 'online' | 'cash';
+  status: 'pending_payment' | 'paid' | 'meetup_arranged' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'disputed' | 'refunded';
+  product_amount: number;
+  shipping_fee: number;
+  platform_fee: number;
+  total_amount: number;
+  currency: string;
+  meetup_location?: string;
+  meetup_time?: string;
+  shipping_address?: any;
+  tracking_number?: string;
+  created_at: string;
+  product?: Product;
+  buyer?: User;
+  seller?: User;
+  buyer_confirmed_at?: string;
+  seller_confirmed_at?: string;
+}

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import {
@@ -7,23 +8,34 @@ import {
     useStripe,
     useElements,
 } from '@stripe/react-stripe-js';
-import { X, Lock, CreditCard } from 'lucide-react';
+import { X, Lock, CreditCard, MapPin, Truck, Wallet, ArrowLeft, CheckCircle } from 'lucide-react';
 import { Product, User } from '../types';
 import { API_BASE_URL } from '../services/apiConfig';
-import { GlassToast } from './GlassToast';
+// import { GlassToast } from './GlassToast'; // Removed unused import if not needed, or keep if used globally
 import { supabase } from '../services/supabase';
+import { AddressList } from './AddressList';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51Sq0FTQ21K2ZcCkTeSAIFszExSoxuA6L5qGSn20wjF1MIyYECOM2O8zZU0YSTFVCQs8RAMiuTeLyyWmr4wv4gtkL00eEWCifnz';
 const stripePromise = loadStripe(STRIPE_KEY);
 
-interface CheckoutFormProps {
+interface CheckoutModalProps {
+    isOpen: boolean;
+    onClose: () => void;
     product: Product;
-    clientSecret: string;
-    onSuccess: (paymentIntent: any) => void;
-    onCancel: () => void;
+    user: User;
 }
 
-const CheckoutForm: React.FC<CheckoutFormProps> = ({ product, onSuccess, onCancel }) => {
+type OrderType = 'meetup' | 'shipping';
+type PaymentMethod = 'online' | 'cash';
+type Step = 'type-selection' | 'details' | 'payment' | 'success';
+
+const CheckoutForm: React.FC<{
+    product: Product;
+    orderId: string;
+    clientSecret: string;
+    onSuccess: () => void;
+    onCancel: () => void;
+}> = ({ product, orderId, clientSecret, onSuccess, onCancel }) => {
     const stripe = useStripe();
     const elements = useElements();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,16 +44,14 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ product, onSuccess, onCance
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
 
-        if (!stripe || !elements) {
-            return;
-        }
+        if (!stripe || !elements) return;
 
         setIsProcessing(true);
 
         const { error, paymentIntent } = await stripe.confirmPayment({
             elements,
             confirmParams: {
-                return_url: `${window.location.origin}/payment-success`,
+                return_url: `${window.location.origin}/payment-success`, // Ideally not used with redirect: if_required
             },
             redirect: "if_required",
         });
@@ -50,41 +60,36 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ product, onSuccess, onCance
             setErrorMessage(error.message || 'Payment failed');
             setIsProcessing(false);
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-            onSuccess(paymentIntent);
+            // Confirm with backend
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                await fetch(`${API_BASE_URL}/api/stripe/confirm-payment`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session?.access_token}`
+                    },
+                    body: JSON.stringify({ orderId, paymentIntentId: paymentIntent.id })
+                });
+                onSuccess();
+            } catch (e) {
+                console.error("Backend confirmation failed", e);
+                setErrorMessage("Payment successful but verification failed. Please contact support.");
+                setIsProcessing(false);
+            }
         } else {
-            // Fallback for weird states
             setIsProcessing(false);
         }
     };
 
-    // ... rest of form
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-gray-50 p-4 rounded-xl mb-4">
-                <h3 className="font-bold text-gray-800 mb-2">Order Summary</h3>
-                <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">{product.title}</span>
-                    <span className="font-medium">${product.price} {product.currency}</span>
-                </div>
-                <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Platform Fee</span>
-                    <span className="font-medium">$0.00</span>
-                </div>
-                <div className="border-t border-gray-200 my-2"></div>
-                <div className="flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span>${product.price} {product.currency}</span>
-                </div>
-            </div>
-
             <PaymentElement />
-
             {errorMessage && (
                 <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg flex items-center gap-2">
                     <X size={14} /> {errorMessage}
                 </div>
             )}
-
             <button
                 disabled={!stripe || isProcessing}
                 className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
@@ -94,150 +99,287 @@ const CheckoutForm: React.FC<CheckoutFormProps> = ({ product, onSuccess, onCance
                 ) : (
                     <>
                         <Lock size={18} />
-                        Pay Now ${product.price}
+                        Pay Now
                     </>
                 )}
             </button>
-
-            <div className="text-center">
-                <button type="button" onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-sm">Cancel Payment</button>
-            </div>
+            <button type="button" onClick={onCancel} className="w-full text-center text-gray-500 text-sm hover:text-gray-700">Cancel</button>
         </form>
     );
 };
 
-interface CheckoutModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    product: Product;
-    user: User;
-}
-
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, product, user }) => {
-    const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const [step, setStep] = useState<Step>('type-selection');
+    const [orderType, setOrderType] = useState<OrderType>('meetup');
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('online');
+    const [shippingAddress, setShippingAddress] = useState<any>(null); // Changed to hold full address object
     const [isLoading, setIsLoading] = useState(false);
-    const [initError, setInitError] = useState<string | null>(null);
+    const [clientSecret, setClientSecret] = useState<string | null>(null);
+    const [createdOrder, setCreatedOrder] = useState<any>(null);
 
-    // Initial load to get clientSecret
-    React.useEffect(() => {
-        if (isOpen && product && user) {
-            setIsLoading(true);
-            setInitError(null);
+    // Reset state on open
+    useEffect(() => {
+        if (isOpen) {
+            setStep('type-selection');
+            setOrderType('meetup');
+            setPaymentMethod('online');
+            setClientSecret(null);
+            setCreatedOrder(null);
+            setIsLoading(false);
+        }
+    }, [isOpen]);
 
-            const initPayment = async () => {
-                try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) throw new Error('Authentication required');
+    const handleCreateOrder = async () => {
+        setIsLoading(true);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error("Auth required");
 
-                    const res = await fetch(`${API_BASE_URL}/api/payment/create-intent`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${session.access_token}`
-                        },
-                        body: JSON.stringify({ productId: product.id, buyerId: user.id }),
-                    });
-
-                    if (!res.ok) {
-                        try {
-                            const errData = await res.json();
-                            throw new Error(errData.error || 'Payment initialization failed');
-                        } catch (e: any) {
-                            // If JSON parse fails or error prop missing, fallback to text or default
-                            if (e.message !== 'Payment initialization failed') throw e;
-                            throw new Error('Payment initialization failed');
-                        }
-                    }
-
-                    const data = await res.json();
-                    setClientSecret(data.clientSecret);
-                } catch (err: any) {
-                    console.error("Payment init error", err);
-                    setInitError(err.message || "Failed to initialize payment.");
-                } finally {
-                    setIsLoading(false);
-                }
+            const payload: any = {
+                productId: product.id,
+                orderType,
+                paymentMethod: orderType === 'shipping' ? 'online' : paymentMethod,
             };
 
-            initPayment();
+            if (orderType === 'shipping') {
+                payload.shippingAddress = shippingAddress;
+            }
+
+            const res = await fetch(`${API_BASE_URL}/api/orders/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || 'Failed to create order');
+            }
+
+            const data = await res.json();
+            setCreatedOrder(data.order);
+
+            if (data.requiresPayment && payload.paymentMethod === 'online') {
+                // Now create Payment Intent
+                const piRes = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify({ orderId: data.order.id })
+                });
+
+                if (!piRes.ok) throw new Error("Failed to init payment");
+                const piData = await piRes.json();
+                setClientSecret(piData.clientSecret);
+                setStep('payment');
+            } else {
+                // Cash order or no payment required immediatley
+                setStep('success');
+                toast.success('Order created successfully!');
+            }
+
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message);
+        } finally {
+            setIsLoading(false);
         }
-    }, [isOpen, product, user]);
+    };
 
     if (!isOpen) return null;
+
+    const renderStepContent = () => {
+        switch (step) {
+            case 'type-selection':
+                return (
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-gray-800 mb-4">How do you want to verify this deal?</h3>
+
+                        <button
+                            onClick={() => { setOrderType('meetup'); setStep('details'); }}
+                            className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-brand-500 hover:bg-brand-50 transition-all group text-left"
+                        >
+                            <div className="bg-gray-100 p-3 rounded-full group-hover:bg-brand-200 transition-colors mr-4">
+                                <MapPin className="text-gray-600 group-hover:text-brand-700" size={24} />
+                            </div>
+                            <div>
+                                <div className="font-bold text-gray-800">In-Person Meetup</div>
+                                <div className="text-sm text-gray-500">Meet locally. Pay Cash or Online.</div>
+                            </div>
+                        </button>
+
+                        <button
+                            onClick={() => { setOrderType('shipping'); setPaymentMethod('online'); setStep('details'); }}
+                            className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-brand-500 hover:bg-brand-50 transition-all group text-left"
+                        >
+                            <div className="bg-gray-100 p-3 rounded-full group-hover:bg-brand-200 transition-colors mr-4">
+                                <Truck className="text-gray-600 group-hover:text-brand-700" size={24} />
+                            </div>
+                            <div>
+                                <div className="font-bold text-gray-800">Shipping</div>
+                                <div className="text-sm text-gray-500">Delivered to you. Secure Online Payment.</div>
+                            </div>
+                        </button>
+                    </div>
+                );
+
+            case 'details':
+                const shippingFee = orderType === 'shipping' ? 50 : 0;
+                const platformFee = paymentMethod === 'online' ? (product.price * 0.03) : 0;
+                const total = product.price + shippingFee + platformFee;
+
+                return (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-2">
+                            <button onClick={() => setStep('type-selection')} className="p-1 hover:bg-gray-100 rounded-full">
+                                <ArrowLeft size={20} />
+                            </button>
+                            <h3 className="text-lg font-bold">Review Order</h3>
+                        </div>
+
+                        {/* Order Type Badge */}
+                        <div className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded-lg w-fit">
+                            {orderType === 'meetup' ? <MapPin size={16} /> : <Truck size={16} />}
+                            <span className="capitalize font-medium">{orderType}</span>
+                        </div>
+
+                        {/* Payment Method Selection (Only for Meetup) */}
+                        {orderType === 'meetup' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setPaymentMethod('online')}
+                                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'online' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-gray-200 hover:border-brand-200'}`}
+                                    >
+                                        <Lock size={20} />
+                                        <span className="text-sm font-bold">Secure Online</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentMethod('cash')}
+                                        className={`p-3 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${paymentMethod === 'cash' ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 hover:border-green-200'}`}
+                                    >
+                                        <Wallet size={20} />
+                                        <span className="text-sm font-bold">Cash</span>
+                                    </button>
+                                </div>
+                                {paymentMethod === 'online' && <p className="text-xs text-gray-500 mt-1">Funds held in escrow until you verify item.</p>}
+                            </div>
+                        )}
+
+                        {/* Shipping Address Selection */}
+                        {orderType === 'shipping' && (
+                            <div className="space-y-3">
+                                <label className="block text-sm font-medium text-gray-700">Shipping Address</label>
+                                <div className="max-h-[200px] overflow-y-auto border border-gray-100 rounded-xl p-2 bg-gray-50/50">
+                                    <AddressList
+                                        selectable
+                                        selectedId={shippingAddress?.id}
+                                        onSelect={(addr: any) => setShippingAddress(addr)} // any cast for simplicity as Address type is local to List or we export it
+                                    />
+                                </div>
+                                {!shippingAddress?.id && (
+                                    <p className="text-xs text-red-500">Please select a shipping address</p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Summary */}
+                        <div className="bg-gray-50 p-4 rounded-xl space-y-2">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Product</span>
+                                <span>${product.price.toFixed(2)}</span>
+                            </div>
+                            {shippingFee > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Shipping</span>
+                                    <span>${shippingFee.toFixed(2)}</span>
+                                </div>
+                            )}
+                            {platformFee > 0 && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Protection Verify Fee (3%)</span>
+                                    <span>${platformFee.toFixed(2)}</span>
+                                </div>
+                            )}
+                            <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg">
+                                <span>Total</span>
+                                <span>${total.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleCreateOrder}
+                            disabled={isLoading || (orderType === 'shipping' && !shippingAddress?.id)}
+                            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isLoading ? <span className="animate-spin">⌛</span> : (
+                                paymentMethod === 'online' ? 'Proceed to Pay' : 'Confirm Order'
+                            )}
+                        </button>
+                    </div>
+                );
+
+            case 'payment':
+                return (
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                            <button onClick={() => setStep('details')} className="p-1 hover:bg-gray-100 rounded-full">
+                                <ArrowLeft size={20} />
+                            </button>
+                            <h3 className="text-lg font-bold">Secure Payment</h3>
+                        </div>
+                        {clientSecret && createdOrder && (
+                            <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                                <CheckoutForm
+                                    product={product}
+                                    orderId={createdOrder.id}
+                                    clientSecret={clientSecret}
+                                    onSuccess={() => setStep('success')}
+                                    onCancel={() => setStep('details')}
+                                />
+                            </Elements>
+                        )}
+                    </div>
+                );
+
+            case 'success':
+                return (
+                    <div className="text-center py-8 space-y-4">
+                        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                            <CheckCircle size={48} />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-800">Order Placed!</h3>
+                        <p className="text-gray-600">
+                            {orderType === 'meetup'
+                                ? "You can now arrange the meetup details with the seller."
+                                : "The seller has been notified to ship your item."}
+                        </p>
+                        <button onClick={() => { onClose(); navigate('/profile?tab=buying'); }} className="bg-brand-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-200">
+                            Go to Orders
+                        </button>
+                    </div>
+                );
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
-            <div className="relative bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-2 text-brand-600">
-                        <div className="bg-brand-50 p-2 rounded-full">
-                            <CreditCard size={20} />
-                        </div>
-                        <h2 className="text-xl font-black">Secure Checkout</h2>
-                    </div>
+            <div className="relative bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+                <div className="absolute top-4 right-4 z-10">
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
                         <X size={20} />
                     </button>
                 </div>
-
-                {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12 gap-4 text-gray-400">
-                        <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
-                        <p className="text-sm font-medium">Preparing secure payment...</p>
-                    </div>
-                ) : initError ? (
-                    <div className="text-center py-8">
-                        <div className="text-red-500 mb-2 font-bold">Error</div>
-                        <p className="text-gray-600 text-sm mb-4">{initError}</p>
-                        <button onClick={onClose} className="text-brand-600 font-bold hover:underline">Close</button>
-                    </div>
-                ) : clientSecret ? (
-                    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-                        <CheckoutForm
-                            product={product}
-                            clientSecret={clientSecret}
-                            onSuccess={async (paymentIntent) => {
-                                // 1. Client-side Success Feedback first (Immediate)
-                                toast.success('Payment Successful! Order created.', {
-                                    duration: 4000,
-                                    position: 'top-center',
-                                    style: {
-                                        background: 'rgba(255, 255, 255, 0.9)',
-                                        backdropFilter: 'blur(10px)',
-                                        color: '#333',
-                                        fontWeight: 'bold',
-                                        borderRadius: '16px',
-                                        boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-                                    },
-                                    icon: '🎉',
-                                });
-
-                                // 2. Call Backend Verification
-                                try {
-                                    const { data: { session } } = await supabase.auth.getSession();
-                                    if (session && paymentIntent) {
-                                        await fetch(`${API_BASE_URL}/api/payment/verify`, {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'Authorization': `Bearer ${session.access_token}`
-                                            },
-                                            body: JSON.stringify({ paymentIntentId: paymentIntent.id })
-                                        });
-                                    }
-                                } catch (e) {
-                                    console.error("Verification trigger failed", e);
-                                }
-
-                                onClose();
-                            }}
-                            onCancel={onClose}
-                        />
-                    </Elements>
-                ) : null}
+                {renderStepContent()}
             </div>
         </div>
     );
-};
+}

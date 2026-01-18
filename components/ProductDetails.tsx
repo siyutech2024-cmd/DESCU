@@ -7,6 +7,7 @@ import { useRegion } from '../contexts/RegionContext';
 import { ReportModal } from './ReportModal';
 import { CheckoutModal } from './CheckoutModal';
 import { RatingModal } from './RatingModal';
+import { CreditBadge } from './CreditBadge';
 import { User } from '../types';
 import { canPurchaseProduct } from '../services/locationService';
 
@@ -34,6 +35,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
   // Check if user can purchase this product based on location
   const [purchaseEligibility, setPurchaseEligibility] = useState<{ canPurchase: boolean; reason?: string }>({ canPurchase: true });
+  const [sellerScore, setSellerScore] = useState(0);
 
   useEffect(() => {
     if (user && user.country && product.country) {
@@ -45,6 +47,16 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
         product.deliveryType
       );
       setPurchaseEligibility(eligibility);
+    }
+
+    // Fetch Seller Credit Score
+    if (product.seller && product.seller.id) {
+      import('../services/apiConfig').then(({ API_BASE_URL }) => {
+        fetch(`${API_BASE_URL}/api/users/${product.seller.id}/credit`)
+          .then(res => res.json())
+          .then(data => setSellerScore(data.score || 0))
+          .catch(err => console.error("Failed to fetch seller credit", err));
+      });
     }
   }, [user, product]);
 
@@ -258,6 +270,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('detail.seller')}</div>
               <div className="font-bold text-xl text-gray-900 flex items-center gap-1">
                 {product.seller.name}
+                <CreditBadge score={sellerScore} size="sm" />
               </div>
               <div className="text-sm text-gray-500 font-medium">{product.seller.email}</div>
               <button onClick={() => setIsRatingOpen(true)} className="mt-2 text-xs font-bold text-brand-600 border border-brand-200 px-3 py-1 rounded-full hover:bg-brand-50 transition-colors">

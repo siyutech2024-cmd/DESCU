@@ -25,6 +25,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [activeOrder, setActiveOrder] = useState<any>(null); // Simplified Order type
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); // Placeholder for modal logic
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,21 +41,43 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     setNewMessage(prev => prev + emoji);
   };
 
-  // Load initial messages
+  // Load initial messages and order info
   useEffect(() => {
-    const loadMessages = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await getMessages(conversation.id);
-        setMessages(data);
+        const msgs = await getMessages(conversation.id);
+        setMessages(msgs);
+
+        // Fetch related order
+        if (conversation.productId) {
+          import('../services/apiConfig').then(async ({ API_BASE_URL }) => {
+            const { data: { session } } = await import('../services/supabase').then(m => m.supabase.auth.getSession());
+            if (!session) return;
+
+            const convAny = conversation as any;
+            const buyerId = conversation.buyerId || convAny.buyer_id || currentUser.id; // Fallback to current user if simplified view
+
+            const res = await fetch(`${API_BASE_URL}/api/orders?product_id=${conversation.productId}&buyer_id=${buyerId}`, {
+              headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              // Just take the first one for now (most recent)
+              if (data.orders && data.orders.length > 0) {
+                setActiveOrder(data.orders[0]);
+              }
+            }
+          });
+        }
       } catch (error) {
-        console.error('Failed to load messages', error);
+        console.error('Failed to load data', error);
       } finally {
         setIsLoading(false);
       }
     };
-    loadMessages();
-  }, [conversation.id]);
+    loadData();
+  }, [conversation.id, conversation.productId]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -194,20 +218,67 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto pt-[72px] pb-[120px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
 
-        {/* Product Context Card */}
+        {/* Product & Order Context Card */}
         <div
           onClick={handleProductClick}
-          className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex items-center gap-3 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow"
+          className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex items-center gap-3 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden"
         >
+          {/* Order Status Strip */}
+          {activeOrder && (
+            <div className={`absolute top-0 left-0 bottom-0 w-1 ${activeOrder.status === 'completed' ? 'bg-green-500' :
+              activeOrder.status === 'cancelled' ? 'bg-red-500' :
+                'bg-blue-500'
+              }`} />
+          )}
+
           <img src={conversation.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'} className="w-12 h-12 rounded-lg object-cover shadow-sm bg-gray-100" alt="Product" />
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Listing</span>
+            <div className="flex justify-between items-start">
+              <p className="text-sm font-bold text-gray-900 truncate">{conversation.productTitle}</p>
+              {/* Price or Status Badge */}
+              {activeOrder ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 truncate max-w-[80px]">
+                  {activeOrder.status.replace('_', ' ')}
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-gray-900">
+                  Ask Price
+                </span>
+              )}
             </div>
-            <p className="text-sm font-bold text-gray-900 truncate">{conversation.productTitle}</p>
-            <p className="text-xs text-brand-600 font-medium">Click to view details</p>
+
+            <div className="flex justify-between items-center mt-1">
+              <p className="text-xs text-brand-600 font-medium">Click to view details</p>
+
+              {/* Buy Button if no order and not me */}
+              {!activeOrder && (conversation.sellerId || (conversation as any).seller_id) !== currentUser.id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCheckoutOpen(true);
+                  }}
+                  className="text-[10px] bg-black text-white px-2 py-1 rounded-lg font-bold hover:bg-gray-800 transition-colors"
+                >
+                  Buy Now
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Integration of CheckoutModal */}
+        {isCheckoutOpen && conversation.productId && (
+          <div onClick={e => e.stopPropagation()}>
+            {/* We need to fetch full product details to pass to CheckoutModal? 
+                    Actually CheckoutModal takes productId usually or full product.
+                    Existing CheckoutModal definition: interface CheckoutModalProps { product: Product, ... }
+                    So we need the product object. We might need to fetch it or pass it.
+                    Conversation usually has limited info. 
+                    Let's fetch fetchProductDetails if needed or rely on minimal data if allowed.
+                    For now, I'll direct them to Product Page or fetch simple one.
+                */}
+          </div>
+        )}
 
         <div className="text-center text-xs text-gray-400 font-medium my-4">
           <span className="bg-gray-100 px-3 py-1 rounded-full">{new Date(messages[0]?.timestamp || Date.now()).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>

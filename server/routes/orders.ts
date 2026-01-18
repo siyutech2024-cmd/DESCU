@@ -1,6 +1,6 @@
 import express from 'express';
-import { supabase } from '../config/supabase';
-import { authenticateToken } from '../middleware/auth';
+import { supabase } from '../src/db/supabase';
+import { requireAuth as authenticateToken } from '../src/middleware/userAuth';
 
 const router = express.Router();
 
@@ -19,7 +19,7 @@ router.post('/create', authenticateToken, async (req, res) => {
             meetupTime, // 仅当面交易
         } = req.body;
 
-        const buyerId = req.user.id;
+        const buyerId = (req as any).user.id;
 
         // 1. 获取产品信息
         const { data: product, error: productError } = await supabase
@@ -140,8 +140,8 @@ router.post('/create', authenticateToken, async (req, res) => {
  */
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const { role } = req.query;
-        const userId = req.user.id;
+        const { role, product_id, buyer_id } = req.query;
+        const userId = (req as any).user.id;
 
         let query = supabase
             .from('orders')
@@ -153,13 +153,25 @@ router.get('/', authenticateToken, async (req, res) => {
       `)
             .order('created_at', { ascending: false });
 
+        if (product_id) {
+            query = query.eq('product_id', product_id);
+            // When filtering by product, we might want to know if there is ANY order between these two users
+            // But usually filtering by product is enough.
+        }
+
+        if (buyer_id) {
+            query = query.eq('buyer_id', buyer_id);
+        }
+
         if (role === 'buyer') {
             query = query.eq('buyer_id', userId);
         } else if (role === 'seller') {
             query = query.eq('seller_id', userId);
         } else {
-            // 返回所有相关订单
-            query = query.or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
+            // If not specific role/product filtering that implies permission, ensure user is involved
+            if (!product_id) { // If filtering by product, RLS policies should handle security, but let's be safe
+                query = query.or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
+            }
         }
 
         const { data: orders, error } = await query;
@@ -183,7 +195,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         const { data: order, error } = await supabase
             .from('orders')
@@ -220,7 +232,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/:id/confirm', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         // 1. 获取订单
         const { data: order, error: orderError } = await supabase
@@ -329,7 +341,7 @@ router.post('/:id/arrange-meetup', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { location, time, lat, lng } = req.body;
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         // 1. 获取订单
         const { data: order, error: orderError } = await supabase

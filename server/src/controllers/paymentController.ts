@@ -415,6 +415,11 @@ export const confirmOrder = async (req: Request, res: Response) => {
             })
             .eq('id', orderId);
 
+        // 4. Update Credit Score (Seller +10)
+        await import('../services/creditService').then(({ updateCreditScore }) => {
+            updateCreditScore(order.seller_id, 10, 'order_completion', order.id);
+        });
+
         res.json({ success: true, status: newStatus });
 
     } catch (error: any) {

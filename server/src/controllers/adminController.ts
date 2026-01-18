@@ -611,6 +611,11 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
             await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
             await supabase.from('disputes').update({ status: 'resolved_refund', description: adminNote }).eq('id', disputeId);
 
+            // Deduct Credit (Seller Lost)
+            await import('../services/creditService').then(({ updateCreditScore }) => {
+                updateCreditScore(order.seller_id, -20, 'dispute_lost', disputeId);
+            });
+
         } else if (action === 'release') {
             // B. Release to Seller
             // Similar logic to confirmOrder in paymentController
@@ -638,6 +643,11 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
             // Update DB
             await supabase.from('orders').update({ status: 'completed' }).eq('id', order.id);
             await supabase.from('disputes').update({ status: 'resolved_release', description: adminNote }).eq('id', disputeId);
+
+            // Add Credit (Seller Won)
+            await import('../services/creditService').then(({ updateCreditScore }) => {
+                updateCreditScore(order.seller_id, 5, 'dispute_won', disputeId);
+            });
 
         } else {
             return res.status(400).json({ error: 'Invalid action' });

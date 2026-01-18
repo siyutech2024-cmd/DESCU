@@ -128,6 +128,10 @@ app.use('/api/orders', ordersRouter);
 import stripeRouter from '../routes/stripe';
 app.use('/api/stripe', stripeRouter);
 
+// New User Routes (Address Management)
+import usersRouter from '../routes/users';
+app.use('/api/users', usersRouter);
+
 // Admin Endpoints
 // Dashboard
 app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);

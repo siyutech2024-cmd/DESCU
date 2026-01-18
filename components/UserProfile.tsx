@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import OrderList from './OrderList';
 import { PayoutModal } from './PayoutModal';
+import { CreditBadge } from './CreditBadge';
 import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -61,11 +62,21 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [bankDetails, setBankDetails] = useState({ bankName: '', accountNumber: '', holderName: '' });
   const [isSavingBank, setIsSavingBank] = useState(false);
   const [ratingStats, setRatingStats] = useState({ total_reviews: 0, average_rating: 0 });
+  const [creditScore, setCreditScore] = useState<number>(0);
 
-  // Load Rating Stats
+  // Load Rating Stats & Credit Score
   useEffect(() => {
+    // Ratings
     import('../services/ratingService').then(({ getUserRatingStats }) => {
       getUserRatingStats(user.id).then(setRatingStats);
+    });
+
+    // Credit Score
+    import('../services/apiConfig').then(({ API_BASE_URL }) => {
+      fetch(`${API_BASE_URL}/api/users/${user.id}/credit`)
+        .then(res => res.json())
+        .then(data => setCreditScore(data.score || 0))
+        .catch(console.error);
     });
   }, [user.id]);
 
@@ -193,6 +204,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                   <Star size={16} fill="currentColor" />
                 </div>
                 <span className="font-bold text-gray-900">{ratingStats.average_rating ? Number(ratingStats.average_rating).toFixed(1) : 'New'}</span>
+                <span className="text-gray-300">|</span>
+                <CreditBadge score={creditScore} showLabel />
               </div>
               <span className="text-xs font-bold text-orange-600 bg-white px-2 py-1 rounded-full shadow-sm">
                 {ratingStats.total_reviews} Reviews
@@ -340,8 +353,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         )}
 
         {/* New Order Lists */}
-        {activeTab === 'buying' && <div className="min-h-[200px]"><OrderList role="buyer" /></div>}
-        {activeTab === 'selling' && <div className="min-h-[200px]"><OrderList role="seller" /></div>}
+        {activeTab === 'buying' && <div className="min-h-[200px]"><OrderList role="buyer" currentUser={user} /></div>}
+        {activeTab === 'selling' && <div className="min-h-[200px]"><OrderList role="seller" currentUser={user} /></div>}
 
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Settings & Account</h3>

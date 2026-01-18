@@ -1,13 +1,13 @@
 import express from 'express';
 import Stripe from 'stripe';
-import { supabase } from '../config/supabase';
-import { authenticateToken } from '../middleware/auth';
+import { supabase } from '../src/db/supabase';
+import { requireAuth as authenticateToken } from '../src/middleware/userAuth';
 
 const router = express.Router();
 
 // 初始化Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2024-12-18.acacia',
+    apiVersion: '2025-12-15.clover' as any, // Cast to any to be safe if types are slightly off, but try without first? error said assignable to "2025-12-15.clover", so string literal should work.
 });
 
 /**
@@ -23,7 +23,7 @@ router.post('/add-bank-account', authenticateToken, async (req, res) => {
             accountHolderType = 'individual',
         } = req.body;
 
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         // 1. 检查是否已有Stripe账户
         const { data: existingAccount } = await supabase
@@ -119,7 +119,7 @@ router.post('/add-bank-account', authenticateToken, async (req, res) => {
  */
 router.get('/account-status', authenticateToken, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         const { data: account } = await supabase
             .from('stripe_accounts')
@@ -168,7 +168,7 @@ router.get('/account-status', authenticateToken, async (req, res) => {
 router.post('/create-payment-intent', authenticateToken, async (req, res) => {
     try {
         const { orderId } = req.body;
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         // 1. 获取订单信息
         const { data: order, error: orderError } = await supabase
@@ -238,7 +238,7 @@ router.post('/create-payment-intent', authenticateToken, async (req, res) => {
 router.post('/confirm-payment', authenticateToken, async (req, res) => {
     try {
         const { orderId, paymentIntentId } = req.body;
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         // 1. 验证Payment Intent
         const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -376,7 +376,7 @@ router.post('/transfer-to-seller', authenticateToken, async (req, res) => {
  */
 router.delete('/remove-bank-account', authenticateToken, async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = (req as any).user.id;
 
         const { data: account } = await supabase
             .from('stripe_accounts')
