@@ -465,6 +465,13 @@ app.post('/api/orders/create', requireAuth, async (req: any, res) => {
             await supabase.from('conversations').insert({ product_id: productId, buyer_id: buyerId, seller_id: product.seller_id });
         }
 
+        // 🔔 发送订单创建通知到聊天
+        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+            notifyOrderStatus(order.id, 'created').catch((err: any) => {
+                console.error('[CreateOrder] Failed to send notification:', err);
+            });
+        }).catch(console.error);
+
         res.json({ order, success: true, requiresPayment: paymentMethod === 'online' });
     } catch (error: any) {
         console.error('Create order error:', error);
@@ -534,9 +541,20 @@ app.post('/api/orders/:id/confirm', requireAuth, async (req: any, res) => {
             order_id: id, event_type: isBuyer ? 'buyer_confirmed' : 'seller_confirmed', description: `${isBuyer ? 'Buyer' : 'Seller'} confirmed`, created_by: userId
         });
 
+        // 🔔 发送确认通知
+        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+            notifyOrderStatus(id, 'confirmed', { confirmedBy: isBuyer ? 'buyer' : 'seller' }).catch(console.error);
+        }).catch(console.error);
+
         if (updatedOrder.buyer_confirmed_at && updatedOrder.seller_confirmed_at) {
             const { data: completedOrder } = await supabase.from('orders').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id).select().single();
             await supabase.from('order_timeline').insert({ order_id: id, event_type: 'completed', description: 'Order Completed', created_by: userId });
+
+            // 🔔 发送完成通知
+            import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+                notifyOrderStatus(id, 'completed').catch(console.error);
+            }).catch(console.error);
+
             return res.json({ message: 'Order Completed', order: completedOrder, completed: true });
         }
 
@@ -566,6 +584,11 @@ app.post('/api/orders/:id/arrange-meetup', requireAuth, async (req: any, res) =>
         await supabase.from('order_timeline').insert({
             order_id: id, event_type: 'meetup_arranged', description: `Meetup Arranged: ${location}`, created_by: userId, metadata: { location, time }
         });
+
+        // 🔔 发送见面安排通知
+        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+            notifyOrderStatus(id, 'meetup_arranged', { location, time }).catch(console.error);
+        }).catch(console.error);
         res.json({ order: updatedOrder });
     } catch (error: any) {
         console.error('Arrange meetup error:', error);
