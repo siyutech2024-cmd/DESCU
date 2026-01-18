@@ -224,7 +224,7 @@ app.get('/api/admin/payouts', requireAdmin, async (req: any, res) => {
         if (error) throw error;
 
         // Calculate payout amounts (total - platform fee)
-        const payouts = (orders || []).map(order => ({
+        const payouts = (orders || []).map((order: any) => ({
             ...order,
             payoutAmount: order.total_amount - (order.platform_fee || order.total_amount * 0.05),
             sellerBank: order.seller?.sellers?.[0] || null
