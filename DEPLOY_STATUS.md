@@ -52,6 +52,8 @@
 - **Fix 5**: 修复个人中心崩溃 (Profile Page Crash) - 增加金额显示的空值安全检查 (`toFixed` error)。
 - **Fix 6**: 修复结账页地址保存无反应 - 优化地址表单容器布局，防止按钮不可点击，增加错误提示。
 - **Fix 7**: 修复 API 路由缺失与 500 错误 - 针对 Vercel 环境重构了路由逻辑 (Inlined Orders, Stripe, Users routes)，并增加了详细的错误日志返回。
+- **Fix 8**: 修复 "Table user_addresses not found" - 提供了 SQL 补丁 (`server/migrations/hotfixes/01_restore_missing_tables.sql`) 手动重建缺失的表。
+- **Fix 9**: 修复 "Product not found" (关联错误) - 提供了 SQL 补丁 (`server/migrations/hotfixes/02_fix_products_users_relation.sql`) 修复 Products 与 Users 的外键关联。
 
 
 ## 🔗 部署链接
