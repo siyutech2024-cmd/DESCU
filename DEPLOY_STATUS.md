@@ -48,7 +48,7 @@
 - **Fix 2**: 结账按钮反馈优化 (禁用状态明确提示)
 - **Fix 3**: 聊天页当面交易卡片 & 快捷入口
 - **Fix 4**: 个人中心订单列表验证
-- **Hotfix**: 修复 `ChatWindow.tsx` 构建错误 (Commit `1642c6c`)
+- **Hotfix (v2)**: 修复 `ChatWindow.tsx` 剩余的构建错误 (Commit `4621d5d`) - 还原了缺失的 handlers 和 state。
 
 
 ## 🔗 部署链接
