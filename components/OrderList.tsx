@@ -65,8 +65,11 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
             {orders.length === 0 && <div className="text-center text-gray-500 py-8">No orders found.</div>}
 
             {orders.map(order => (
-                <div key={order.id} className="relative group">
-                    <OrderStatusCard
+                <div
+                    key={order.id}
+                    className="relative group cursor-pointer hover:scale-[1.01] transition-transform"
+                    onClick={() => navigate(`/product/${order.product_id}`)}
+                >                    <OrderStatusCard
                         order={order}
                         currentUser={currentUser}
                         onStatusChange={fetchOrders}

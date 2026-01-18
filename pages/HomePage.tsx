@@ -104,6 +104,47 @@ export const HomePage: React.FC<HomePageProps> = ({
                         <option value="Global">Global</option>
                     </select>
                 </div>
+
+                {/* 重新定位按钮 */}
+                <button
+                    onClick={async () => {
+                        if (confirm('重新获取您的位置？')) {
+                            try {
+                                const res = await fetch('https://ipapi.co/json/');
+                                const data = await res.json();
+
+                                const { supabase } = await import('../services/supabase');
+                                const { data: { session } } = await supabase.auth.getSession();
+
+                                if (session) {
+                                    const { API_BASE_URL } = await import('../services/apiConfig');
+                                    await fetch(`${API_BASE_URL}/api/users/update-location`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': `Bearer ${session.access_token}`
+                                        },
+                                        body: JSON.stringify({
+                                            country: data.country_code,
+                                            city: data.city,
+                                            lat: data.latitude,
+                                            lng: data.longitude
+                                        })
+                                    });
+                                    alert('位置已更新！');
+                                    window.location.reload();
+                                }
+                            } catch (err) {
+                                console.error('定位失败:', err);
+                                alert('定位失败，请重试');
+                            }
+                        }
+                    }}
+                    className="mt-2 md:hidden flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                >
+                    <MapPin size={16} />
+                    <span>重新定位</span>
+                </button>
             </div>
 
             {/* Category Filter - Glass Pills */}

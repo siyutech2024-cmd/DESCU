@@ -551,6 +551,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </button>
         </form>
       </div>
+
+      {/* Checkout Modal */}
+      {isCheckoutOpen && conversation.productId && (
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          product={{ id: conversation.productId } as any}
+          user={currentUser}
+          onClose={() => {
+            setIsCheckoutOpen(false);
+            // Refresh to show order
+            setTimeout(() => window.location.reload(), 500);
+          }}
+        />
+      )}
     </div>
   );
 };

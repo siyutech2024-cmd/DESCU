@@ -109,7 +109,8 @@ app.get('/api/products/:id', getProductById);
 app.post('/api/conversations', createConversation);
 app.get('/api/users/:userId/conversations', getUserConversations);
 app.post('/api/messages', sendMessage);
-app.get('/api/conversations/:conversationId/messages', getMessages);
+app.get('/api/conversations/:conversationId/messages', getMessages); // Old route
+app.get('/api/messages/:conversationId', getMessages); // New route - matches frontend
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
 
 
