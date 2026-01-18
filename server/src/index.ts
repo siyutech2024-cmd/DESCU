@@ -120,6 +120,10 @@ app.get('/api/orders/health', ordersHealthCheck);
 app.post('/api/disputes', requireAuth, createDispute);
 app.post('/api/payment/verify', requireAuth, verifyPayment);
 
+// New Transaction System Orders Routes
+import ordersRouter from '../routes/orders';
+app.use('/api/orders', ordersRouter);
+
 // Admin Endpoints
 // Dashboard
 app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);
