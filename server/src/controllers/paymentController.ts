@@ -513,7 +513,7 @@ export const getUserOrders = async (req: Request, res: Response) => {
         // 1. Fetch Orders
         let query = client
             .from('orders')
-            .select('*, products(*)');
+            .select('*, product:products(*)');
 
         if (role === 'seller') {
             query = query.eq('seller_id', userId);
