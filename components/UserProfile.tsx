@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import OrderList from './OrderList';
+import { StripeExpressCard } from './StripeExpressCard';
 import { CreditBadge } from './CreditBadge';
 import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart } from 'lucide-react';
 import { User, Product } from '../types';
@@ -406,115 +407,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Settings & Account</h3>
 
-          {/* Premium Bank Info Section */}
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 p-6 mb-4 shadow-lg">
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-xl"></div>
-
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <CreditCard size={24} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">收款账户 / Cuenta Bancaria</h2>
-                  <p className="text-emerald-100 text-sm">Recibe pagos directamente</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveBankDetails} className="space-y-4">
-                {/* Bank Name */}
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                  <label className="block text-emerald-100 text-sm font-medium mb-2">
-                    🏦 Banco / 银行
-                  </label>
-                  <select
-                    value={bankDetails.bankName}
-                    onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl bg-white/90 border-0 text-gray-800 font-medium focus:ring-2 focus:ring-white/50 outline-none transition-all"
-                  >
-                    <option value="">Selecciona tu banco...</option>
-                    <option value="BBVA">BBVA México</option>
-                    <option value="Santander">Santander</option>
-                    <option value="Banorte">Banorte</option>
-                    <option value="HSBC">HSBC México</option>
-                    <option value="Citibanamex">Citibanamex</option>
-                    <option value="Scotiabank">Scotiabank</option>
-                    <option value="Banco Azteca">Banco Azteca</option>
-                    <option value="Inbursa">Inbursa</option>
-                    <option value="Nu Bank">Nu Bank</option>
-                    <option value="Mercado Pago">Mercado Pago</option>
-                    <option value="Other">Otro</option>
-                  </select>
-                </div>
-
-                {/* CLABE */}
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                  <label className="block text-emerald-100 text-sm font-medium mb-2">
-                    🔢 CLABE Interbancaria
-                  </label>
-                  <input
-                    type="text"
-                    value={bankDetails.accountNumber}
-                    onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value.replace(/\D/g, '').slice(0, 18) })}
-                    placeholder="000000000000000000"
-                    maxLength={18}
-                    className="w-full px-4 py-3 rounded-xl bg-white/90 border-0 text-gray-800 font-mono text-lg tracking-wider focus:ring-2 focus:ring-white/50 outline-none transition-all"
-                  />
-                  {/* Progress indicator */}
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-white rounded-full transition-all duration-300"
-                        style={{ width: `${(bankDetails.accountNumber.length / 18) * 100}%` }}
-                      ></div>
-                    </div>
-                    <span className={`text-xs font-bold ${bankDetails.accountNumber.length === 18 ? 'text-white' : 'text-emerald-200'}`}>
-                      {bankDetails.accountNumber.length}/18
-                    </span>
-                    {bankDetails.accountNumber.length === 18 && (
-                      <Check size={14} className="text-white" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Account Holder */}
-                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
-                  <label className="block text-emerald-100 text-sm font-medium mb-2">
-                    👤 Titular de la cuenta / 账户持有人
-                  </label>
-                  <input
-                    type="text"
-                    value={bankDetails.holderName}
-                    onChange={(e) => setBankDetails({ ...bankDetails, holderName: e.target.value })}
-                    placeholder="Nombre completo"
-                    className="w-full px-4 py-3 rounded-xl bg-white/90 border-0 text-gray-800 font-medium focus:ring-2 focus:ring-white/50 outline-none transition-all"
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isSavingBank || bankDetails.accountNumber.length !== 18 || !bankDetails.holderName || !bankDetails.bankName}
-                  className="w-full bg-white text-emerald-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
-                >
-                  {isSavingBank ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : (
-                    <Save size={20} />
-                  )}
-                  <span>Guardar cuenta / 保存账户</span>
-                </button>
-
-                {/* Security note */}
-                <p className="text-center text-emerald-100/80 text-xs flex items-center justify-center gap-1">
-                  <ShieldCheck size={12} />
-                  Tus datos están protegidos / 您的数据已加密保护
-                </p>
-              </form>
-            </div>
-          </div>
+          {/* Stripe Express Payout Section */}
+          <StripeExpressCard userId={user.id} />
 
           {/* Verification Banner */}
           <div className={`rounded-xl p-5 mb-8 border transition-all ${user.isVerified ? 'bg-blue-50 border-blue-100' : 'bg-gray-100 border-gray-200'}`}>

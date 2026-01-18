@@ -879,6 +879,209 @@ app.get('/api/stripe/account-status', requireAuth, async (req: any, res) => {
     }
 });
 
+// ==================================================================
+// STRIPE EXPRESS CONNECT ENDPOINTS
+// ==================================================================
+
+// Create Express Account and return onboarding link
+app.post('/api/stripe/create-express-account', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { data: user } = await supabase.from('users').select('email, name').eq('id', userId).single();
+
+        if (!user?.email) {
+            return res.status(400).json({ error: 'User email required' });
+        }
+
+        // Check if account already exists
+        const { data: existingSeller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id, onboarding_complete')
+            .eq('user_id', userId)
+            .single();
+
+        let stripeAccountId: string;
+
+        if (existingSeller?.stripe_connect_id) {
+            // Account exists, check if onboarding complete
+            stripeAccountId = existingSeller.stripe_connect_id;
+
+            const account = await stripe.accounts.retrieve(stripeAccountId);
+            if (account.details_submitted) {
+                return res.json({
+                    success: true,
+                    accountId: stripeAccountId,
+                    onboardingComplete: true,
+                    message: 'Account already set up'
+                });
+            }
+        } else {
+            // Create new Express account
+            const account = await stripe.accounts.create({
+                type: 'express',
+                country: 'MX',
+                email: user.email,
+                capabilities: {
+                    card_payments: { requested: true },
+                    transfers: { requested: true },
+                },
+                business_type: 'individual',
+                metadata: {
+                    user_id: userId,
+                    platform: 'DESCU'
+                }
+            });
+
+            stripeAccountId = account.id;
+
+            // Save to sellers table
+            await supabase.from('sellers').upsert({
+                user_id: userId,
+                stripe_connect_id: stripeAccountId,
+                stripe_account_status: 'pending',
+                onboarding_complete: false
+            }, { onConflict: 'user_id' });
+        }
+
+        // Generate Account Link for onboarding
+        const baseUrl = process.env.VITE_API_URL || 'https://www.descu.ai';
+        const accountLink = await stripe.accountLinks.create({
+            account: stripeAccountId,
+            refresh_url: `${baseUrl}/profile?stripe_refresh=true`,
+            return_url: `${baseUrl}/profile?stripe_success=true`,
+            type: 'account_onboarding',
+        });
+
+        console.log('[StripeExpress] Created account link for user:', userId);
+
+        res.json({
+            success: true,
+            accountId: stripeAccountId,
+            onboardingUrl: accountLink.url,
+            expiresAt: accountLink.expires_at
+        });
+
+    } catch (error: any) {
+        console.error('Create Express account error:', error);
+        res.status(500).json({ error: 'Failed to create account', message: error.message });
+    }
+});
+
+// Get Express account status
+app.get('/api/stripe/express-status', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id, onboarding_complete, stripe_account_status')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller?.stripe_connect_id) {
+            return res.json({
+                hasAccount: false,
+                onboardingComplete: false,
+                payoutsEnabled: false
+            });
+        }
+
+        // Get latest status from Stripe
+        const account = await stripe.accounts.retrieve(seller.stripe_connect_id);
+
+        const status = {
+            hasAccount: true,
+            accountId: seller.stripe_connect_id,
+            onboardingComplete: account.details_submitted || false,
+            payoutsEnabled: account.payouts_enabled || false,
+            chargesEnabled: account.charges_enabled || false,
+            requirements: account.requirements?.currently_due || [],
+            email: account.email
+        };
+
+        // Update local status if changed
+        if (account.details_submitted !== seller.onboarding_complete) {
+            await supabase.from('sellers').update({
+                onboarding_complete: account.details_submitted,
+                stripe_account_status: account.payouts_enabled ? 'active' : 'pending'
+            }).eq('user_id', userId);
+        }
+
+        res.json(status);
+
+    } catch (error: any) {
+        console.error('Get Express status error:', error);
+        res.status(500).json({ error: 'Failed to get status', message: error.message });
+    }
+});
+
+// Refresh Account Link (if expired)
+app.post('/api/stripe/refresh-account-link', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller?.stripe_connect_id) {
+            return res.status(404).json({ error: 'No Stripe account found' });
+        }
+
+        const baseUrl = process.env.VITE_API_URL || 'https://www.descu.ai';
+        const accountLink = await stripe.accountLinks.create({
+            account: seller.stripe_connect_id,
+            refresh_url: `${baseUrl}/profile?stripe_refresh=true`,
+            return_url: `${baseUrl}/profile?stripe_success=true`,
+            type: 'account_onboarding',
+        });
+
+        res.json({
+            success: true,
+            onboardingUrl: accountLink.url,
+            expiresAt: accountLink.expires_at
+        });
+
+    } catch (error: any) {
+        console.error('Refresh account link error:', error);
+        res.status(500).json({ error: 'Failed to refresh link', message: error.message });
+    }
+});
+
+// Create Stripe Dashboard login link (for sellers to view their dashboard)
+app.get('/api/stripe/dashboard-link', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id, onboarding_complete')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller?.stripe_connect_id) {
+            return res.status(404).json({ error: 'No Stripe account found' });
+        }
+
+        if (!seller.onboarding_complete) {
+            return res.status(400).json({ error: 'Please complete onboarding first' });
+        }
+
+        const loginLink = await stripe.accounts.createLoginLink(seller.stripe_connect_id);
+
+        res.json({
+            success: true,
+            dashboardUrl: loginLink.url
+        });
+
+    } catch (error: any) {
+        console.error('Create dashboard link error:', error);
+        res.status(500).json({ error: 'Failed to create dashboard link', message: error.message });
+    }
+});
+
 app.post('/api/stripe/create-payment-intent', requireAuth, async (req: any, res) => {
     try {
         const { orderId } = req.body;
