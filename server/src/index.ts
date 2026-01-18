@@ -124,6 +124,10 @@ app.post('/api/payment/verify', requireAuth, verifyPayment);
 import ordersRouter from '../routes/orders';
 app.use('/api/orders', ordersRouter);
 
+// New Transaction System Stripe Routes
+import stripeRouter from '../routes/stripe';
+app.use('/api/stripe', stripeRouter);
+
 // Admin Endpoints
 // Dashboard
 app.get('/api/admin/dashboard/stats', requireAdmin, getDashboardStats);
