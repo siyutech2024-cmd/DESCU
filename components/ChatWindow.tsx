@@ -268,7 +268,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* Floating Input Area - FIXED TO VIEWPORT BOTTOM */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 to-transparent z-[100] sm:absolute sm:bottom-0 sm:left-0 sm:right-0 pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 to-transparent z-[150] sm:absolute sm:bottom-0 sm:left-0 sm:right-0 pb-[calc(env(safe-area-inset-bottom)+88px)] md:pb-4">
 
         {/* Emoji Picker Popover */}
         {showEmojiPicker && (

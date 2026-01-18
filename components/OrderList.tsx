@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { API_BASE_URL } from '../services/apiConfig';
 // import { useAuth } from '../contexts/AuthContext'; // Removed unused context
@@ -7,6 +8,7 @@ import { DisputeModal } from './DisputeModal';
 
 interface Order {
     id: string;
+    product_id?: string;
     amount: number;
     currency: string;
     status: string;
@@ -24,6 +26,7 @@ interface OrderListProps {
 }
 
 const OrderList: React.FC<OrderListProps> = ({ role }) => {
+    const navigate = useNavigate();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -165,7 +168,15 @@ const OrderList: React.FC<OrderListProps> = ({ role }) => {
             {orders.length === 0 && <div className="text-center text-gray-500 py-8">暂无订单</div>}
 
             {orders.map(order => (
-                <div key={order.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div
+                    key={order.id}
+                    onClick={() => {
+                        if (order.product_id) {
+                            navigate(`/product/${order.product_id}`);
+                        }
+                    }}
+                    className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.99]"
+                >
                     <div className="flex justify-between items-start mb-4">
                         <div className="flex gap-4">
                             <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
