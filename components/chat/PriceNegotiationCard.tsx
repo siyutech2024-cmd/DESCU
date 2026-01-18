@@ -40,7 +40,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                 body.counterPrice = parseFloat(counterInput);
             }
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/negotiations/${negotiationId}/respond`, {
+            const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/respond`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
