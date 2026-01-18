@@ -8,6 +8,9 @@ import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
+import { OrderStatusMessage } from './chat/OrderStatusMessage';
+import { PriceNegotiationCard } from './chat/PriceNegotiationCard';
+import { PriceNegotiationSender } from './chat/PriceNegotiationSender';
 
 interface ChatWindowProps {
   conversation: Conversation;
@@ -269,11 +272,44 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         {/* ... (Messages mapping remains same) ... */}
         {messages.map((msg, index) => {
-          // ... existing msg mapping ...
           const senderId = msg.senderId || msg.sender_id;
           const isMe = senderId === currentUser.id;
           const showAvatar = isMe ? false : (messages[index + 1]?.senderId || messages[index + 1]?.sender_id) !== senderId;
+          const messageType = msg.message_type || 'text';
 
+          // 系统消息（订单状态、议价等）- 居中显示
+          if (messageType !== 'text' && messageType !== 'system') {
+            return (
+              <div key={msg.id} className="flex justify-center my-3">
+                <div className="max-w-md w-full px-2">
+                  {messageType === 'order_status' && msg.content && (
+                    <OrderStatusMessage content={JSON.parse(msg.content)} />
+                  )}
+                  {messageType === 'price_negotiation' && msg.content && (
+                    <PriceNegotiationCard
+                      content={JSON.parse(msg.content)}
+                      isSeller={conversation.sellerId === currentUser.id}
+                      onUpdate={() => {
+                        // 重新加载消息
+                        getMessages(conversation.id).then(setMessages);
+                      }}
+                    />
+                  )}
+                  {messageType === 'price_negotiation_response' && msg.content && (
+                    <PriceNegotiationCard
+                      content={JSON.parse(msg.content)}
+                      isSeller={conversation.sellerId === currentUser.id}
+                      onUpdate={() => {
+                        getMessages(conversation.id).then(setMessages);
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // 普通文本消息
           return (
             <div
               key={msg.id}
@@ -294,12 +330,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                       : 'bg-white text-gray-800 border-none shadow-glass-sm rounded-2xl rounded-tl-sm'
                     }`}
                 >
-                  <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                  <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text || msg.content}</p>
 
                   <div className={`flex items-center gap-1 text-[10px] mt-1 select-none ${isMe ? 'justify-end text-brand-100' : 'justify-end text-gray-400'
                     }`}>
                     <span>
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isMe && (
                       <CheckCheck size={14} className={msg.is_read ? "text-white" : "text-brand-300/80"} />
