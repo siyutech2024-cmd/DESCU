@@ -11,6 +11,10 @@ import { MeetupArrangementModal } from './MeetupArrangementModal';
 import { OrderStatusMessage } from './chat/OrderStatusMessage';
 import { PriceNegotiationCard } from './chat/PriceNegotiationCard';
 import { PriceNegotiationSender } from './chat/PriceNegotiationSender';
+import { LocationCard } from './chat/LocationCard';
+import { LocationSender } from './chat/LocationSender';
+import { ImageSender } from './chat/ImageSender';
+import { ImagesMessage } from './chat/ImagesMessage';
 
 interface ChatWindowProps {
   conversation: Conversation;
@@ -36,6 +40,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); // Placeholder for modal logic
   const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false); // New state
   const [showNegotiation, setShowNegotiation] = useState(false); // For price negotiation
+  const [showLocation, setShowLocation] = useState(false); // For location sharing
+  const [showImages, setShowImages] = useState(false); // For image sharing
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -305,6 +311,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                       }}
                     />
                   )}
+                  {messageType === 'location' && msg.content && (
+                    <LocationCard content={JSON.parse(msg.content)} />
+                  )}
+                  {messageType === 'images' && msg.content && (
+                    <ImagesMessage content={JSON.parse(msg.content)} />
+                  )}
                 </div>
               </div>
             );
@@ -391,6 +403,34 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
 
+        {/* Location Sender Area */}
+        {showLocation && (
+          <div className="max-w-4xl mx-auto mb-3 px-2">
+            <LocationSender
+              conversationId={conversation.id}
+              onSent={() => {
+                setShowLocation(false);
+                getMessages(conversation.id).then(setMessages);
+              }}
+              onClose={() => setShowLocation(false)}
+            />
+          </div>
+        )}
+
+        {/* Image Sender Area */}
+        {showImages && (
+          <div className="max-w-4xl mx-auto mb-3 px-2">
+            <ImageSender
+              conversationId={conversation.id}
+              onSent={() => {
+                setShowImages(false);
+                getMessages(conversation.id).then(setMessages);
+              }}
+              onClose={() => setShowImages(false)}
+            />
+          </div>
+        )}
+
         <form
           onSubmit={handleSend}
           className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50"
@@ -398,14 +438,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           <button
             type="button"
             onClick={() => {
-              // Image Stub
-              const toast = document.createElement('div');
-              toast.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-6 py-3 rounded-full shadow-xl animate-fade-in z-[80] backdrop-blur-md';
-              toast.innerText = '📷 Image sharing coming soon!';
-              document.body.appendChild(toast);
-              setTimeout(() => toast.remove(), 2000);
+              setShowImages(!showImages);
+              setShowEmojiPicker(false);
+              setShowNegotiation(false);
+              setShowLocation(false);
             }}
-            className="p-2.5 text-gray-400 hover:text-brand-600 hover:bg-gray-100/50 rounded-full transition-colors active:scale-95"
+            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showImages ? 'text-purple-600 bg-purple-50' : 'text-gray-400 hover:text-brand-600 hover:bg-gray-100/50'}`}
           >
             <ImageIcon size={22} />
           </button>
@@ -425,6 +463,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               onClick={() => {
                 setShowNegotiation(!showNegotiation);
                 setShowEmojiPicker(false);
+                setShowLocation(false);
               }}
               className={`p-2.5 transition-colors active:scale-95 rounded-full ${showNegotiation ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
               title="议价"
@@ -432,6 +471,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               <DollarSign size={22} />
             </button>
           )}
+
+          {/* Location Share Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowLocation(!showLocation);
+              setShowEmojiPicker(false);
+              setShowNegotiation(false);
+            }}
+            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showLocation ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+            title="分享位置"
+          >
+            <MapPin size={22} />
+          </button>
 
           <input
             ref={inputRef}
