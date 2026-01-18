@@ -56,6 +56,7 @@
 - **Fix 9**: 修复 "Product not found" (关联错误) - 提供了 SQL 补丁 (`server/migrations/hotfixes/02_fix_products_users_relation.sql`) 修复 Products 与 Users 的外键关联。
 - **Fix 10**: 修复 "Column expires_at not found" - 提供了 SQL 补丁 (`patch_orders_schema.sql`) 补充 orders 表缺失的字段字段。
 - **Fix 11**: 修复 "Column amount not-null constraint" - 提供了 SQL 补丁 (`fix_legacy_amount_column.sql`) 解除了旧表结构中 `amount` 字段的非空限制。
+- **Fix 12**: 修复 "Product information unavailable" - 提供了 SQL 补丁 (`fix_orders_product_fk.sql`) 修复 orders 与 products 之间的外键丢失问题。
 
 
 ## 🔗 部署链接
