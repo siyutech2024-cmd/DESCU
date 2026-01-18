@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Send, CheckCheck, Loader2, MoreVertical, Phone, Video,
-  Image as ImageIcon, Smile, MapPin, Clock
+  Image as ImageIcon, Smile, MapPin, Clock, DollarSign
 } from 'lucide-react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -35,6 +35,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [activeOrder, setActiveOrder] = useState<any>(null); // Simplified Order type
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); // Placeholder for modal logic
   const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false); // New state
+  const [showNegotiation, setShowNegotiation] = useState(false); // For price negotiation
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -373,6 +374,23 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         )}
 
+
+        {/* Price Negotiation Area */}
+        {showNegotiation && conversation.productId && (
+          <div className="max-w-4xl mx-auto mb-3 px-2">
+            <PriceNegotiationSender
+              currentPrice={0} // TODO: Get actual product price
+              productId={conversation.productId}
+              conversationId={conversation.id}
+              onSent={() => {
+                setShowNegotiation(false);
+                // Refresh messages to show the new negotiation card
+                getMessages(conversation.id).then(setMessages);
+              }}
+            />
+          </div>
+        )}
+
         <form
           onSubmit={handleSend}
           className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50"
@@ -399,6 +417,21 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           >
             <Smile size={22} />
           </button>
+
+          {/* Price Negotiation Button (Only for buyer) */}
+          {conversation.buyerId === currentUser.id && conversation.productId && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowNegotiation(!showNegotiation);
+                setShowEmojiPicker(false);
+              }}
+              className={`p-2.5 transition-colors active:scale-95 rounded-full ${showNegotiation ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+              title="议价"
+            >
+              <DollarSign size={22} />
+            </button>
+          )}
 
           <input
             ref={inputRef}
