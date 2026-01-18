@@ -2,8 +2,8 @@
 CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-  buyer_id UUID REFERENCES users(id),
-  seller_id UUID REFERENCES users(id),
+  buyer_id UUID NOT NULL,
+  seller_id UUID NOT NULL,
   
   -- 订单类型
   order_type VARCHAR(20) CHECK (order_type IN ('meetup', 'shipping')),
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS order_timeline (
   event_type VARCHAR(50) NOT NULL,
   description TEXT,
   metadata JSONB,
-  created_by UUID REFERENCES users(id),
+  created_by UUID,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -93,7 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_timeline_created ON order_timeline(created_at DES
 -- Credit Scores table - 信用评分
 CREATE TABLE IF NOT EXISTS credit_scores (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) UNIQUE,
+  user_id UUID UNIQUE NOT NULL,
   score INTEGER DEFAULT 100,
   level VARCHAR(20) DEFAULT 'silver',
   
@@ -119,14 +119,14 @@ CREATE INDEX IF NOT EXISTS idx_credit_score ON credit_scores(score DESC);
 CREATE TABLE IF NOT EXISTS disputes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES users(id),
+  created_by UUID NOT NULL,
   dispute_type VARCHAR(50),
   description TEXT,
   evidence_urls TEXT[],
   
   status VARCHAR(20) DEFAULT 'pending',
   resolution_notes TEXT,
-  resolved_by UUID REFERENCES users(id),
+  resolved_by UUID,
   resolved_at TIMESTAMP,
   
   created_at TIMESTAMP DEFAULT NOW(),
@@ -141,7 +141,7 @@ CREATE INDEX IF NOT EXISTS idx_disputes_status ON disputes(status);
 -- Stripe Accounts table - 卖家银行账户
 CREATE TABLE IF NOT EXISTS stripe_accounts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) UNIQUE,
+  user_id UUID UNIQUE NOT NULL,
   stripe_account_id VARCHAR(255) UNIQUE,
   bank_account_last4 VARCHAR(4),
   bank_name VARCHAR(100),
@@ -263,18 +263,18 @@ CREATE TRIGGER update_stripe_accounts_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
--- 自动初始化用户信用分
-CREATE OR REPLACE FUNCTION init_user_credit_score()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO credit_scores (user_id, score, level)
-  VALUES (NEW.id, 100, 'silver')
-  ON CONFLICT (user_id) DO NOTHING;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- 自动初始化用户信用分 (需要在用户系统中手动调用)
+-- CREATE OR REPLACE FUNCTION init_user_credit_score()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--   INSERT INTO credit_scores (user_id, score, level)
+--   VALUES (NEW.id, 100, 'silver')
+--   ON CONFLICT (user_id) DO NOTHING;
+--   RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER init_credit_on_user_create
-  AFTER INSERT ON users
-  FOR EACH ROW
-  EXECUTE FUNCTION init_user_credit_score();
+-- CREATE TRIGGER init_credit_on_user_create
+--   AFTER INSERT ON users
+--   FOR EACH ROW
+--   EXECUTE FUNCTION init_user_credit_score();
