@@ -197,35 +197,47 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
     const renderStepContent = () => {
         switch (step) {
             case 'type-selection':
+                // Filter options based on product.deliveryType
+                const showMeetup = product.deliveryType === 'meetup' || product.deliveryType === 'both';
+                const showShipping = product.deliveryType === 'shipping' || product.deliveryType === 'both';
+
                 return (
                     <div className="space-y-4">
                         <h3 className="text-lg font-bold text-gray-800 mb-4">How do you want to verify this deal?</h3>
 
-                        <button
-                            onClick={() => { setOrderType('meetup'); setStep('details'); }}
-                            className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-brand-500 hover:bg-brand-50 transition-all group text-left"
-                        >
-                            <div className="bg-gray-100 p-3 rounded-full group-hover:bg-brand-200 transition-colors mr-4">
-                                <MapPin className="text-gray-600 group-hover:text-brand-700" size={24} />
-                            </div>
-                            <div>
-                                <div className="font-bold text-gray-800">In-Person Meetup</div>
-                                <div className="text-sm text-gray-500">Meet locally. Pay Cash or Online.</div>
-                            </div>
-                        </button>
+                        {showMeetup && (
+                            <button
+                                onClick={() => { setOrderType('meetup'); setStep('details'); }}
+                                className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-brand-500 hover:bg-brand-50 transition-all group text-left"
+                            >
+                                <div className="bg-gray-100 p-3 rounded-full group-hover:bg-brand-200 transition-colors mr-4">
+                                    <MapPin className="text-gray-600 group-hover:text-brand-700" size={24} />
+                                </div>
+                                <div>
+                                    <div className="font-bold text-gray-800">In-Person Meetup</div>
+                                    <div className="text-sm text-gray-500">Meet locally. Pay Cash or Online.</div>
+                                </div>
+                            </button>
+                        )}
 
-                        <button
-                            onClick={() => { setOrderType('shipping'); setPaymentMethod('online'); setStep('details'); }}
-                            className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-brand-500 hover:bg-brand-50 transition-all group text-left"
-                        >
-                            <div className="bg-gray-100 p-3 rounded-full group-hover:bg-brand-200 transition-colors mr-4">
-                                <Truck className="text-gray-600 group-hover:text-brand-700" size={24} />
-                            </div>
-                            <div>
-                                <div className="font-bold text-gray-800">Shipping</div>
-                                <div className="text-sm text-gray-500">Delivered to you. Secure Online Payment.</div>
-                            </div>
-                        </button>
+                        {showShipping && (
+                            <button
+                                onClick={() => { setOrderType('shipping'); setPaymentMethod('online'); setStep('details'); }}
+                                className="w-full flex items-center p-4 border-2 border-gray-100 rounded-xl hover:border-brand-500 hover:bg-brand-50 transition-all group text-left"
+                            >
+                                <div className="bg-gray-100 p-3 rounded-full group-hover:bg-brand-200 transition-colors mr-4">
+                                    <Truck className="text-gray-600 group-hover:text-brand-700" size={24} />
+                                </div>
+                                <div>
+                                    <div className="font-bold text-gray-800">Shipping</div>
+                                    <div className="text-sm text-gray-500">Delivered to you. Secure Online Payment.</div>
+                                </div>
+                            </button>
+                        )}
+
+                        {!showMeetup && !showShipping && (
+                            <div className="text-red-500 text-center">No delivery methods available for this product.</div>
+                        )}
                     </div>
                 );
 
@@ -233,6 +245,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                 const shippingFee = orderType === 'shipping' ? 50 : 0;
                 const platformFee = paymentMethod === 'online' ? (product.price * 0.03) : 0;
                 const total = product.price + shippingFee + platformFee;
+
+                const isButtonDisabled = isLoading || (orderType === 'shipping' && !shippingAddress?.id);
 
                 return (
                     <div className="space-y-6">
@@ -285,7 +299,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                                     />
                                 </div>
                                 {!shippingAddress?.id && (
-                                    <p className="text-xs text-red-500">Please select a shipping address</p>
+                                    <p className="text-xs text-red-500 font-bold bg-red-50 p-2 rounded">
+                                        Please select or add a shipping address to proceed.
+                                    </p>
                                 )}
                             </div>
                         )}
@@ -314,15 +330,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                             </div>
                         </div>
 
-                        <button
-                            onClick={handleCreateOrder}
-                            disabled={isLoading || (orderType === 'shipping' && !shippingAddress?.id)}
-                            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {isLoading ? <span className="animate-spin">⌛</span> : (
-                                paymentMethod === 'online' ? 'Proceed to Pay' : 'Confirm Order'
+                        <div className="space-y-2">
+                            <button
+                                onClick={handleCreateOrder}
+                                disabled={isButtonDisabled}
+                                className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {isLoading ? <span className="animate-spin">⌛</span> : (
+                                    paymentMethod === 'online' ? 'Proceed to Pay' : 'Confirm Order'
+                                )}
+                            </button>
+                            {orderType === 'shipping' && !shippingAddress?.id && (
+                                <p className="text-center text-xs text-red-500">Address selection required</p>
                             )}
-                        </button>
+                        </div>
                     </div>
                 );
 
