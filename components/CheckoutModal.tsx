@@ -291,7 +291,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         {orderType === 'shipping' && (
                             <div className="space-y-3">
                                 <label className="block text-sm font-medium text-gray-700">Shipping Address</label>
-                                <div className="max-h-[200px] overflow-y-auto border border-gray-100 rounded-xl p-2 bg-gray-50/50">
+                                <div className="border border-gray-100 rounded-xl p-2 bg-gray-50/50">
                                     <AddressList
                                         selectable
                                         selectedId={shippingAddress?.id}

@@ -215,7 +215,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
                 </div>
                 <div className="text-right">
                     <div className="font-black text-lg text-gray-900">
-                        ${order.total_amount.toFixed(2)} {order.currency}
+                        ${(order.total_amount || 0).toFixed(2)} {order.currency}
                     </div>
                     <div className="text-xs text-gray-400">
                         {order.payment_method === 'cash' ? 'Pay Cash' : 'Paid Online'}
@@ -231,7 +231,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="font-bold text-gray-800 truncate text-sm">{order.product.title}</div>
-                        <div className="text-xs text-gray-500">Includes {order.shipping_fee > 0 ? 'Shipping' : 'Protection'}</div>
+                        <div className="text-xs text-gray-500">Includes {(order.shipping_fee || 0) > 0 ? 'Shipping' : 'Protection'}</div>
                     </div>
                 </div>
             )}

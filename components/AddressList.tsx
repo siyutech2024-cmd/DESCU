@@ -81,10 +81,13 @@ export const AddressList: React.FC<AddressListProps> = ({ onSelect, selectedId, 
                 setEditingAddress(null);
                 toast.success(editingAddress ? 'Address updated' : 'Address added');
             } else {
-                toast.error('Failed to save address');
+                const err = await res.json();
+                console.error("Address save failed", err);
+                toast.error(err.error || 'Failed to save address');
             }
         } catch (error) {
-            toast.error('Network error');
+            console.error(error);
+            toast.error('Network error during save');
         }
     };
 
@@ -136,10 +139,10 @@ export const AddressList: React.FC<AddressListProps> = ({ onSelect, selectedId, 
                     key={addr.id}
                     onClick={() => selectable && onSelect && onSelect(addr)}
                     className={`relative p-4 rounded-xl border transition-all cursor-pointer group ${selectable
-                            ? selectedId === addr.id
-                                ? 'border-brand-500 bg-brand-50 shadow-sm ring-1 ring-brand-500'
-                                : 'border-gray-200 bg-white hover:border-brand-200 hover:bg-gray-50'
-                            : 'border-gray-200 bg-white'
+                        ? selectedId === addr.id
+                            ? 'border-brand-500 bg-brand-50 shadow-sm ring-1 ring-brand-500'
+                            : 'border-gray-200 bg-white hover:border-brand-200 hover:bg-gray-50'
+                        : 'border-gray-200 bg-white'
                         }`}
                 >
                     <div className="flex justify-between items-start">
