@@ -157,18 +157,22 @@ CREATE INDEX IF NOT EXISTS idx_stripe_user ON stripe_accounts(user_id);
 -- Orders policies
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own orders as buyer" ON orders;
 CREATE POLICY "Users can view their own orders as buyer"
   ON orders FOR SELECT
   USING (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Users can view their own orders as seller" ON orders;
 CREATE POLICY "Users can view their own orders as seller"
   ON orders FOR SELECT
   USING (auth.uid() = seller_id);
 
+DROP POLICY IF EXISTS "Users can create orders as buyer" ON orders;
 CREATE POLICY "Users can create orders as buyer"
   ON orders FOR INSERT
   WITH CHECK (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Buyers and sellers can update their orders" ON orders;
 CREATE POLICY "Buyers and sellers can update their orders"
   ON orders FOR UPDATE
   USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
@@ -176,6 +180,7 @@ CREATE POLICY "Buyers and sellers can update their orders"
 -- Order Timeline policies
 ALTER TABLE order_timeline ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view timeline for their orders" ON order_timeline;
 CREATE POLICY "Users can view timeline for their orders"
   ON order_timeline FOR SELECT
   USING (
@@ -186,6 +191,7 @@ CREATE POLICY "Users can view timeline for their orders"
     )
   );
 
+DROP POLICY IF EXISTS "Users can insert timeline for their orders" ON order_timeline;
 CREATE POLICY "Users can insert timeline for their orders"
   ON order_timeline FOR INSERT
   WITH CHECK (
@@ -199,10 +205,12 @@ CREATE POLICY "Users can insert timeline for their orders"
 -- Credit Scores policies
 ALTER TABLE credit_scores ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view credit scores" ON credit_scores;
 CREATE POLICY "Anyone can view credit scores"
   ON credit_scores FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Users can update their own credit score" ON credit_scores;
 CREATE POLICY "Users can update their own credit score"
   ON credit_scores FOR UPDATE
   USING (auth.uid() = user_id);
@@ -210,6 +218,7 @@ CREATE POLICY "Users can update their own credit score"
 -- Disputes policies
 ALTER TABLE disputes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view disputes for their orders" ON disputes;
 CREATE POLICY "Users can view disputes for their orders"
   ON disputes FOR SELECT
   USING (
@@ -220,6 +229,7 @@ CREATE POLICY "Users can view disputes for their orders"
     )
   );
 
+DROP POLICY IF EXISTS "Users can create disputes for their orders" ON disputes;
 CREATE POLICY "Users can create disputes for their orders"
   ON disputes FOR INSERT
   WITH CHECK (
@@ -234,10 +244,12 @@ CREATE POLICY "Users can create disputes for their orders"
 -- Stripe Accounts policies
 ALTER TABLE stripe_accounts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own stripe account" ON stripe_accounts;
 CREATE POLICY "Users can view their own stripe account"
   ON stripe_accounts FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage their own stripe account" ON stripe_accounts;
 CREATE POLICY "Users can manage their own stripe account"
   ON stripe_accounts FOR ALL
   USING (auth.uid() = user_id);
