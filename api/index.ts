@@ -168,6 +168,32 @@ app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 app.get('/sitemap.xml', generateSitemap);
 app.get('/api/location/reverse', reverseGeocodeProxy);
 
+// New IP Location Proxy
+app.get('/api/location/ip', async (req, res) => {
+    try {
+        const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress;
+
+        // If localhost, return dummy data
+        if (!ip || ip === '::1' || ip === '127.0.0.1') {
+            return res.json({ country: 'MX', city: 'Mexico City', countryName: 'Mexico' });
+        }
+
+        const fetchRes = await fetch(`https://ipapi.co/${ip}/json/`);
+        if (!fetchRes.ok) throw new Error('IP API failed');
+
+        const data = await fetchRes.json();
+        res.json({
+            country: data.country_code || 'MX',
+            city: data.city || 'Unknown',
+            countryName: data.country_name || 'Mexico'
+        });
+    } catch (e: any) {
+        console.error('IP Location Error:', e.message);
+        // Fallback to MX default instead of erroring 500
+        res.json({ country: 'MX', city: 'Mexico City', countryName: 'Mexico' });
+    }
+});
+
 // Rating & Reviews
 import { submitRating, getUserRatingStats } from './_lib/controllers/ratingController.js';
 app.post('/api/ratings', requireAuth, submitRating);

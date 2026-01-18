@@ -47,18 +47,18 @@ export const reverseGeocode = async (latitude: number, longitude: number): Promi
     }
 };
 
-// IP Geolocation using ipapi.co (free tier: 1000 requests/day)
+// IP Geolocation using backend proxy to avoid CORS
 export const getLocationFromIP = async (): Promise<LocationInfo | null> => {
     try {
-        const response = await fetch('https://ipapi.co/json/');
+        const response = await fetch(`${API_BASE_URL}/api/location/ip`);
         if (!response.ok) throw new Error('IP API failed');
 
         const data = await response.json();
 
         return {
-            country: data.country_code || 'Unknown',
+            country: data.country || 'Unknown',
             city: data.city || 'Unknown',
-            countryName: data.country_name || 'Unknown'
+            countryName: data.countryName || 'Unknown'
         };
     } catch (error) {
         console.error('Failed to get location from IP:', error);
