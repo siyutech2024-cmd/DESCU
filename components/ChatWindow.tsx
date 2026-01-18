@@ -1,7 +1,20 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, Send, CheckCheck, Loader2, MoreVertical, Phone, Video,
+  Image as ImageIcon, Smile, MapPin, Clock
+} from 'lucide-react';
+import { Conversation, User } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
+import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
-import { MapPin, Clock } from 'lucide-react'; // Add these imports if not present, and Ensure MoveVertical, etc are there
 
-// ... existing code ...
+interface ChatWindowProps {
+  conversation: Conversation;
+  currentUser: User;
+  onBack: () => void;
+  onSendMessage?: (conversationId: string, text: string) => void;
+}
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   conversation,
