@@ -75,10 +75,14 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
                     <div
                         key={order.id}
                         className="relative group cursor-pointer hover:scale-[1.01] transition-transform"
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             console.log('[OrderList] Clicked order:', order.id, 'productId:', productId);
                             if (productId) {
-                                navigate(`/product/${productId}`);
+                                // Use direct navigation instead of React Router's navigate
+                                console.log('[OrderList] Navigating to:', `/product/${productId}`);
+                                window.location.href = `/product/${productId}`;
                             } else {
                                 console.warn('No product_id for order:', order.id, 'Full order:', order);
                                 alert('无法查看产品详情 / No se puede ver el producto');

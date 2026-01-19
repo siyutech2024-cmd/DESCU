@@ -766,12 +766,14 @@ const AppContent: React.FC = () => {
               />
             } />
             <Route path="/product/:id" element={
-              <ProductPage
-                products={products}
-                // onAddToCart removed
-                onContactSeller={handleContactSeller}
-                user={user}
-              />
+              <React.Fragment>
+                {console.log('[App] Rendering ProductPage route')}
+                <ProductPage
+                  products={products}
+                  onContactSeller={handleContactSeller}
+                  user={user}
+                />
+              </React.Fragment>
             } />
             <Route path="/profile" element={
               <ProfilePage
