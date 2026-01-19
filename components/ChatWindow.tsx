@@ -624,7 +624,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               </button>
             )}
 
-            {/* Location Share Button - hidden on very small screens */}
+            {/* Location Share Button */}
             <button
               type="button"
               onClick={() => {
@@ -632,7 +632,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 setShowEmojiPicker(false);
                 setShowNegotiation(false);
               }}
-              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full hidden xs:block ${showLocation ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full ${showLocation ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
               title="分享位置"
             >
               <MapPin size={18} className="sm:w-[22px] sm:h-[22px]" />
