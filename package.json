@@ -6,9 +6,17 @@
     "dev": "vite",
     "server": "npx tsx server/src/index.ts",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:build": "npm run build && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.1",
+    "@capacitor/camera": "^8.0.0",
+    "@capacitor/cli": "^8.0.1",
+    "@capacitor/core": "^8.0.1",
+    "@capacitor/geolocation": "^8.0.0",
     "@google/genai": "^1.31.0",
     "@google/generative-ai": "^0.24.1",
     "@stripe/react-stripe-js": "^5.4.1",
