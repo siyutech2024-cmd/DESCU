@@ -68,8 +68,15 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
                 <div
                     key={order.id}
                     className="relative group cursor-pointer hover:scale-[1.01] transition-transform"
-                    onClick={() => navigate(`/product/${order.product_id}`)}
-                >                    <OrderStatusCard
+                    onClick={() => {
+                        if (order.product_id) {
+                            navigate(`/product/${order.product_id}`);
+                        } else {
+                            console.warn('No product_id for order:', order.id);
+                        }
+                    }}
+                >
+                    <OrderStatusCard
                         order={order}
                         currentUser={currentUser}
                         onStatusChange={fetchOrders}
@@ -77,11 +84,11 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
                     />
 
                     {/* Extra Actions Overlay/Buttons appended below or overlaying */}
-                    <div className="mt-2 flex gap-2 justify-end px-2">
+                    <div className="mt-2 flex gap-2 justify-end px-2" onClick={(e) => e.stopPropagation()}>
                         {/* SELLER: Ship Button */}
                         {role === 'seller' && order.status === 'paid' && order.order_type === 'shipping' && (
                             <button
-                                onClick={() => handleOpenShipModal(order.id)}
+                                onClick={(e) => { e.stopPropagation(); handleOpenShipModal(order.id); }}
                                 className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                             >
                                 Ship Item
@@ -91,7 +98,7 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
                         {/* BUYER: Dispute (if paid/shipped) */}
                         {role === 'buyer' && ['paid', 'shipped'].includes(order.status) && (
                             <button
-                                onClick={() => { setSelectedOrderId(order.id); setShowDisputeModal(true); }}
+                                onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.id); setShowDisputeModal(true); }}
                                 className="px-3 py-2 text-red-500 text-xs hover:bg-red-50 rounded-lg transition-colors font-medium"
                             >
                                 Report / Dispute
@@ -101,7 +108,8 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
                         {/* BUYER: Confirm Receipt (if shipped) */}
                         {role === 'buyer' && order.status === 'shipped' && (
                             <button
-                                onClick={async () => {
+                                onClick={async (e) => {
+                                    e.stopPropagation();
                                     if (!confirm('Have you received the item and are satisfied? This will release funds to the seller.')) return;
                                     try {
                                         const { data: { session } } = await supabase.auth.getSession();

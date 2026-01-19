@@ -70,28 +70,64 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>{locationName}</span>
         </div>
 
-        {/* Search Bar - Modern Glass Input */}
-        <div className="flex-1 relative max-w-lg mx-2 md:mx-4 group min-w-0">
-          <div className="absolute inset-y-0 left-0 pl-3 md:pl-4 flex items-center pointer-events-none text-gray-400">
-            <Search size={16} className="md:w-[18px] md:h-[18px]" />
+        {/* Search Bar - Modern Glass Input with Relocate Button */}
+        <div className="flex-1 relative max-w-lg mx-2 md:mx-4 group min-w-0 flex items-center gap-2">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 md:pl-4 flex items-center pointer-events-none text-gray-400">
+              <Search size={16} className="md:w-[18px] md:h-[18px]" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder={t('nav.search')}
+              className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2 pl-9 pr-8 md:py-2.5 md:pl-11 md:pr-10 text-xs md:text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => onSearchChange('')}
+                className="absolute inset-y-0 right-0 pr-2 md:pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <div className="bg-gray-200/50 rounded-full p-0.5 hover:bg-gray-300/50">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                </div>
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={t('nav.search')}
-            className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2 pl-9 pr-8 md:py-2.5 md:pl-11 md:pr-10 text-xs md:text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => onSearchChange('')}
-              className="absolute inset-y-0 right-0 pr-2 md:pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <div className="bg-gray-200/50 rounded-full p-0.5 hover:bg-gray-300/50">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-              </div>
-            </button>
-          )}
+          {/* Relocate Button - Mobile Only */}
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch('https://ipapi.co/json/');
+                const data = await res.json();
+                const { supabase } = await import('../services/supabase');
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                  const { API_BASE_URL } = await import('../services/apiConfig');
+                  await fetch(`${API_BASE_URL}/api/users/update-location`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify({
+                      country: data.country_code,
+                      city: data.city,
+                      lat: data.latitude,
+                      lng: data.longitude
+                    })
+                  });
+                  window.location.reload();
+                }
+              } catch (err) {
+                console.error('定位失败:', err);
+              }
+            }}
+            className="md:hidden flex-shrink-0 p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
+            title="重新定位"
+          >
+            <MapPin size={18} />
+          </button>
         </div>
 
         {/* Desktop Actions */}

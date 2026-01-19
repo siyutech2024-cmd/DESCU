@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingDown, X, Loader2, Package } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { API_BASE_URL } from '../../services/apiConfig';
 
 interface PriceNegotiationSenderProps {
     currentPrice: number;
@@ -68,7 +69,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                 return;
             }
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/negotiations/propose`, {
+            const response = await fetch(`${API_BASE_URL}/api/negotiations/propose`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

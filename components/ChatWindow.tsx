@@ -57,6 +57,52 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const MESSAGE_LIMIT = 10; // Load 10 messages at a time
 
+  // Load messages on mount and subscribe to realtime updates
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    const loadInitialMessages = async () => {
+      setIsLoading(true);
+      try {
+        const msgs = await getMessages(conversation.id, MESSAGE_LIMIT, 0);
+        if (msgs && msgs.length > 0) {
+          setMessages(msgs);
+          setHasMoreMessages(msgs.length === MESSAGE_LIMIT);
+          // Mark as read
+          markMessagesAsRead(conversation.id, currentUser.id).catch(console.error);
+        }
+      } catch (err) {
+        console.error('Error loading messages:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialMessages();
+
+    // Subscribe to new messages
+    unsubscribe = subscribeToMessages(conversation.id, (newMsg) => {
+      setMessages(prev => {
+        // Avoid duplicates
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+      // Mark as read if from other user
+      if (newMsg.sender_id !== currentUser.id) {
+        markMessagesAsRead(conversation.id, currentUser.id).catch(console.error);
+      }
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [conversation.id, currentUser.id]);
+
+  // Auto scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   // Handle product click navigation
   const handleProductClick = () => {
     if (conversation.productId) {
@@ -537,74 +583,77 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         <form
           onSubmit={handleSend}
-          className="max-w-4xl mx-auto relative flex gap-2 items-end glass-input rounded-[1.5rem] p-1.5 shadow-lg shadow-gray-200/50"
+          className="max-w-4xl mx-auto relative flex gap-1 items-end glass-input rounded-[1.5rem] p-1 sm:p-1.5 shadow-lg shadow-gray-200/50"
         >
-          <button
-            type="button"
-            onClick={() => {
-              setShowImages(!showImages);
-              setShowEmojiPicker(false);
-              setShowNegotiation(false);
-              setShowLocation(false);
-            }}
-            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showImages ? 'text-purple-600 bg-purple-50' : 'text-gray-400 hover:text-brand-600 hover:bg-gray-100/50'}`}
-          >
-            <ImageIcon size={22} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showEmojiPicker ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
-          >
-            <Smile size={22} />
-          </button>
-
-          {/* Price Negotiation Button (Only for buyer) */}
-          {conversation.buyerId === currentUser.id && conversation.productId && (
+          {/* Action buttons - scrollable on mobile */}
+          <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
             <button
               type="button"
               onClick={() => {
-                setShowNegotiation(!showNegotiation);
+                setShowImages(!showImages);
                 setShowEmojiPicker(false);
+                setShowNegotiation(false);
                 setShowLocation(false);
               }}
-              className={`p-2.5 transition-colors active:scale-95 rounded-full ${showNegotiation ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
-              title="议价"
+              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full ${showImages ? 'text-purple-600 bg-purple-50' : 'text-gray-400 hover:text-brand-600 hover:bg-gray-100/50'}`}
             >
-              <DollarSign size={22} />
+              <ImageIcon size={18} className="sm:w-[22px] sm:h-[22px]" />
             </button>
-          )}
 
-          {/* Location Share Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowLocation(!showLocation);
-              setShowEmojiPicker(false);
-              setShowNegotiation(false);
-            }}
-            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showLocation ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
-            title="分享位置"
-          >
-            <MapPin size={22} />
-          </button>
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full hidden sm:block ${showEmojiPicker ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+            >
+              <Smile size={18} className="sm:w-[22px] sm:h-[22px]" />
+            </button>
 
-          {/* Meetup Time Button */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowMeetupTime(!showMeetupTime);
-              setShowEmojiPicker(false);
-              setShowNegotiation(false);
-              setShowLocation(false);
-              setShowImages(false);
-            }}
-            className={`p-2.5 transition-colors active:scale-95 rounded-full ${showMeetupTime ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
-            title="约定时间"
-          >
-            <Clock size={22} />
-          </button>
+            {/* Price Negotiation Button (Only for buyer) */}
+            {conversation.buyerId === currentUser.id && conversation.productId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNegotiation(!showNegotiation);
+                  setShowEmojiPicker(false);
+                  setShowLocation(false);
+                }}
+                className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full ${showNegotiation ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+                title="议价"
+              >
+                <DollarSign size={18} className="sm:w-[22px] sm:h-[22px]" />
+              </button>
+            )}
+
+            {/* Location Share Button - hidden on very small screens */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowLocation(!showLocation);
+                setShowEmojiPicker(false);
+                setShowNegotiation(false);
+              }}
+              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full hidden xs:block ${showLocation ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+              title="分享位置"
+            >
+              <MapPin size={18} className="sm:w-[22px] sm:h-[22px]" />
+            </button>
+
+            {/* Meetup Time Button - hidden on mobile */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowMeetupTime(!showMeetupTime);
+                setShowEmojiPicker(false);
+                setShowNegotiation(false);
+                setShowLocation(false);
+                setShowImages(false);
+              }}
+              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full hidden sm:block ${showMeetupTime ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+              title="约定时间"
+            >
+              <Clock size={18} className="sm:w-[22px] sm:h-[22px]" />
+            </button>
+          </div>
 
           <input
             ref={inputRef}
@@ -614,19 +663,19 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             onFocus={() => setShowEmojiPicker(false)}
             placeholder={t('chat.type')}
             disabled={isSending}
-            className="flex-1 bg-transparent text-gray-900 placeholder-gray-400 px-1 py-3 focus:outline-none text-[15px] min-h-[48px]"
+            className="flex-1 min-w-0 bg-transparent text-gray-900 placeholder-gray-400 px-1 py-2.5 sm:py-3 focus:outline-none text-sm sm:text-[15px]"
           />
 
           <button
             type="submit"
             disabled={!newMessage.trim() || isSending}
-            className={`p-3 rounded-full shadow-lg transition-all duration-300 active:scale-90 flex-shrink-0 mb-0.5 mr-0.5
+            className={`p-2.5 sm:p-3 rounded-full shadow-lg transition-all duration-300 active:scale-90 flex-shrink-0
               ${newMessage.trim()
                 ? 'bg-brand-600 text-white shadow-brand-300 hover:bg-brand-700 hover:shadow-brand-400 hover:-translate-y-0.5'
                 : 'bg-gray-200 text-gray-400 shadow-none cursor-not-allowed'
               }`}
           >
-            {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} className={newMessage.trim() ? "ml-0.5" : ""} />}
+            {isSending ? <Loader2 size={18} className="animate-spin sm:w-5 sm:h-5" /> : <Send size={18} className="sm:w-5 sm:h-5" />}
           </button>
         </form>
       </div>
