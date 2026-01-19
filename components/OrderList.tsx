@@ -64,82 +64,92 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
         <div className="space-y-4">
             {orders.length === 0 && <div className="text-center text-gray-500 py-8">No orders found.</div>}
 
-            {orders.map(order => (
-                <div
-                    key={order.id}
-                    className="relative group cursor-pointer hover:scale-[1.01] transition-transform"
-                    onClick={() => {
-                        if (order.product_id) {
-                            navigate(`/product/${order.product_id}`);
-                        } else {
-                            console.warn('No product_id for order:', order.id);
-                        }
-                    }}
-                >
-                    <OrderStatusCard
-                        order={order}
-                        currentUser={currentUser}
-                        onStatusChange={fetchOrders}
-                        className="hover:shadow-md transition-shadow bg-white"
-                    />
+            {orders.map(order => {
+                // Debug: Log order structure to find correct product_id field
+                console.log('[OrderList] Order:', order.id, 'product_id:', order.product_id, 'product:', order.product);
 
-                    {/* Extra Actions Overlay/Buttons appended below or overlaying */}
-                    <div className="mt-2 flex gap-2 justify-end px-2" onClick={(e) => e.stopPropagation()}>
-                        {/* SELLER: Ship Button */}
-                        {role === 'seller' && order.status === 'paid' && order.order_type === 'shipping' && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleOpenShipModal(order.id); }}
-                                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                            >
-                                Ship Item
-                            </button>
-                        )}
+                // Get product_id from different possible sources
+                const productId = order.product_id || (order.product as any)?.id;
 
-                        {/* BUYER: Dispute (if paid/shipped) */}
-                        {role === 'buyer' && ['paid', 'shipped'].includes(order.status) && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.id); setShowDisputeModal(true); }}
-                                className="px-3 py-2 text-red-500 text-xs hover:bg-red-50 rounded-lg transition-colors font-medium"
-                            >
-                                Report / Dispute
-                            </button>
-                        )}
+                return (
+                    <div
+                        key={order.id}
+                        className="relative group cursor-pointer hover:scale-[1.01] transition-transform"
+                        onClick={() => {
+                            console.log('[OrderList] Clicked order:', order.id, 'productId:', productId);
+                            if (productId) {
+                                navigate(`/product/${productId}`);
+                            } else {
+                                console.warn('No product_id for order:', order.id, 'Full order:', order);
+                                alert('无法查看产品详情 / No se puede ver el producto');
+                            }
+                        }}
+                    >
+                        <OrderStatusCard
+                            order={order}
+                            currentUser={currentUser}
+                            onStatusChange={fetchOrders}
+                            className="hover:shadow-md transition-shadow bg-white"
+                        />
 
-                        {/* BUYER: Confirm Receipt (if shipped) */}
-                        {role === 'buyer' && order.status === 'shipped' && (
-                            <button
-                                onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (!confirm('Have you received the item and are satisfied? This will release funds to the seller.')) return;
-                                    try {
-                                        const { data: { session } } = await supabase.auth.getSession();
-                                        const res = await fetch(`${API_BASE_URL}/api/orders/confirm`, {
-                                            method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                Authorization: `Bearer ${session?.access_token}`
-                                            },
-                                            body: JSON.stringify({ orderId: order.id })
-                                        });
-                                        if (res.ok) {
-                                            alert('Order completed! Funds released.');
-                                            fetchOrders();
-                                        } else {
-                                            const err = await res.json();
-                                            alert(err.error || 'Failed to confirm');
+                        {/* Extra Actions Overlay/Buttons appended below or overlaying */}
+                        <div className="mt-2 flex gap-2 justify-end px-2" onClick={(e) => e.stopPropagation()}>
+                            {/* SELLER: Ship Button */}
+                            {role === 'seller' && order.status === 'paid' && order.order_type === 'shipping' && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleOpenShipModal(order.id); }}
+                                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                                >
+                                    Ship Item
+                                </button>
+                            )}
+
+                            {/* BUYER: Dispute (if paid/shipped) */}
+                            {role === 'buyer' && ['paid', 'shipped'].includes(order.status) && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.id); setShowDisputeModal(true); }}
+                                    className="px-3 py-2 text-red-500 text-xs hover:bg-red-50 rounded-lg transition-colors font-medium"
+                                >
+                                    Report / Dispute
+                                </button>
+                            )}
+
+                            {/* BUYER: Confirm Receipt (if shipped) */}
+                            {role === 'buyer' && order.status === 'shipped' && (
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!confirm('Have you received the item and are satisfied? This will release funds to the seller.')) return;
+                                        try {
+                                            const { data: { session } } = await supabase.auth.getSession();
+                                            const res = await fetch(`${API_BASE_URL}/api/orders/confirm`, {
+                                                method: 'POST',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    Authorization: `Bearer ${session?.access_token}`
+                                                },
+                                                body: JSON.stringify({ orderId: order.id })
+                                            });
+                                            if (res.ok) {
+                                                alert('Order completed! Funds released.');
+                                                fetchOrders();
+                                            } else {
+                                                const err = await res.json();
+                                                alert(err.error || 'Failed to confirm');
+                                            }
+                                        } catch (e) {
+                                            console.error(e);
                                         }
-                                    } catch (e) {
-                                        console.error(e);
-                                    }
-                                }}
-                                className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium"
-                            >
-                                Confirm Receipt
-                            </button>
-                        )}
+                                    }}
+                                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium"
+                                >
+                                    Confirm Receipt
+                                </button>
+                            )}
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
 
             {/* Ship Modal */}
             <ShipmentModal
