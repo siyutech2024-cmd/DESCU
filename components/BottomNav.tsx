@@ -62,7 +62,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
           {/* 4. Notifications/Reminders Button */}
           <button
-            className="flex flex-col items-center justify-center gap-1 relative transition-all duration-300 active:scale-95 min-w-[60px] text-gray-500 hover:text-gray-700"
+            onClick={() => onChangeView('chat-list')}
+            className={`flex flex-col items-center justify-center gap-1 relative transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'chat-list' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <div className="relative">
               <Bell size={22} strokeWidth={2} className={totalNotifications > 0 ? "text-orange-600" : ""} />
