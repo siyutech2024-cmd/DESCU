@@ -520,25 +520,40 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
             return res.status(404).json({ error: 'Product not found', details: productError?.message });
         }
 
-        // 验证用户身份（只有买家可以发起议价）
+        // 确定买家和卖家
+        // conversations表使用user1_id和user2_id，需要根据product.seller_id判断
+        const sellerId = product.seller_id;
+        const buyerId = conversation.user1_id === sellerId ? conversation.user2_id : conversation.user1_id;
+        const actualSellerId = conversation.user1_id === sellerId ? conversation.user1_id : conversation.user2_id;
+
         console.log('[Negotiation API] Identity check:', {
             currentUserId: userId,
-            conversation_buyer_id: conversation.buyer_id,
-            conversation_seller_id: conversation.seller_id,
-            isBuyer: conversation.buyer_id === userId,
-            isSeller: conversation.seller_id === userId
+            productSellerId: sellerId,
+            conversationUser1: conversation.user1_id,
+            conversationUser2: conversation.user2_id,
+            determinedBuyerId: buyerId,
+            determinedSellerId: actualSellerId,
+            isBuyer: buyerId === userId,
+            isSeller: actualSellerId === userId
         });
 
-        if (conversation.buyer_id !== userId) {
-            console.error('[Negotiation API] User not buyer:', { buyer_id: conversation.buyer_id, seller_id: conversation.seller_id, userId });
+        // 验证用户身份（只有买家可以发起议价）
+        if (buyerId !== userId) {
+            console.error('[Negotiation API] User not buyer:', {
+                buyerId,
+                sellerId: actualSellerId,
+                userId
+            });
             return res.status(403).json({
                 error: 'Only buyer can propose price',
                 debug: {
-                    yourRole: conversation.seller_id === userId ? 'seller' : 'unknown',
+                    yourRole: actualSellerId === userId ? 'seller' : 'unknown',
                     requiredRole: 'buyer',
                     yourUserId: userId,
-                    conversationBuyerId: conversation.buyer_id,
-                    conversationSellerId: conversation.seller_id,
+                    conversationUser1Id: conversation.user1_id,
+                    conversationUser2Id: conversation.user2_id,
+                    productSellerId: sellerId,
+                    determinedBuyerId: buyerId,
                     conversationId
                 }
             });
