@@ -1,5 +1,6 @@
 import React from 'react';
 import { supabase } from '../services/supabase';
+import { Browser } from '@capacitor/browser';
 import { Mail, LogOut } from 'lucide-react';
 
 interface AuthButtonProps {
@@ -33,23 +34,39 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
             setLoading(true);
 
             // 检测是否在Capacitor环境（移动应用）
-            // 只依赖protocol，避免移动端Web浏览器被误判
             const isCapacitor = window.location.protocol === 'capacitor:' ||
-                window.location.protocol === 'ionic:';
+                window.location.protocol === 'ionic:' ||
+                (window as any).Capacitor?.isNativePlatform?.();
 
             // 在移动端使用deep link，web端使用origin
             const redirectUrl = isCapacitor
                 ? 'com.venya.marketplace://'
                 : window.location.origin;
 
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: redirectUrl,
-                },
-            });
+            if (isCapacitor) {
+                // 移动端：使用外部浏览器打开OAuth
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: redirectUrl,
+                        skipBrowserRedirect: true,
+                    },
+                });
 
-            if (error) throw error;
+                if (error) throw error;
+                if (data?.url) {
+                    await Browser.open({ url: data.url });
+                }
+            } else {
+                // Web端：正常OAuth流程
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: redirectUrl,
+                    },
+                });
+                if (error) throw error;
+            }
         } catch (error) {
             console.error('登录失败:', error);
             alert('登录失败，请重试');

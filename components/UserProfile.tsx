@@ -7,7 +7,7 @@ import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFullDataUrl } from '../services/utils';
 import { API_BASE_URL } from '../services/apiConfig';
-import { supabase } from '../services/supabase';
+import { supabase, markProductAsSold } from '../services/supabase';
 
 interface UserProfileProps {
   user: User;
@@ -45,6 +45,19 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
+  const [soldProducts, setSoldProducts] = useState<Set<string>>(new Set());
+  const [markingSoldId, setMarkingSoldId] = useState<string | null>(null);
+
+  const handleMarkAsSold = async (productId: string) => {
+    setMarkingSoldId(productId);
+    const success = await markProductAsSold(productId);
+    if (success) {
+      setSoldProducts(prev => new Set(prev).add(productId));
+    } else {
+      alert('Failed to mark as sold');
+    }
+    setMarkingSoldId(null);
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -335,7 +348,25 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                     <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
                     <div className="flex items-center justify-between mt-1">
                       <p className="font-bold text-red-500">¥{product.price}</p>
-                      {!product.isPromoted && onBoostProduct && product.status === 'active' && (
+                      {/* 标记已售出按钮 */}
+                      {(product.status === 'active' && !soldProducts.has(product.id)) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkAsSold(product.id);
+                          }}
+                          disabled={markingSoldId === product.id}
+                          className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200 transition-colors flex items-center gap-1 disabled:opacity-50"
+                        >
+                          {markingSoldId === product.id ? (
+                            <Loader2 size={10} className="animate-spin" />
+                          ) : (
+                            <Check size={10} />
+                          )}
+                          已售出
+                        </button>
+                      )}
+                      {!product.isPromoted && onBoostProduct && product.status === 'active' && !soldProducts.has(product.id) && (
                         <button
                           onClick={() => onBoostProduct(product.id)}
                           className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition-colors flex items-center gap-1"
@@ -344,15 +375,17 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                           {t('profile.boost')}
                         </button>
                       )}
-                      {product.status && product.status !== 'active' && (
+                      {/* 状态标签 */}
+                      {((product.status && product.status !== 'active') || soldProducts.has(product.id)) && (
                         <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1
                           ${product.status === 'pending_review' ? 'bg-orange-100 text-orange-700' :
                             product.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                              product.status === 'sold' ? 'bg-gray-100 text-gray-700' : 'bg-gray-100 text-gray-700'
+                              (product.status === 'sold' || soldProducts.has(product.id)) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                           }`}>
+                          <Check size={10} />
                           {product.status === 'pending_review' ? '审核中' :
                             product.status === 'rejected' ? '已拒绝' :
-                              product.status === 'sold' ? '已售出' : product.status}
+                              (product.status === 'sold' || soldProducts.has(product.id)) ? '已售出' : product.status}
                         </span>
                       )}
                     </div>

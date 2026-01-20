@@ -35,3 +35,22 @@ export const uploadProductImage = async (file: File): Promise<string | null> => 
         return null;
     }
 };
+
+// 标记产品为已售出
+export const markProductAsSold = async (productId: string): Promise<boolean> => {
+    try {
+        const { error } = await supabase
+            .from('products')
+            .update({ status: 'sold' })
+            .eq('id', productId);
+
+        if (error) {
+            console.error('Error marking product as sold:', error);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('Error marking product as sold:', error);
+        return false;
+    }
+};
