@@ -1,7 +1,7 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Sparkles, MapPin, Loader2, Camera, DollarSign, Truck, Handshake, Info, AlertCircle } from 'lucide-react';
+import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
 import { analyzeImageWithGemini } from '../services/geminiService';
 import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
@@ -99,42 +99,70 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     }
   }, [isOpen]);
 
+  const processFile = async (file: File) => {
+    try {
+      // 1. Compress immediately for preview & AI
+      const compressedFile = await compressImage(file, 1024, 0.8);
+      setImage(compressedFile);
+
+      const previewUrl = await getFullDataUrl(compressedFile);
+      setImagePreview(previewUrl);
+
+      setAiStatus('analyzing');
+      const base64 = await fileToBase64(compressedFile);
+      const result = await analyzeImageWithGemini(base64);
+
+      if (result) {
+        setFormData(prev => ({
+          ...prev,
+          title: result.title,
+          description: result.description,
+          category: mapCategoryFromAI(result.category),
+          price: result.price.toString(),
+          deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
+        }));
+        setAiStatus('success');
+      } else {
+        throw new Error("No result from AI");
+      }
+    } catch (error: any) {
+      console.error("AI Analysis failed", error);
+      setAiStatus('error');
+      showToast(t('modal.ai_error') || `Error: ${error.message}`, 'error');
+    }
+  };
+
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      let file = e.target.files[0];
+      await processFile(e.target.files[0]);
+    }
+  };
 
+  const triggerImageSelection = async () => {
+    // Detect Capacitor
+    const isCapacitor = window.location.protocol === 'capacitor:' || /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+    if (isCapacitor) {
       try {
-        // 1. Compress immediately for preview & AI
-        // Limit to 1024px for AI analysis to go faster
-        const compressedFile = await compressImage(file, 1024, 0.8);
-        file = compressedFile;
-        setImage(file);
+        const image = await CapacitorCamera.getPhoto({
+          quality: 90,
+          allowEditing: false,
+          resultType: CameraResultType.Uri,
+          source: CameraSource.Prompt, // Prompts user: Photo or Gallery
+          width: 1200
+        });
 
-        const previewUrl = await getFullDataUrl(file);
-        setImagePreview(previewUrl);
-
-        setAiStatus('analyzing'); // Start analyzing
-        const base64 = await fileToBase64(file);
-        const result = await analyzeImageWithGemini(base64);
-
-        if (result) {
-          setFormData(prev => ({
-            ...prev,
-            title: result.title,
-            description: result.description,
-            category: mapCategoryFromAI(result.category), // Smart mapping
-            price: result.price.toString(),
-            deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
-          }));
-          setAiStatus('success'); // Success!
-        } else {
-          throw new Error("No result from AI");
+        if (image.webPath) {
+          const response = await fetch(image.webPath);
+          const blob = await response.blob();
+          const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          await processFile(file);
         }
-      } catch (error: any) {
-        console.error("AI Analysis failed", error);
-        setAiStatus('error'); // Failed
-        showToast(t('modal.ai_error') || `Error: ${error.message}`, 'error');
+      } catch (e) {
+        console.log('User cancelled camera', e);
       }
+    } else {
+      fileInputRef.current?.click();
     }
   };
 
@@ -200,7 +228,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
           {/* Image Upload */}
           <div className="space-y-3">
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={triggerImageSelection}
               className={`relative w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:bg-brand-50/50 transition-all overflow-hidden ${imagePreview ? 'border-none ring-1 ring-gray-100' : ''}`}
             >
               {imagePreview ? (

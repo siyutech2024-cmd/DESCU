@@ -5,6 +5,7 @@ import { User as UserType, Language, Region } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
 import { supabase } from '../services/supabase';
+import { DetailedLocationInfo } from '../services/locationService';
 
 interface NavbarProps {
   user: UserType | null;
@@ -17,7 +18,7 @@ interface NavbarProps {
   onLogoClick: () => void;
   onChatClick: () => void;
   unreadCount: number;
-  locationName?: string;
+  locationInfo?: DetailedLocationInfo | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -30,7 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogoClick,
   onChatClick,
   unreadCount,
-  locationName = "CDMX"
+  locationInfo
 }) => {
   const { t, language, setLanguage } = useLanguage();
   const { region, setRegion } = useRegion();
@@ -67,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Location Indicator - Pill */}
         <div className="hidden sm:flex items-center gap-1.5 text-gray-600 text-xs font-bold bg-white/50 border border-white/40 px-3 py-1.5 rounded-full cursor-pointer hover:bg-white hover:shadow-sm transition-all whitespace-nowrap">
           <MapPin size={12} className="text-brand-600" />
-          <span>{locationName}</span>
+          <span>{locationInfo?.displayName || 'CDMX'}</span>
         </div>
 
         {/* Search Bar - Modern Glass Input with Relocate Button */}

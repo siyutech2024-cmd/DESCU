@@ -7,6 +7,7 @@ import { useRegion } from '../contexts/RegionContext';
 import { Product, Category, Region } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useSEO } from '../hooks/useSEO';
+import { DetailedLocationInfo } from '../services/locationService';
 
 interface HomePageProps {
     sortedProducts: Product[];
@@ -22,6 +23,7 @@ interface HomePageProps {
     onLoadMore: () => void;
     favorites: Set<string>;
     onToggleFavorite: (product: Product) => void;
+    locationInfo?: DetailedLocationInfo | null;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -36,7 +38,8 @@ export const HomePage: React.FC<HomePageProps> = ({
     isLoadingMore,
     onLoadMore,
     favorites,
-    onToggleFavorite
+    onToggleFavorite,
+    locationInfo
 }) => {
     const { t } = useLanguage();
     const { region, setRegion } = useRegion();
@@ -61,7 +64,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     ];
 
     return (
-        <main className="max-w-5xl mx-auto px-2 md:px-4 pb-24 w-full overflow-x-hidden">
+        <main className="max-w-5xl mx-auto px-2 md:px-4 pb-32 md:pb-24 w-full overflow-x-hidden">
             {/* DESCU Brand Header */}
             {/* DESCU Brand Header - More Compact on Mobile */}
             <div className="flex flex-col items-center justify-center pt-4 pb-3 md:pt-10 md:pb-8">
@@ -86,9 +89,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                             <span className="text-sm">
                                 {region === 'MX' ? '🇲🇽' : region === 'US' ? '🇺🇸' : region === 'CN' ? '🇨🇳' : region === 'EU' ? '🇪🇺' : region === 'JP' ? '🇯🇵' : '🌍'}
                             </span>
-                            <span className="text-xs font-bold text-gray-900">
-                                {region === 'MX' ? 'Mexico' : region === 'US' ? 'USA' : region === 'CN' ? 'China' : region === 'EU' ? 'Europe' : region === 'JP' ? 'Japan' : 'Global'}
-                            </span>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-900">
+                                    {region === 'MX' ? 'Mexico' : region === 'US' ? 'USA' : region === 'CN' ? 'China' : region === 'EU' ? 'Europe' : region === 'JP' ? 'Japan' : 'Global'}
+                                </span>
+                                {locationInfo?.displayName && (
+                                    <span className="text-[9px] text-gray-600">{locationInfo.displayName}</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <select

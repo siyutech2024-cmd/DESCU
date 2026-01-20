@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 // CartDrawer removed - direct purchase model
@@ -13,7 +14,7 @@ import { supabase } from './services/supabase';
 import { API_BASE_URL } from './services/apiConfig';
 import { createOrGetConversation, sendMessage as sendMessageApi, getUserConversations, subscribeToConversations } from './services/chatService';
 import { GlassToast, ToastType } from './components/GlassToast';
-import { reverseGeocode } from './services/locationService';
+import { reverseGeocode, DetailedLocationInfo, getDetailedLocation } from './services/locationService';
 import { generateMockProducts } from './services/mockData';
 import { Toaster } from 'react-hot-toast';
 
@@ -78,7 +79,7 @@ const AppContent: React.FC = () => {
   const [isLoadingLoc, setIsLoadingLoc] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [locationName, setLocationName] = useState<string>('CDMX');
+  const [locationInfo, setLocationInfo] = useState<DetailedLocationInfo | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Cart state removed - direct purchase model
@@ -89,6 +90,10 @@ const AppContent: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
+  // Orders State
+  const [orders, setOrders] = useState<any[]>([]);
+  const [pendingOrderCount, setPendingOrderCount] = useState(0);
+
   // Pagination State
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -97,6 +102,8 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     document.title = "DESCU";
   }, [language]);
+
+  // 移除这里的import，将在顶部添加
 
   // Supabase Auth State Listener
   useEffect(() => {
@@ -125,10 +132,62 @@ const AppContent: React.FC = () => {
       return baseUser;
     };
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
+    // 抽离Auth处理逻辑
+    const handleAuthCallback = async (url: string) => {
+      console.log('[App] Handling Auth Callback:', url);
+      // 处理Hash中的参数 (access_token, refresh_token)
+      // URL可能是 "com.venya.marketplace://google-callback#access_token=..." 
+      // 或者 "http://localhost:3000/#access_token=..."
+
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) return;
+
+      const hashParams = new URLSearchParams(url.substring(hashIndex + 1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        console.log('[App] Tokens found, setting session...');
+        try {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (error) {
+            console.error('[App] Set session error:', error);
+            showToast('登录验证失败', 'error');
+          } else if (data.session) {
+            console.log('[App] Session set successfully');
+            const userWithLocation = await loadUserWithLocation(data.session);
+            if (userWithLocation) setUser(userWithLocation);
+            console.log('[App] User state updated');
+          }
+        } catch (err) {
+          console.error('[App] Unexpected auth error:', err);
+        }
+      }
+    };
+
+    const initAuth = async () => {
+      // 1. 检查当前URL (冷启动)
+      await handleAuthCallback(window.location.href);
+
+      // 2. 检查现有Session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
         const userWithLocation = await loadUserWithLocation(session);
         if (userWithLocation) setUser(userWithLocation);
+      }
+    };
+
+    initAuth();
+
+    // 3. 监听 Deep Link (后台恢复)
+    CapacitorApp.addListener('appUrlOpen', async (event) => {
+      console.log('[App] Deep link opened:', event.url);
+      if (event.url.includes('access_token')) {
+        await handleAuthCallback(event.url);
       }
     });
 
@@ -153,7 +212,10 @@ const AppContent: React.FC = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      CapacitorApp.removeAllListeners();
+    };
   }, []);
 
   // 更新用户位置到服务器
@@ -188,13 +250,25 @@ const AppContent: React.FC = () => {
 
   const handleLogin = async () => {
     try {
+      // 检测是否在Capacitor环境（移动应用）
+      const isCapacitor = window.location.protocol === 'capacitor:' ||
+        window.location.protocol === 'ionic:' ||
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      // 在移动端使用deep link，web端使用origin
+      const redirectUrl = isCapacitor
+        ? 'com.venya.marketplace://'
+        : window.location.origin;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectUrl,
         },
       });
+
       if (error) throw error;
+      setIsLoginModalOpen(false);
     } catch (error) {
       console.error('登录失败:', error);
       showToast('登录失败，请重试', 'error');
@@ -297,8 +371,9 @@ const AppContent: React.FC = () => {
       } else {
         if (pageNum === 1) setProducts([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('加载商品失败:', error);
+      showToast(`加载失败: ${error.message || '未知错误'}`, 'error'); // [DEBUG] Show error to user
       if (pageNum === 1) setProducts([]);
     } finally {
       setIsLoadingLoc(false);
@@ -326,8 +401,8 @@ const AppContent: React.FC = () => {
               longitude: position.coords.longitude,
             };
             setLocation(coords);
-            const name = await reverseGeocode(coords.latitude, coords.longitude);
-            if (name) setLocationName(name);
+            const detailedLocation = await getDetailedLocation(coords.latitude, coords.longitude);
+            if (detailedLocation) setLocationInfo(detailedLocation);
 
             // Fetch Page 1
             setPage(1);
@@ -419,6 +494,48 @@ const AppContent: React.FC = () => {
     return () => {
       unsubscribe();
     };
+  }, [user]);
+
+  // Load user orders
+  useEffect(() => {
+    if (!user) {
+      setOrders([]);
+      setPendingOrderCount(0);
+      return;
+    }
+
+    const loadOrders = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const response = await fetch(`${API_BASE_URL}/api/orders`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+
+        if (response.ok) {
+          const ordersData = await response.json();
+          setOrders(ordersData);
+
+          // Count pending orders (not completed or cancelled)
+          const pending = ordersData.filter((order: any) =>
+            order.status !== 'completed' &&
+            order.status !== 'cancelled'
+          ).length;
+          setPendingOrderCount(pending);
+        }
+      } catch (error) {
+        console.error('Failed to load orders:', error);
+      }
+    };
+
+    loadOrders();
+
+    // Refresh orders every 30 seconds
+    const interval = setInterval(loadOrders, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Handlers
@@ -742,7 +859,7 @@ const AppContent: React.FC = () => {
         onLogoClick={() => navigate('/')}
         onChatClick={() => navigate('/chat')}
         unreadCount={unreadCount}
-        locationName={locationName}
+        locationInfo={locationInfo}
       />
 
       <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-16 md:pb-0">
@@ -763,6 +880,7 @@ const AppContent: React.FC = () => {
                 onLoadMore={handleLoadMore}
                 favorites={favorites}
                 onToggleFavorite={handleToggleFavorite}
+                locationInfo={locationInfo}
               />
             } />
             <Route path="/product/:id" element={
@@ -815,6 +933,8 @@ const AppContent: React.FC = () => {
         }}
         onSellClick={handleSellClick}
         unreadCount={unreadCount}
+        orderCount={pendingOrderCount}
+        locationInfo={locationInfo}
       />
       <React.Suspense fallback={null}>
         {isSellModalOpen && (

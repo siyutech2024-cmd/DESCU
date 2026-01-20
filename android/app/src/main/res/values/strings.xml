@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Venya Marketplace</string>
-    <string name="title_activity_main">Venya Marketplace</string>
+    <string name="app_name">DESCU</string>
+    <string name="title_activity_main">DESCU</string>
     <string name="package_name">com.venya.marketplace</string>
     <string name="custom_url_scheme">com.venya.marketplace</string>
 </resources>

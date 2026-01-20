@@ -31,12 +31,24 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
     const handleGoogleLogin = async () => {
         try {
             setLoading(true);
+
+            // 检测是否在Capacitor环境（移动应用）
+            const isCapacitor = window.location.protocol === 'capacitor:' ||
+                window.location.protocol === 'ionic:' ||
+                /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+            // 在移动端使用deep link，web端使用origin
+            const redirectUrl = isCapacitor
+                ? 'com.venya.marketplace://'
+                : window.location.origin;
+
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.origin,
+                    redirectTo: redirectUrl,
                 },
             });
+
             if (error) throw error;
         } catch (error) {
             console.error('登录失败:', error);

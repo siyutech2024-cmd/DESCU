@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.venya.marketplace',
-  appName: 'Venya Marketplace',
+  appName: 'DESCU',
   webDir: 'dist',
   server: {
     // 仅在开发环境下使用本地服务器
@@ -16,6 +16,9 @@ const config: CapacitorConfig = {
       androidSplashResourceName: "splash",
       androidScaleType: "CENTER_CROP",
       showSpinner: false
+    },
+    CapacitorHttp: {
+      enabled: true
     }
   }
 };

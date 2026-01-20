@@ -638,7 +638,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               <MapPin size={18} className="sm:w-[22px] sm:h-[22px]" />
             </button>
 
-            {/* Meetup Time Button - hidden on mobile */}
+            {/* Meetup Time Button - now visible on mobile */}
             <button
               type="button"
               onClick={() => {
@@ -648,7 +648,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 setShowLocation(false);
                 setShowImages(false);
               }}
-              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full hidden sm:block ${showMeetupTime ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full ${showMeetupTime ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
               title="约定时间"
             >
               <Clock size={18} className="sm:w-[22px] sm:h-[22px]" />

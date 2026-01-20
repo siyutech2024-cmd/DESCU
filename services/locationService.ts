@@ -14,6 +14,14 @@ export interface LocationInfo {
     countryName: string;   // e.g., "Mexico"
 }
 
+export interface DetailedLocationInfo {
+    city: string;          // 城市名称
+    town?: string;         // 城镇名称
+    district?: string;     // 区域名称
+    suburb?: string;       // 郊区名称
+    displayName: string;   // 格式化的显示名称
+}
+
 export const reverseGeocode = async (latitude: number, longitude: number): Promise<string> => {
     try {
         // Use our backend proxy to avoid CORS issues
@@ -91,4 +99,57 @@ export const canPurchaseProduct = (
     }
 
     return { canPurchase: true };
+};
+
+// Get detailed location information with town/district level granularity
+export const getDetailedLocation = async (
+    latitude: number,
+    longitude: number
+): Promise<DetailedLocationInfo> => {
+    try {
+        // Use our backend proxy to avoid CORS issues
+        const response = await fetch(
+            `${API_BASE_URL}/api/location/reverse?lat=${latitude}&lon=${longitude}`
+        );
+
+        if (!response.ok) {
+            throw new Error('Geocoding failed');
+        }
+
+        const data = await response.json();
+        const address = data.address;
+
+        // Extract location components with priority
+        const city = address.city || address.county || address.state || 'Unknown';
+        const town = address.town || address.village;
+        const district = address.suburb || address.neighbourhood || address.district;
+        const suburb = address.suburb;
+
+        // Build display name: City · Town/District
+        // Format examples:
+        // - "Mexico City · Coyoacán"
+        // - "Los Angeles · Santa Monica"
+        // - "Beijing · Chaoyang District"
+        let displayName = city;
+        if (town) {
+            displayName += ` · ${town}`;
+        } else if (district) {
+            displayName += ` · ${district}`;
+        }
+
+        return {
+            city,
+            town,
+            district,
+            suburb,
+            displayName
+        };
+    } catch (error) {
+        console.error('Error getting detailed location:', error);
+        // Return fallback with empty display name
+        return {
+            city: 'Unknown',
+            displayName: '定位中...'
+        };
+    }
 };

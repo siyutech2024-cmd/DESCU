@@ -1,7 +1,8 @@
 
 import React from 'react';
-import { Home, PlusCircle, ShoppingBag, User as UserIcon, MessageCircle } from 'lucide-react';
+import { Home, PlusCircle, User as UserIcon, MessageCircle, MapPin, Bell } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { DetailedLocationInfo } from '../services/locationService';
 
 interface BottomNavProps {
   currentView: string;
@@ -9,66 +10,82 @@ interface BottomNavProps {
   onSellClick: () => void;
   // cart removed - direct purchase model
   unreadCount: number;
+  orderCount: number;
+  locationInfo?: DetailedLocationInfo | null;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   currentView,
   onChangeView,
   onSellClick,
-  unreadCount
+  unreadCount,
+  orderCount,
+  locationInfo
 }) => {
   const { t } = useLanguage();
 
+  const totalNotifications = unreadCount + orderCount;
+
   return (
-    <div className="md:hidden fixed bottom-4 left-3 right-3 z-50 animate-fade-in-up">
-      {/* Glass Dock Container */}
-      <div className="relative h-16 w-full bg-white/80 backdrop-blur-2xl border border-white/60 shadow-glass-lg rounded-[2.5rem] flex items-center justify-between px-6">
-
-        {/* Left: Home Button */}
-        <button
-          onClick={() => onChangeView('home')}
-          className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 ${currentView === 'home' ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
-        >
-          <Home size={24} strokeWidth={currentView === 'home' ? 2.5 : 2} fill={currentView === 'home' ? "currentColor" : "none"} className={currentView === 'home' ? "opacity-100" : "opacity-70"} />
-          <span className={`text-[9px] font-bold ${currentView === 'home' ? 'opacity-100' : 'opacity-0 scale-0'} transition-all`}>Home</span>
-        </button>
-
-        {/* Center: Chat Button */}
-        <button
-          onClick={() => onChangeView('chat-list')}
-          className={`flex flex-col items-center justify-center gap-1 relative transition-all duration-300 active:scale-95 ${currentView === 'chat-list' ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
-        >
-          <div className="relative">
-            <MessageCircle size={24} strokeWidth={currentView === 'chat-list' ? 2.5 : 2} fill={currentView === 'chat-list' ? "currentColor" : "none"} className={currentView === 'chat-list' ? "opacity-100" : "opacity-70"} />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full ring-2 ring-white animate-bounce">
-                {unreadCount}
-              </span>
-            )}
-          </div>
-          <span className={`text-[9px] font-bold ${currentView === 'chat-list' ? 'opacity-100' : 'opacity-0 scale-0'} transition-all`}>Chat</span>
-        </button>
-
-        {/* Right: Profile Button */}
-        <button
-          onClick={() => onChangeView('profile')}
-          className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 ${currentView === 'profile' ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
-        >
-          <UserIcon size={24} strokeWidth={currentView === 'profile' ? 2.5 : 2} fill={currentView === 'profile' ? "currentColor" : "none"} className={currentView === 'profile' ? "opacity-100" : "opacity-70"} />
-          <span className={`text-[9px] font-bold ${currentView === 'profile' ? 'opacity-100' : 'opacity-0 scale-0'} transition-all`}>Me</span>
-        </button>
-
-        {/* Floating Action Button (FAB) */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-6">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe">
+      {/* Single Navigation Bar with 4 buttons */}
+      <div className="bg-white/95 backdrop-blur-xl border-t border-gray-200/50 shadow-glass-lg px-4 pb-3 pt-3">
+        <div className="flex items-center justify-around relative">
+          {/* 1. Home Button */}
           <button
-            onClick={onSellClick}
-            className="w-16 h-16 bg-gradient-to-tr from-brand-600 to-brand-400 rounded-full flex items-center justify-center shadow-xl shadow-brand-500/40 text-white transform transition-all active:scale-90 hover:scale-110 border-4 border-[#f8f9fa] ring-1 ring-black/5"
+            onClick={() => onChangeView('home')}
+            className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'home' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <PlusCircle size={32} strokeWidth={2} />
+            <Home size={22} strokeWidth={currentView === 'home' ? 2.5 : 2} fill={currentView === 'home' ? "currentColor" : "none"} />
+            <span className="text-[10px] font-bold">Home</span>
+          </button>
+
+          {/* 2. Location Button */}
+          <button
+            className="flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] text-gray-500 hover:text-gray-700"
+          >
+            <MapPin size={22} strokeWidth={2} className="text-brand-600" />
+            <span className="text-[9px] font-medium truncate max-w-[70px]">
+              {locationInfo?.displayName || '位置'}
+            </span>
+          </button>
+
+          {/* 3. Floating Action Button (FAB) - Centered */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-8">
+            <button
+              onClick={onSellClick}
+              className="w-16 h-16 bg-gradient-to-tr from-brand-600 to-brand-400 rounded-full flex items-center justify-center shadow-xl shadow-brand-500/40 text-white transform transition-all active:scale-90 hover:scale-110 border-4 border-white ring-1 ring-black/5"
+            >
+              <PlusCircle size={32} strokeWidth={2} />
+            </button>
+          </div>
+
+          {/* 4. Notifications/Reminders Button */}
+          <button
+            className="flex flex-col items-center justify-center gap-1 relative transition-all duration-300 active:scale-95 min-w-[60px] text-gray-500 hover:text-gray-700"
+          >
+            <div className="relative">
+              <Bell size={22} strokeWidth={2} className={totalNotifications > 0 ? "text-orange-600" : ""} />
+              {totalNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white animate-pulse">
+                  {totalNotifications}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-bold">提醒</span>
+          </button>
+
+          {/* 5. Profile Button */}
+          <button
+            onClick={() => onChangeView('profile')}
+            className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'profile' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <UserIcon size={22} strokeWidth={currentView === 'profile' ? 2.5 : 2} fill={currentView === 'profile' ? "currentColor" : "none"} />
+            <span className="text-[10px] font-bold">Me</span>
           </button>
         </div>
-
       </div>
     </div>
   );
 };
+
