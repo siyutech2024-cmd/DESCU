@@ -721,7 +721,7 @@ app.post('/api/orders/create', requireAuth, async (req: any, res) => {
         }
 
         // 🔔 发送订单创建通知到聊天
-        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+        import('./_lib/services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
             notifyOrderStatus(order.id, 'created').catch((err: any) => {
                 console.error('[CreateOrder] Failed to send notification:', err);
             });
@@ -797,8 +797,8 @@ app.post('/api/orders/:id/confirm', requireAuth, async (req: any, res) => {
         });
 
         // 🔔 发送确认通知
-        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
-            notifyOrderStatus(id, 'confirmed', { confirmedBy: isBuyer ? 'buyer' : 'seller' }).catch(console.error);
+        import('./_lib/services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
+            notifyOrderStatus(id, isBuyer ? 'buyer_confirmed' : 'seller_confirmed', { confirmedBy: isBuyer ? 'buyer' : 'seller' }).catch(console.error);
         }).catch(console.error);
 
         if (updatedOrder.buyer_confirmed_at && updatedOrder.seller_confirmed_at) {
@@ -806,7 +806,7 @@ app.post('/api/orders/:id/confirm', requireAuth, async (req: any, res) => {
             await supabase.from('order_timeline').insert({ order_id: id, event_type: 'completed', description: 'Order Completed', created_by: userId });
 
             // 🔔 发送完成通知
-            import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+            import('./_lib/services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
                 notifyOrderStatus(id, 'completed').catch(console.error);
             }).catch(console.error);
 
