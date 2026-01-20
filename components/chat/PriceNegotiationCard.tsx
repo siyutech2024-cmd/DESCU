@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, CheckCircle, XCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { API_BASE_URL } from '../../services/apiConfig';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface PriceNegotiationCardProps {
     content: {
@@ -23,6 +24,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
     onUpdate
 }) => {
     const { negotiationId, originalPrice, proposedPrice, counterPrice, productTitle, status, finalPrice } = content;
+    const { t } = useLanguage();
     const [isResponding, setIsResponding] = useState(false);
     const [counterInput, setCounterInput] = useState('');
     const [showCounterInput, setShowCounterInput] = useState(false);
@@ -71,7 +73,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
             onUpdate?.();
         } catch (error: any) {
             console.error('[Negotiation Response] Error:', error);
-            alert(error.message || '响应议价失败，请重试');
+            alert(error.message || t('nego.failed'));
         } finally {
             setIsResponding(false);
         }
@@ -79,10 +81,10 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
 
     const getStatusBadge = () => {
         const badges = {
-            accepted: { bg: 'from-green-400 to-emerald-500', icon: CheckCircle, text: '已接受' },
-            rejected: { bg: 'from-red-400 to-rose-500', icon: XCircle, text: '已拒绝' },
-            countered: { bg: 'from-blue-400 to-indigo-500', icon: RefreshCw, text: '卖家还价' },
-            pending: { bg: 'from-amber-400 to-orange-500', icon: DollarSign, text: '待响应' }
+            accepted: { bg: 'from-green-400 to-emerald-500', icon: CheckCircle, text: t('nego.status.accepted') },
+            rejected: { bg: 'from-red-400 to-rose-500', icon: XCircle, text: t('nego.status.rejected') },
+            countered: { bg: 'from-blue-400 to-indigo-500', icon: RefreshCw, text: t('nego.status.countered') },
+            pending: { bg: 'from-amber-400 to-orange-500', icon: DollarSign, text: t('nego.status.pending') }
         };
         const config = badges[status];
         const Icon = config.icon;
@@ -112,7 +114,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                     <div>
                         <div className="flex items-center gap-1.5">
                             <Sparkles size={12} className="text-yellow-300" />
-                            <span className="text-xs font-bold text-white/90 uppercase tracking-wider">议价</span>
+                            <span className="text-xs font-bold text-white/90 uppercase tracking-wider">{t('nego.title')}</span>
                         </div>
                         <p className="text-sm text-white/80 truncate max-w-[140px]">{productTitle}</p>
                     </div>
@@ -123,12 +125,12 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
             {/* Price Comparison */}
             <div className="relative px-4 space-y-3 mb-4">
                 <div className="flex justify-between items-center bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2">
-                    <span className="text-sm text-white/80">原价</span>
+                    <span className="text-sm text-white/80">{t('nego.original_price')}</span>
                     <span className="text-white/60 line-through font-medium">${originalPrice.toFixed(2)}</span>
                 </div>
 
                 <div className="flex justify-between items-center bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
-                    <span className="text-sm font-bold text-white">出价</span>
+                    <span className="text-sm font-bold text-white">{t('nego.your_offer')}</span>
                     <div className="flex items-center gap-2">
                         <span className="text-2xl font-black text-white">${proposedPrice.toFixed(2)}</span>
                         <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${isDiscount ? 'bg-green-400/30 text-green-100' : 'bg-red-400/30 text-red-100'}`}>
@@ -140,14 +142,14 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
 
                 {counterPrice && (
                     <div className="flex justify-between items-center bg-blue-500/30 backdrop-blur-sm rounded-xl px-4 py-3 border border-blue-300/30">
-                        <span className="text-sm font-bold text-white">卖家报价</span>
+                        <span className="text-sm font-bold text-white">{t('nego.counter_price')}</span>
                         <span className="text-2xl font-black text-white">${counterPrice.toFixed(2)}</span>
                     </div>
                 )}
 
                 {finalPrice && (
                     <div className="flex justify-between items-center bg-green-500/40 backdrop-blur-sm rounded-xl px-4 py-3 border-2 border-green-300/50">
-                        <span className="text-sm font-black text-white">成交价</span>
+                        <span className="text-sm font-black text-white">{t('nego.final_price')}</span>
                         <span className="text-2xl font-black text-white">${finalPrice.toFixed(2)}</span>
                     </div>
                 )}
@@ -163,7 +165,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                             className="bg-white text-green-600 py-3 rounded-xl font-bold text-sm hover:bg-green-50 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-lg active:scale-95"
                         >
                             <CheckCircle size={16} />
-                            接受
+                            {t('nego.action.accept')}
                         </button>
                         <button
                             onClick={() => setShowCounterInput(true)}
@@ -171,7 +173,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                             className="bg-white/20 backdrop-blur-sm text-white py-3 rounded-xl font-bold text-sm hover:bg-white/30 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 border border-white/30 active:scale-95"
                         >
                             <RefreshCw size={16} />
-                            还价
+                            {t('nego.action.counter')}
                         </button>
                         <button
                             onClick={() => handleRespond('reject')}
@@ -179,7 +181,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                             className="bg-white/10 backdrop-blur-sm text-white/80 py-3 rounded-xl font-bold text-sm hover:bg-white/20 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-95"
                         >
                             <XCircle size={16} />
-                            拒绝
+                            {t('nego.action.reject')}
                         </button>
                     </div>
                 </div>
@@ -194,7 +196,7 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                             type="number"
                             value={counterInput}
                             onChange={(e) => setCounterInput(e.target.value)}
-                            placeholder="输入您的报价"
+                            placeholder={t('nego.enter_price')}
                             className="w-full pl-8 pr-4 py-3 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-xl focus:outline-none focus:border-white/50 text-white placeholder-white/50 font-bold"
                         />
                     </div>
@@ -204,13 +206,13 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                             disabled={!counterInput || isResponding}
                             className="flex-1 bg-white text-orange-600 py-3 rounded-xl font-bold hover:bg-orange-50 disabled:opacity-50 shadow-lg active:scale-95"
                         >
-                            确认还价
+                            {t('nego.confirm_counter')}
                         </button>
                         <button
                             onClick={() => setShowCounterInput(false)}
                             className="px-6 py-3 bg-white/20 text-white rounded-xl font-medium hover:bg-white/30 active:scale-95"
                         >
-                            取消
+                            {t('nego.cancel')}
                         </button>
                     </div>
                 </div>
@@ -219,19 +221,19 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
             {/* Status Messages */}
             {status === 'accepted' && (
                 <div className="relative mx-4 mb-4 bg-green-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center font-bold border border-green-300/30">
-                    ✅ 议价成功！价格 ${finalPrice?.toFixed(2) || proposedPrice.toFixed(2)}
+                    ✅ {t('nego.success.accepted')} ${finalPrice?.toFixed(2) || proposedPrice.toFixed(2)}
                 </div>
             )}
 
             {status === 'rejected' && (
                 <div className="relative mx-4 mb-4 bg-red-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center font-bold border border-red-300/30">
-                    ❌ 卖家拒绝了此议价
+                    ❌ {t('nego.success.rejected')}
                 </div>
             )}
 
             {status === 'countered' && !isSeller && (
                 <div className="relative mx-4 mb-4 bg-blue-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center text-sm border border-blue-300/30">
-                    💬 卖家提出新报价 <span className="font-bold">${counterPrice?.toFixed(2)}</span>
+                    💬 {t('nego.success.countered')} <span className="font-bold">${counterPrice?.toFixed(2)}</span>
                 </div>
             )}
         </div>
