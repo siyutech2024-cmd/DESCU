@@ -20,6 +20,7 @@ export type OrderEventType =
     | 'created'              // 订单已创建
     | 'paid'                 // 已支付
     | 'meetup_arranged'      // 已安排见面
+    | 'meetup_confirmed'     // 见面已确认
     | 'shipped'              // 已发货
     | 'delivered'            // 已送达
     | 'confirmed'            // 已确认
