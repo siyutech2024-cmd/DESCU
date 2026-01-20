@@ -22,7 +22,7 @@ export const analyzeImageWithGemini = async (imageBase64: string): Promise<AIAna
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // 使用稳定的1.5版本
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // 使用稳定的2.0版本
 
     // Clean base64 string if needed (remove data:image/jpeg;base64, prefix)
     const base64Data = imageBase64.split(',')[1] || imageBase64;
@@ -88,7 +88,7 @@ export const auditProductWithGemini = async (product: { title: string; descripti
   if (!genAI) return null;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const prompt = `
       You are an AI Moderator for a second-hand marketplace.
       Audit this product for:
@@ -134,7 +134,7 @@ export const judgeDisputeWithGemini = async (dispute: { reason: string; descript
   if (!genAI) return null;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const prompt = `
       You are an expert impartial arbitrator. Judge this e-commerce dispute.
       Buyer Reason: "${dispute.reason}"
