@@ -625,17 +625,26 @@ app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => 
             return res.status(400).json({ error: 'Invalid action' });
         }
 
-        // 获取议价记录
+        // 获取议价记录 (简化查询，避免关联语法问题)
         const { data: negotiation, error: negError } = await supabase
             .from('price_negotiations')
-            .select('*, conversation:conversations(*), product:products(*)')
+            .select('*')
             .eq('id', id)
             .single();
 
+        console.log('[Negotiation Response] Query result:', { negotiation, negError });
+
         if (negError || !negotiation) {
             console.error('[Negotiation Response] Not found:', negError);
-            return res.status(404).json({ error: 'Negotiation not found' });
+            return res.status(404).json({ error: 'Negotiation not found', details: negError?.message });
         }
+
+        // 单独获取产品信息
+        const { data: product } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', negotiation.product_id)
+            .single();
 
         console.log('[Negotiation Response] Found negotiation:', {
             id: negotiation.id,
@@ -664,8 +673,8 @@ app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => 
         let messageContent: any = {
             negotiationId: id,
             originalPrice: negotiation.original_price,
-            proposedPrice: negotiation.offered_price,  // 使用 offered_price 而不是 proposed_price
-            productTitle: negotiation.product?.title || 'Unknown Product'
+            proposedPrice: negotiation.offered_price,
+            productTitle: product?.title || 'Unknown Product'
         };
 
         // 处理不同响应
