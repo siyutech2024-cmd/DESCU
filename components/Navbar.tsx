@@ -129,6 +129,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <MapPin size={18} />
           </button>
+          {/* Mobile Language Switcher */}
+          <select
+            value={language}
+            onChange={handleLanguageChange}
+            className="md:hidden flex-shrink-0 bg-white/70 backdrop-blur-md rounded-lg text-xs font-bold text-gray-600 outline-none py-2 px-2 border border-gray-200/50"
+          >
+            <option value="es">ES</option>
+            <option value="en">EN</option>
+            <option value="zh">中文</option>
+          </select>
         </div>
 
         {/* Desktop Actions */}
@@ -225,18 +235,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Mobile Language Switcher */}
-          <div className="md:hidden">
-            <select
-              value={language}
-              onChange={handleLanguageChange}
-              className="bg-white/50 backdrop-blur-md rounded-lg text-xs font-bold text-gray-500 outline-none py-1.5 px-1 border border-white/40"
-            >
-              <option value="es">ES</option>
-              <option value="en">EN</option>
-              <option value="zh">CN</option>
-            </select>
-          </div>
+
 
         </div>
       </div>

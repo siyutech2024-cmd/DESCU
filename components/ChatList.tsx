@@ -23,35 +23,23 @@ export const ChatList: React.FC<ChatListProps> = ({
   // 分类对话
   const categorizedConversations = useMemo(() => {
     return conversations.map(conv => {
-      // 判断对话类型（这里需要根据实际订单状态来判断）
-      // 暂时通过消息数量和内容来简单分类
-      const hasMessages = conv.messages && conv.messages.length > 0;
+      // 使用 orderId 和 orderStatus 判断分类
+      // orderId 存在表示有订单活动
+      // orderStatus 如 'completed', 'confirmed' 等表示已完成
 
-      // 检查是否有议价或订单相关消息
-      const hasOrderActivity = conv.messages?.some(m =>
-        m.text?.includes('议价') ||
-        m.text?.includes('订单') ||
-        m.text?.includes('Oferta') ||
-        m.text?.includes('order')
-      );
-
-      // 检查是否有完成相关消息
-      const isCompleted = conv.messages?.some(m =>
-        m.text?.includes('完成') ||
-        m.text?.includes('已接受') ||
-        m.text?.includes('confirmed') ||
-        m.text?.includes('completed')
-      );
+      const hasOrder = !!(conv as any).orderId || !!(conv as any).order_id;
+      const orderStatus = (conv as any).orderStatus || (conv as any).order_status;
 
       let category: 'all' | 'active' | 'inquiry' | 'completed' = 'inquiry';
 
-      if (isCompleted) {
+      if (orderStatus === 'completed' || orderStatus === 'confirmed' || orderStatus === 'delivered') {
+        // 订单已完成
         category = 'completed';
-      } else if (hasOrderActivity) {
-        // 有订单活动的归类为进行中
+      } else if (hasOrder || orderStatus) {
+        // 有订单活动且未完成 = 进行中
         category = 'active';
-      } else if (!hasMessages || conv.messages.length === 0) {
-        // 无消息的归类为咨询
+      } else {
+        // 无订单 = 咨询中
         category = 'inquiry';
       }
 
