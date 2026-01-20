@@ -143,10 +143,15 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               {/* Decorative Blur blob behind image */}
               <div className="absolute -inset-4 bg-brand-500/20 blur-3xl rounded-full opacity-50 z-0 pointer-events-none"></div>
 
-              {product.distance !== undefined && product.distance <= 5 && (
-                <div className="absolute top-6 left-6 z-20 bg-white/80 backdrop-blur-md text-gray-800 text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border border-white/50">
-                  <MapPin size={14} className="text-brand-600" />
-                  {t('card.nearby')} {product.distance}km
+              {product.distance !== undefined && (
+                <div className={`absolute top-6 left-6 z-20 backdrop-blur-md text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border ${product.distance <= 5
+                    ? 'bg-green-100/90 text-green-800 border-green-200'
+                    : product.distance <= 50
+                      ? 'bg-white/80 text-gray-800 border-white/50'
+                      : 'bg-orange-100/90 text-orange-800 border-orange-200'
+                  }`}>
+                  <MapPin size={14} className={product.distance <= 5 ? 'text-green-600' : product.distance <= 50 ? 'text-brand-600' : 'text-orange-600'} />
+                  {product.distance <= 5 ? t('card.nearby') : ''} {product.distance.toFixed(1)}km
                 </div>
               )}
               {product.isPromoted && (
@@ -196,22 +201,59 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   </div>
                 </div>
 
-                {/* Region Restriction Badge */}
-                {product.country && (
-                  <div className="glass-card rounded-2xl p-4 mb-8 flex items-start gap-3 bg-blue-50/50 border border-blue-100">
-                    <MapPin size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-blue-900 mb-1">Product Location</h4>
-                      <p className="text-sm text-blue-700">{product.city}, {product.country}</p>
-                      {!purchaseEligibility.canPurchase && (
-                        <div className="mt-2 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg p-2">
-                          <AlertCircle size={16} className="text-orange-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-xs text-orange-800 font-medium">{purchaseEligibility.reason}</p>
-                        </div>
+                {/* Region Restriction Badge with Distance */}
+                <div className={`glass-card rounded-2xl p-4 mb-8 flex items-start gap-3 border ${!purchaseEligibility.canPurchase
+                    ? 'bg-orange-50/50 border-orange-200'
+                    : 'bg-blue-50/50 border-blue-100'
+                  }`}>
+                  <MapPin size={20} className={!purchaseEligibility.canPurchase ? 'text-orange-600' : 'text-blue-600'} />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-gray-900 mb-1">商品位置 / Ubicación</h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm text-gray-700 font-medium">{product.city || '未知城市'}, {product.country || 'MX'}</p>
+                      {product.distance !== undefined && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${product.distance <= 5
+                            ? 'bg-green-100 text-green-700'
+                            : product.distance <= 50
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-orange-100 text-orange-700'
+                          }`}>
+                          📍 {product.distance.toFixed(1)}km
+                        </span>
                       )}
                     </div>
+
+                    {/* 配送方式说明 */}
+                    <div className="mt-2 text-xs text-gray-500">
+                      {product.deliveryType === 'meetup' && (
+                        <span className="flex items-center gap-1">
+                          <Handshake size={12} />
+                          仅限同城自提 / Solo recoger en persona
+                        </span>
+                      )}
+                      {product.deliveryType === 'shipping' && (
+                        <span className="flex items-center gap-1">
+                          <Truck size={12} />
+                          支持快递配送 / Envío disponible
+                        </span>
+                      )}
+                      {product.deliveryType === 'both' && (
+                        <span className="flex items-center gap-1">
+                          <Truck size={12} />
+                          支持自提和快递 / Recoger o envío
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 不可购买提示 */}
+                    {!purchaseEligibility.canPurchase && (
+                      <div className="mt-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-2">
+                        <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-red-800 font-bold">{purchaseEligibility.reason}</p>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 <div className="prose prose-sm text-gray-600 mb-8 bg-white/30 p-6 rounded-2xl border border-white/40 backdrop-blur-sm">
                   <h3 className="text-gray-900 font-bold mb-2 text-lg">{t('detail.desc_title')}</h3>
@@ -225,8 +267,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   onClick={() => onContactSeller(product)}
                   disabled={product.status === 'sold'}
                   className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all ${product.status === 'sold'
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm'
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm'
                     }`}
                 >
                   <MessageCircle size={22} />
@@ -237,8 +279,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   onClick={() => setIsCheckoutOpen(true)}
                   disabled={!user || !purchaseEligibility.canPurchase || product.status === 'sold'}
                   className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${!user || !purchaseEligibility.canPurchase || product.status === 'sold'
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
                     }`}
                   title={!purchaseEligibility.canPurchase ? purchaseEligibility.reason : ''}
                 >
