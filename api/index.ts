@@ -714,15 +714,32 @@ app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => 
             .update(updateData)
             .eq('id', id);
 
+        // 生成响应消息文本
+        let responseText = '';
+        switch (action) {
+            case 'accept':
+                responseText = `✅ 卖家已接受议价 $${negotiation.offered_price}`;
+                break;
+            case 'reject':
+                responseText = `❌ 卖家拒绝了议价`;
+                break;
+            case 'counter':
+                responseText = `💬 卖家还价 $${counterPrice}`;
+                break;
+        }
+
         // 发送响应消息
-        await supabase.from('messages').insert({
+        const msgResult = await supabase.from('messages').insert({
             conversation_id: negotiation.conversation_id,
             sender_id: userId,
+            text: responseText,
             message_type: 'price_negotiation_response',
             content: JSON.stringify(messageContent),
             is_pinned: true,
             pinned_until: new Date(Date.now() + 24 * 60 * 60 * 1000)
         });
+
+        console.log('[Negotiation Response] Message insert result:', msgResult);
 
         res.json({ success: true, action, negotiation: updateData });
     } catch (error: any) {
