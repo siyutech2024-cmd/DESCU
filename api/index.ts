@@ -741,6 +741,35 @@ app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => 
 
         console.log('[Negotiation Response] Message insert result:', msgResult);
 
+        // 更新原始议价消息的 content.status
+        const { data: originalMsg, error: findError } = await supabase
+            .from('messages')
+            .select('id, content')
+            .eq('conversation_id', negotiation.conversation_id)
+            .eq('message_type', 'price_negotiation')
+            .ilike('content', `%${id}%`)
+            .single();
+
+        if (originalMsg && !findError) {
+            try {
+                const updatedContent = JSON.parse(originalMsg.content);
+                updatedContent.status = action === 'accept' ? 'accepted' : (action === 'reject' ? 'rejected' : 'countered');
+                if (action === 'counter') updatedContent.counterPrice = parseFloat(counterPrice);
+                if (action === 'accept') updatedContent.finalPrice = negotiation.offered_price;
+
+                await supabase
+                    .from('messages')
+                    .update({ content: JSON.stringify(updatedContent) })
+                    .eq('id', originalMsg.id);
+
+                console.log('[Negotiation Response] Updated original message status');
+            } catch (parseError) {
+                console.error('[Negotiation Response] Failed to update original message:', parseError);
+            }
+        } else {
+            console.log('[Negotiation Response] Original message not found:', findError);
+        }
+
         res.json({ success: true, action, negotiation: updateData });
     } catch (error: any) {
         console.error('Respond to negotiation error:', error);

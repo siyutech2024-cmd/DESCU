@@ -56,7 +56,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [messageOffset, setMessageOffset] = useState(0);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const MESSAGE_LIMIT = 10; // Load 10 messages at a time
+  const MESSAGE_LIMIT = 50; // 加载足够多的消息以包含议价卡片
 
   // Load messages on mount and subscribe to realtime updates
   useEffect(() => {
