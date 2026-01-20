@@ -530,12 +530,16 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
         });
 
         if (conversation.buyer_id !== userId) {
-            console.error('[Negotiation API] User not buyer:', { buyer_id: conversation.buyer_id, userId });
+            console.error('[Negotiation API] User not buyer:', { buyer_id: conversation.buyer_id, seller_id: conversation.seller_id, userId });
             return res.status(403).json({
                 error: 'Only buyer can propose price',
                 debug: {
                     yourRole: conversation.seller_id === userId ? 'seller' : 'unknown',
-                    requiredRole: 'buyer'
+                    requiredRole: 'buyer',
+                    yourUserId: userId,
+                    conversationBuyerId: conversation.buyer_id,
+                    conversationSellerId: conversation.seller_id,
+                    conversationId
                 }
             });
         }
