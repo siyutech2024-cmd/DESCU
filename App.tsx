@@ -590,11 +590,15 @@ const AppContent: React.FC = () => {
         });
 
         if (response.ok) {
-          const ordersData = await response.json();
-          setOrders(ordersData);
+          const data = await response.json();
+          console.log('[App] Orders API response:', data);
+
+          // API 返回 { orders: [...] } 格式
+          const ordersArray = data.orders || [];
+          setOrders(ordersArray);
 
           // Count pending orders (not completed or cancelled)
-          const pending = ordersData.filter((order: any) =>
+          const pending = ordersArray.filter((order: any) =>
             order.status !== 'completed' &&
             order.status !== 'cancelled'
           ).length;

@@ -521,9 +521,23 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
         }
 
         // 验证用户身份（只有买家可以发起议价）
+        console.log('[Negotiation API] Identity check:', {
+            currentUserId: userId,
+            conversation_buyer_id: conversation.buyer_id,
+            conversation_seller_id: conversation.seller_id,
+            isBuyer: conversation.buyer_id === userId,
+            isSeller: conversation.seller_id === userId
+        });
+
         if (conversation.buyer_id !== userId) {
             console.error('[Negotiation API] User not buyer:', { buyer_id: conversation.buyer_id, userId });
-            return res.status(403).json({ error: 'Only buyer can propose price' });
+            return res.status(403).json({
+                error: 'Only buyer can propose price',
+                debug: {
+                    yourRole: conversation.seller_id === userId ? 'seller' : 'unknown',
+                    requiredRole: 'buyer'
+                }
+            });
         }
 
         // 创建议价记录
