@@ -93,7 +93,14 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
 
             if (!response.ok) {
                 const err = await response.json();
-                console.error('[Negotiation] Error response:', err);
+                console.error('[Negotiation] Error response:', JSON.stringify(err, null, 2));
+
+                // 显示详细的错误信息
+                if (err.debug) {
+                    console.error('[Negotiation] Your role:', err.debug.yourRole);
+                    console.error('[Negotiation] Required role:', err.debug.requiredRole);
+                }
+
                 throw new Error(err.message || err.error || 'Failed to propose');
             }
 
