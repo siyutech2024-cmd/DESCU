@@ -34,12 +34,17 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
         setIsResponding(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+            if (!session) {
+                console.error('[Negotiation Response] No session');
+                return;
+            }
 
             const body: any = { action };
             if (action === 'counter' && counterInput) {
                 body.counterPrice = parseFloat(counterInput);
             }
+
+            console.log('[Negotiation Response] Sending:', { negotiationId, action, body });
 
             const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/respond`, {
                 method: 'POST',
@@ -50,14 +55,23 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
                 body: JSON.stringify(body)
             });
 
-            if (!response.ok) throw new Error('Failed to respond');
+            console.log('[Negotiation Response] Status:', response.status);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('[Negotiation Response] Error:', JSON.stringify(errorData, null, 2));
+                throw new Error(errorData.message || errorData.error || 'Failed to respond');
+            }
+
+            const result = await response.json();
+            console.log('[Negotiation Response] Success:', result);
 
             setShowCounterInput(false);
             setCounterInput('');
             onUpdate?.();
-        } catch (error) {
-            console.error('Error responding to negotiation:', error);
-            alert('响应议价失败，请重试');
+        } catch (error: any) {
+            console.error('[Negotiation Response] Error:', error);
+            alert(error.message || '响应议价失败，请重试');
         } finally {
             setIsResponding(false);
         }
