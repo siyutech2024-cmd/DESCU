@@ -53,5 +53,7 @@
     <string>Need location access to show products near you.</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSPrivacyTrackingUsageDescription</key>
+	<string>We use tracking to personalize and improve your experience.</string>
 </dict>
 </plist>

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import OrderList from './OrderList';
 import { SellerPayoutCard } from './SellerPayoutCard';
 import { CreditBadge } from './CreditBadge';
-import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart } from 'lucide-react';
+import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart, Lock } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFullDataUrl } from '../services/utils';
@@ -33,6 +34,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   allProducts = []
 }) => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [name, setName] = useState(user.name);
   const [avatar, setAvatar] = useState(user.avatar);
   const [isSaved, setIsSaved] = useState(false);
@@ -524,6 +526,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({
               {t('profile.safety_policies')}
             </h2>
             <div className="space-y-3">
+              <button
+                onClick={() => navigate('/privacy-policy')}
+                className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Lock size={16} className="text-gray-400" />
+                  {t('profile.privacy_policy') || 'Privacy Policy / 隐私政策'}
+                </span>
+                <ExternalLink size={16} className="text-gray-400" />
+              </button>
               <button className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                 <span className="text-sm font-semibold text-gray-700">{t('profile.content_policy')}</span>
                 <ExternalLink size={16} className="text-gray-400" />

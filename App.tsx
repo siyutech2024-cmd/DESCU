@@ -35,6 +35,7 @@ const ProductPage = React.lazy(() => import('./pages/ProductPage').then(module =
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
 const ChatPage = React.lazy(() => import('./pages/ChatPage').then(module => ({ default: module.ChatPage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage }))); // [NEW] Admin
+const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicyPage'));
 
 // Loading Component
 const PageLoader = () => (
@@ -1015,6 +1016,7 @@ const AppContent: React.FC = () => {
                 onSendMessage={handleSendMessage}
               />
             } />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/admin/*" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
