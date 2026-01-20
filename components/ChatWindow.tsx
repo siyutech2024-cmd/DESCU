@@ -47,6 +47,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showImages, setShowImages] = useState(false); // For image sharing
   const [showMeetupTime, setShowMeetupTime] = useState(false); // For meetup time
   const [productPrice, setProductPrice] = useState<number>(0); // For price negotiation
+  const [productSellerId, setProductSellerId] = useState<string>(''); // 产品卖家ID
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -88,15 +89,37 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         return [...prev, newMsg];
       });
       // Mark as read if from other user
-      if (newMsg.sender_id !== currentUser.id) {
+      if (newMsg.senderId !== currentUser.id) {
         markMessagesAsRead(conversation.id, currentUser.id).catch(console.error);
       }
     });
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      unsubscribe?.();
     };
   }, [conversation.id, currentUser.id]);
+
+  // Fetch product info for negotiation
+  useEffect(() => {
+    if (conversation.productId) {
+      const fetchProductInfo = async () => {
+        try {
+          const { data } = await supabase
+            .from('products')
+            .select('price, seller_id')
+            .eq('id', conversation.productId)
+            .single();
+          if (data) {
+            setProductPrice(data.price || 0);
+            setProductSellerId(data.seller_id || '');
+          }
+        } catch (err) {
+          console.error('Error fetching product info:', err);
+        }
+      };
+      fetchProductInfo();
+    }
+  }, [conversation.productId]);
 
   // Auto scroll to bottom when messages change
   useEffect(() => {
@@ -109,27 +132,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       navigate(`/product/${conversation.productId}`);
     }
   };
-
-  // Fetch product price when negotiation is opened
-  useEffect(() => {
-    if (showNegotiation && conversation.productId && productPrice === 0) {
-      const fetchProductPrice = async () => {
-        try {
-          const { data } = await supabase
-            .from('products')
-            .select('price')
-            .eq('id', conversation.productId)
-            .single();
-          if (data?.price) {
-            setProductPrice(data.price);
-          }
-        } catch (err) {
-          console.error('Error fetching product price:', err);
-        }
-      };
-      fetchProductPrice();
-    }
-  }, [showNegotiation, conversation.productId]);
 
   const handleAddEmoji = (emoji: string) => {
     setNewMessage(prev => prev + emoji);
@@ -316,7 +318,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
 
           {/* 议价按钮 */}
-          {!activeOrder && (conversation.sellerId || (conversation as any).seller_id) !== currentUser.id && (
+          {!activeOrder && productSellerId && productSellerId !== currentUser.id && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
