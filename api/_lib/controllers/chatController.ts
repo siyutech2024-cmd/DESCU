@@ -152,8 +152,10 @@ export const getMessages = async (req: Request, res: Response) => {
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
-            .order('timestamp', { ascending: true })
+            .order('created_at', { ascending: true })
             .range(offset, offset + limit - 1);
+
+        console.log(`[Chat] getMessages for ${conversationId}: found ${data?.length || 0} messages`);
 
         if (error) throw error;
         res.json(data || []);
