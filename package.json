@@ -18,6 +18,7 @@
     "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
     "@capacitor/geolocation": "^8.0.0",
+    "@capacitor/ios": "^8.0.1",
     "@google/genai": "^1.31.0",
     "@google/generative-ai": "^0.24.1",
     "@stripe/react-stripe-js": "^5.4.1",
