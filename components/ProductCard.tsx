@@ -71,12 +71,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
           src={product.images[0]}
           alt={product.title}
           loading="lazy"
-          className="object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out"
+          className={`object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out ${product.status === 'sold' ? 'grayscale opacity-70' : ''}`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
+        {/* SOLD Badge */}
+        {product.status === 'sold' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <div className="bg-red-600 text-white px-4 py-2 rounded-xl font-black text-sm transform -rotate-12 shadow-lg border-2 border-white">
+              已售出 / SOLD
+            </div>
+          </div>
+        )}
+
         {/* Location Badge - Compact for Mobile */}
-        {isNearby && (
+        {isNearby && product.status !== 'sold' && (
           <div className="absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 bg-white/80 backdrop-blur-md text-gray-800 text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full flex items-center gap-0.5 shadow-sm border border-white/50">
             <MapPin size={8} className="text-brand-600 md:w-[10px] md:h-[10px]" />
             {product.distance}km
