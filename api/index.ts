@@ -566,7 +566,7 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
                 conversation_id: conversationId,
                 product_id: productId,
                 original_price: product.price,
-                proposed_price: parseFloat(proposedPrice),
+                offered_price: parseFloat(proposedPrice),  // 数据库字段名是 offered_price
                 proposed_by: userId,
                 status: 'pending'
             })
