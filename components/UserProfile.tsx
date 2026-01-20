@@ -7,7 +7,7 @@ import { User, Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFullDataUrl } from '../services/utils';
 import { API_BASE_URL } from '../services/apiConfig';
-import { supabase, markProductAsSold } from '../services/supabase';
+import { supabase, markProductAsSold, relistProduct } from '../services/supabase';
 
 interface UserProfileProps {
   user: User;
@@ -53,10 +53,38 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     const success = await markProductAsSold(productId);
     if (success) {
       setSoldProducts(prev => new Set(prev).add(productId));
+      setRelistedProducts(prev => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
     } else {
       alert('Failed to mark as sold');
     }
     setMarkingSoldId(null);
+  };
+
+  // 重新上架状态
+  const [relistedProducts, setRelistedProducts] = useState<Set<string>>(new Set());
+  const [relistingId, setRelistingId] = useState<string | null>(null);
+
+  const handleRelist = async (productId: string) => {
+    const confirmed = window.confirm('重新上架需要重新审核，确定继续吗？\nRelisting requires re-review. Continue?');
+    if (!confirmed) return;
+
+    setRelistingId(productId);
+    const success = await relistProduct(productId);
+    if (success) {
+      setRelistedProducts(prev => new Set(prev).add(productId));
+      setSoldProducts(prev => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
+    } else {
+      alert('Failed to relist product');
+    }
+    setRelistingId(null);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -376,17 +404,37 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                         </button>
                       )}
                       {/* 状态标签 */}
-                      {((product.status && product.status !== 'active') || soldProducts.has(product.id)) && (
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1
-                          ${product.status === 'pending_review' ? 'bg-orange-100 text-orange-700' :
-                            product.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                              (product.status === 'sold' || soldProducts.has(product.id)) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                          }`}>
-                          <Check size={10} />
-                          {product.status === 'pending_review' ? '审核中' :
-                            product.status === 'rejected' ? '已拒绝' :
-                              (product.status === 'sold' || soldProducts.has(product.id)) ? '已售出' : product.status}
-                        </span>
+                      {((product.status && product.status !== 'active') || soldProducts.has(product.id) || relistedProducts.has(product.id)) && (
+                        <div className="flex flex-col gap-1">
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1
+                            ${(product.status === 'pending_review' || relistedProducts.has(product.id)) ? 'bg-orange-100 text-orange-700' :
+                              product.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                (product.status === 'sold' || soldProducts.has(product.id)) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                            }`}>
+                            <Check size={10} />
+                            {(product.status === 'pending_review' || relistedProducts.has(product.id)) ? '审核中' :
+                              product.status === 'rejected' ? '已拒绝' :
+                                (product.status === 'sold' || soldProducts.has(product.id)) ? '已售出' : product.status}
+                          </span>
+                          {/* 重新上架按钮 - 仅已售出产品可见 */}
+                          {((product.status === 'sold' || soldProducts.has(product.id)) && !relistedProducts.has(product.id)) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRelist(product.id);
+                              }}
+                              disabled={relistingId === product.id}
+                              className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              {relistingId === product.id ? (
+                                <Loader2 size={10} className="animate-spin" />
+                              ) : (
+                                <Upload size={10} />
+                              )}
+                              重新上架
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

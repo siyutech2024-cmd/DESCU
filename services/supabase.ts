@@ -54,3 +54,22 @@ export const markProductAsSold = async (productId: string): Promise<boolean> => 
         return false;
     }
 };
+
+// 重新上架产品（需要重新审核）
+export const relistProduct = async (productId: string): Promise<boolean> => {
+    try {
+        const { error } = await supabase
+            .from('products')
+            .update({ status: 'pending_review' })
+            .eq('id', productId);
+
+        if (error) {
+            console.error('Error relisting product:', error);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('Error relisting product:', error);
+        return false;
+    }
+};
