@@ -139,8 +139,10 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   };
 
   const triggerImageSelection = async () => {
-    // Detect Capacitor
-    const isCapacitor = window.location.protocol === 'capacitor:' || /Android|iPhone|iPad/i.test(navigator.userAgent);
+    // 更严格的Capacitor检测：只依赖protocol，不依赖User-Agent
+    // 避免移动端Web浏览器被错误识别为Capacitor环境
+    const isCapacitor = window.location.protocol === 'capacitor:' ||
+      window.location.protocol === 'ionic:';
 
     if (isCapacitor) {
       try {
@@ -159,9 +161,12 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
           await processFile(file);
         }
       } catch (e) {
-        console.log('User cancelled camera', e);
+        console.log('Camera API failed, falling back to file input', e);
+        // 回退到file input（可能是权限被拒绝或API不可用）
+        fileInputRef.current?.click();
       }
     } else {
+      // Web环境：直接使用file input
       fileInputRef.current?.click();
     }
   };
