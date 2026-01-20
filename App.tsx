@@ -218,6 +218,79 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
+  // 🔔 全局消息 Realtime 订阅 - 实时更新未读消息计数
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('[App] Setting up global message subscription for user:', user.id);
+
+    const channel = supabase
+      .channel('global-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        async (payload) => {
+          const newMsg = payload.new as any;
+          console.log('[App] New message received:', newMsg.id);
+
+          // 检查是否需要更新未读计数
+          if (newMsg.sender_id !== user.id) {
+            // 获取对话信息，确认是否与当前用户相关
+            const { data: conv } = await supabase
+              .from('conversations')
+              .select('user1_id, user2_id')
+              .eq('id', newMsg.conversation_id)
+              .single();
+
+            if (conv) {
+              const isMyConversation = conv.user1_id === user.id || conv.user2_id === user.id;
+
+              if (isMyConversation) {
+                console.log('[App] Message is for current user, refreshing conversations...');
+
+                // 刷新对话列表以更新未读消息
+                try {
+                  const { getUserConversations } = await import('./services/chatService');
+                  const updatedConvs = await getUserConversations(user.id);
+                  if (updatedConvs && updatedConvs.length > 0) {
+                    // 更新对话列表
+                    setConversations(updatedConvs.map((conv: any) => ({
+                      id: conv.id,
+                      productId: conv.product_id,
+                      productTitle: conv.product_title || conv.products?.title || 'Unknown Product',
+                      productImage: conv.product_image || conv.products?.images?.[0],
+                      otherUser: {
+                        id: conv.other_user_id,
+                        name: conv.other_user_name,
+                        avatar: conv.other_user_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.other_user_id}`
+                      },
+                      messages: conv.messages || [],
+                      lastMessageTime: conv.last_message_time,
+                      buyerId: conv.buyer_id,
+                      sellerId: conv.seller_id
+                    })));
+                  }
+                } catch (error) {
+                  console.error('[App] Error refreshing conversations:', error);
+                }
+              }
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[App] Cleaning up global message subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+
   // 更新用户位置到服务器
   const updateUserLocationToServer = async (user: any) => {
     try {

@@ -38,8 +38,6 @@ import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLogi
 import { requireAuth } from './middleware/userAuth'; // Keep for products
 import { requireAdmin } from './middleware/adminAuth';
 
-/* TEMPORARILY DISABLED FOR DEBUGGING - SAFETY MODE */
-// Chat Controller Imports
 import {
     createConversation,
     getUserConversations,
@@ -47,6 +45,9 @@ import {
     getMessages,
     markMessagesAsRead
 } from './controllers/chatController';
+
+// Negotiation Controller Import
+import { proposePrice, respondToNegotiation } from './controllers/negotiationController';
 
 
 // Admin Controller Imports
@@ -102,6 +103,10 @@ app.get('/api/users/:userId/conversations', getUserConversations);
 app.get('/api/conversations/:conversationId/messages', getMessages);
 app.post('/api/messages', sendMessage);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
+
+// Negotiation Endpoints
+app.post('/api/negotiations/propose', requireAuth, proposePrice);
+app.post('/api/negotiations/respond', requireAuth, respondToNegotiation);
 
 // Payment Endpoints
 // Webhook (No Auth required, uses Signature)
