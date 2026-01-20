@@ -26,7 +26,6 @@ export const ChatList: React.FC<ChatListProps> = ({
       // 判断对话类型（这里需要根据实际订单状态来判断）
       // 暂时通过消息数量和内容来简单分类
       const hasMessages = conv.messages && conv.messages.length > 0;
-      const lastMsg = conv.messages?.[conv.messages.length - 1];
 
       // 检查是否有议价或订单相关消息
       const hasOrderActivity = conv.messages?.some(m =>
@@ -36,9 +35,19 @@ export const ChatList: React.FC<ChatListProps> = ({
         m.text?.includes('order')
       );
 
-      let category: TabType = 'inquiry';
+      // 检查是否有完成相关消息
+      const isCompleted = conv.messages?.some(m =>
+        m.text?.includes('完成') ||
+        m.text?.includes('已接受') ||
+        m.text?.includes('confirmed') ||
+        m.text?.includes('completed')
+      );
 
-      if (hasOrderActivity) {
+      let category: 'all' | 'active' | 'inquiry' | 'completed' = 'inquiry';
+
+      if (isCompleted) {
+        category = 'completed';
+      } else if (hasOrderActivity) {
         // 有订单活动的归类为进行中
         category = 'active';
       } else if (!hasMessages || conv.messages.length === 0) {
