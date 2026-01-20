@@ -3,6 +3,7 @@ import { DollarSign, TrendingDown, X, Loader2, Package } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { API_BASE_URL } from '../../services/apiConfig';
+import toast from 'react-hot-toast';
 
 interface PriceNegotiationSenderProps {
     currentPrice: number;
@@ -57,7 +58,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
 
     const handlePropose = async () => {
         if (!proposedPrice || parseFloat(proposedPrice) <= 0) {
-            alert('请输入有效的价格 / Por favor ingresa un precio válido');
+            toast.error('请输入有效的价格 / Por favor ingresa un precio válido');
             return;
         }
 
@@ -65,7 +66,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                alert('请先登录 / Por favor inicia sesión');
+                toast.error('请先登录 / Por favor inicia sesión');
                 return;
             }
 
@@ -88,10 +89,11 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
             }
 
             setProposedPrice('');
+            toast.success('议价已发送 / Oferta enviada ✓');
             onSent?.();
         } catch (error: any) {
             console.error('Error proposing price:', error);
-            alert(error.message || '发送议价失败，请重试 / Error al enviar oferta');
+            toast.error(error.message || '发送议价失败，请重试 / Error al enviar oferta');
         } finally {
             setIsSending(false);
         }

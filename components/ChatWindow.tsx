@@ -163,7 +163,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       try {
         const sentMsg = await sendMessage(conversation.id, currentUser.id, text);
         setMessages(prev => prev.map(m => m.id === tempId ? sentMsg : m));
-        if (onSendMessage) onSendMessage(conversation.id, text);
+        // Note: onSendMessage callback removed to avoid duplicate messages
+        // Realtime subscription will handle message updates
       } catch (error) {
         console.error('Failed to send message:', error);
         setMessages(prev => prev.filter(m => m.id !== tempId));
