@@ -325,9 +325,9 @@ const AppContent: React.FC = () => {
   const handleLogin = async () => {
     try {
       // 检测是否在Capacitor环境（移动应用）
+      // 只依赖protocol，避免移动端Web浏览器被误判
       const isCapacitor = window.location.protocol === 'capacitor:' ||
-        window.location.protocol === 'ionic:' ||
-        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        window.location.protocol === 'ionic:';
 
       // 在移动端使用deep link，web端使用origin
       const redirectUrl = isCapacitor
