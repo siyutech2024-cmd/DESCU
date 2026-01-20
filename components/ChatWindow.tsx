@@ -299,74 +299,65 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto pt-[72px] pb-[120px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
-
-        {/* Product & Order Context Card */}
+      {/* 固定的商品卡片 - Fixed Product Card */}
+      <div className="absolute top-[72px] left-0 right-0 z-10 glass-panel border-b border-white/40 px-4 py-2">
         <div
           onClick={handleProductClick}
-          className="mx-auto max-w-sm glass-panel p-3 rounded-xl flex flex-col gap-2 animate-fade-in-up mt-2 cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden"
+          className="flex items-center gap-3 cursor-pointer hover:bg-white/50 rounded-xl p-2 transition-all"
         >
-          {/* Order Status Strip */}
-          {activeOrder && (
-            <div className={`absolute top-0 left-0 bottom-0 w-1 ${activeOrder.status === 'completed' ? 'bg-green-500' :
-              activeOrder.status === 'cancelled' ? 'bg-red-500' :
-                'bg-blue-500'
-              }`} />
-          )}
-
-          <div className="flex items-center gap-3">
-            <img src={conversation.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'} className="w-12 h-12 rounded-lg object-cover shadow-sm bg-gray-100" alt="Product" />
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-start">
-                <p className="text-sm font-bold text-gray-900 truncate">{conversation.productTitle}</p>
-                {activeOrder ? (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 truncate max-w-[80px]">
-                    {activeOrder.status.replace('_', ' ')}
-                  </span>
-                ) : (
-                  <span className="text-xs font-bold text-gray-900">{t('chat.ask_price')}</span>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center mt-1">
-                <p className="text-xs text-brand-600 font-medium">点击查看详情 / Ver detalles</p>
-                {!activeOrder && (conversation.sellerId || (conversation as any).seller_id) !== currentUser.id && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowNegotiation(true);
-                    }}
-                    className="text-[10px] bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-sm"
-                  >
-                    {t('chat.ask_price')}
-                  </button>
-                )}
-              </div>
-            </div>
+          <img
+            src={conversation.productImage || 'https://images.unsplash.com/photo-1557821552-17105176677c?w=100&h=100&fit=crop'}
+            className="w-14 h-14 rounded-xl object-cover shadow-sm bg-gray-100 ring-2 ring-white/50"
+            alt="Product"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-900 truncate">{conversation.productTitle}</p>
+            <p className="text-xs text-brand-600 font-medium">点击查看详情 / Ver detalles</p>
           </div>
 
-          {/* Meetup Details Card */}
-          {activeOrder && activeOrder.meetup_location && (
-            <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-100 mt-1">
-              <div className="flex items-center gap-2 mb-1">
-                <MapPin size={12} className="text-blue-600" />
-                <span className="text-xs font-bold text-blue-900 line-clamp-1">{activeOrder.meetup_location}</span>
-              </div>
-              {activeOrder.meetup_time && (
-                <div className="flex items-center gap-2">
-                  <Clock size={12} className="text-blue-600" />
-                  <span className="text-xs text-blue-800">{new Date(activeOrder.meetup_time).toLocaleString()}</span>
-                </div>
-              )}
-              <div className="mt-2 pt-2 border-t border-blue-100/50">
-                <p className="text-[10px] text-blue-600 text-center font-medium">
-                  双方确认后自动放款。
-                </p>
-              </div>
-            </div>
+          {/* 议价按钮 */}
+          {!activeOrder && (conversation.sellerId || (conversation as any).seller_id) !== currentUser.id && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNegotiation(true);
+              }}
+              className="text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md"
+            >
+              Ofertar
+            </button>
+          )}
+
+          {/* 订单状态标签 */}
+          {activeOrder && (
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${activeOrder.status === 'completed' ? 'bg-green-100 text-green-700' :
+              activeOrder.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                'bg-blue-100 text-blue-700'
+              }`}>
+              {activeOrder.status.replace('_', ' ')}
+            </span>
           )}
         </div>
+
+        {/* 见面详情 */}
+        {activeOrder && activeOrder.meetup_location && (
+          <div className="bg-blue-50 rounded-lg p-2 mt-2 border border-blue-100">
+            <div className="flex items-center gap-2">
+              <MapPin size={12} className="text-blue-600" />
+              <span className="text-xs font-medium text-blue-900 truncate flex-1">{activeOrder.meetup_location}</span>
+              {activeOrder.meetup_time && (
+                <>
+                  <Clock size={12} className="text-blue-600" />
+                  <span className="text-xs text-blue-800">{new Date(activeOrder.meetup_time).toLocaleString()}</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Messages Area - 调整 padding 适应固定商品卡 */}
+      <div className="flex-1 overflow-y-auto pt-[140px] pb-[120px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
 
         {/* ... (CheckoutModal logic placeholder) ... */}
         {activeOrder && (
@@ -438,7 +429,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     />
                   )}
                   {messageType === 'location' && msg.content && (
-                    <LocationCard content={JSON.parse(msg.content)} />
+                    <LocationCard
+                      content={JSON.parse(msg.content)}
+                      senderName={isMe ? currentUser.name : conversation.otherUser.name}
+                      senderAvatar={isMe ? currentUser.avatar : conversation.otherUser.avatar}
+                      isMe={isMe}
+                    />
                   )}
                   {messageType === 'images' && msg.content && (
                     <ImagesMessage content={JSON.parse(msg.content)} />

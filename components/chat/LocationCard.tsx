@@ -10,9 +10,12 @@ interface LocationCardProps {
         shared_by?: string;
         timestamp?: string;
     };
+    senderName?: string;
+    senderAvatar?: string;
+    isMe?: boolean;
 }
 
-export const LocationCard: React.FC<LocationCardProps> = ({ content }) => {
+export const LocationCard: React.FC<LocationCardProps> = ({ content, senderName, senderAvatar, isMe }) => {
     const { name, address, lat, lng } = content;
 
     // OpenStreetMap嵌入URL
@@ -40,15 +43,25 @@ export const LocationCard: React.FC<LocationCardProps> = ({ content }) => {
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
             <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
 
-            {/* Header */}
+            {/* Header with Sender Info */}
             <div className="relative flex items-center gap-3 p-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg">
-                    <MapPin className="text-white drop-shadow-lg" size={24} />
+                {/* 发送者头像 */}
+                {senderAvatar && (
+                    <img
+                        src={senderAvatar}
+                        alt={senderName || '用户'}
+                        className="w-10 h-10 rounded-full object-cover ring-2 ring-white/50 shadow-md"
+                    />
+                )}
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg">
+                    <MapPin className="text-white drop-shadow-lg" size={20} />
                 </div>
                 <div className="flex-1">
                     <div className="flex items-center gap-1.5">
                         <Sparkles size={14} className="text-yellow-300" />
-                        <span className="text-xs font-bold text-white/90 uppercase tracking-wider">位置分享</span>
+                        <span className="text-xs font-bold text-white/90 uppercase tracking-wider">
+                            {senderName ? `${senderName} 分享了位置` : '位置分享'}
+                        </span>
                     </div>
                     <h4 className="font-bold text-white text-base truncate mt-0.5">{name}</h4>
                 </div>
