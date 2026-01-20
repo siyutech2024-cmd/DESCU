@@ -481,6 +481,9 @@ app.get('/api/ratings/:userId/stats', getUserRatingStats);
 // 发起议价
 app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
     try {
+        const { conversationId, productId, proposedPrice } = req.body;
+        const userId = req.user.id;
+
         console.log('[Negotiation API] Received request:', { conversationId, productId, proposedPrice, userId });
 
         // 验证参数
