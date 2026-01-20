@@ -266,6 +266,7 @@ const AppContent: React.FC = () => {
                       otherUser: {
                         id: conv.other_user_id,
                         name: conv.other_user_name,
+                        email: conv.other_user_email || '',
                         avatar: conv.other_user_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.other_user_id}`
                       },
                       messages: conv.messages || [],
