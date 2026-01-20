@@ -481,27 +481,45 @@ app.get('/api/ratings/:userId/stats', getUserRatingStats);
 // 发起议价
 app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
     try {
-        const { conversationId, productId, proposedPrice } = req.body;
-        const userId = req.user.id;
+        console.log('[Negotiation API] Received request:', { conversationId, productId, proposedPrice, userId });
 
         // 验证参数
         if (!conversationId || !productId || !proposedPrice) {
+            console.error('[Negotiation API] Missing fields');
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // 获取对话和产品信息
+        // 获取对话信息
         const { data: conversation, error: convError } = await supabase
             .from('conversations')
-            .select('*, product:products(*)')
+            .select('*')
             .eq('id', conversationId)
             .single();
 
+        console.log('[Negotiation API] Conversation query result:', { conversation, convError });
+
         if (convError || !conversation) {
-            return res.status(404).json({ error: 'Conversation not found' });
+            console.error('[Negotiation API] Conversation not found:', convError);
+            return res.status(404).json({ error: 'Conversation not found', details: convError?.message });
+        }
+
+        // 获取产品信息
+        const { data: product, error: productError } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', productId)
+            .single();
+
+        console.log('[Negotiation API] Product query result:', { product, productError });
+
+        if (productError || !product) {
+            console.error('[Negotiation API] Product not found:', productError);
+            return res.status(404).json({ error: 'Product not found', details: productError?.message });
         }
 
         // 验证用户身份（只有买家可以发起议价）
         if (conversation.buyer_id !== userId) {
+            console.error('[Negotiation API] User not buyer:', { buyer_id: conversation.buyer_id, userId });
             return res.status(403).json({ error: 'Only buyer can propose price' });
         }
 
@@ -511,7 +529,7 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
             .insert({
                 conversation_id: conversationId,
                 product_id: productId,
-                original_price: conversation.product.price,
+                original_price: product.price,
                 proposed_price: parseFloat(proposedPrice),
                 proposed_by: userId,
                 status: 'pending'
@@ -519,29 +537,37 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
             .select()
             .single();
 
-        if (negError) throw negError;
+        console.log('[Negotiation API] Created negotiation:', { negotiation, negError });
+
+        if (negError) {
+            console.error('[Negotiation API] Failed to create negotiation:', negError);
+            throw negError;
+        }
 
         // 发送议价卡片消息
         const messageResult = await supabase.from('messages').insert({
             conversation_id: conversationId,
             sender_id: userId,
-            text: `💰 议价请求: $${proposedPrice} (原价: $${conversation.product.price})`,
+            text: `💰 议价请求: $${proposedPrice} (原价: $${product.price})`,
             message_type: 'price_negotiation',
             content: JSON.stringify({
                 negotiationId: negotiation.id,
-                originalPrice: conversation.product.price,
+                originalPrice: product.price,
                 proposedPrice: parseFloat(proposedPrice),
-                productTitle: conversation.product.title,
+                productTitle: product.title,
                 status: 'pending'
             }),
             is_pinned: true,
             pinned_until: new Date(Date.now() + 48 * 60 * 60 * 1000) // 置顶48小时
         });
 
+        console.log('[Negotiation API] Message insert result:', messageResult);
+
         if (messageResult.error) {
             console.error('Failed to insert negotiation message:', messageResult.error);
         }
 
+        console.log('[Negotiation API] Success! Returning negotiation:', negotiation.id);
         res.json({ negotiation });
     } catch (error: any) {
         console.error('Propose negotiation error:', error);
