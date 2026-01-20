@@ -522,9 +522,10 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
         if (negError) throw negError;
 
         // 发送议价卡片消息
-        await supabase.from('messages').insert({
+        const messageResult = await supabase.from('messages').insert({
             conversation_id: conversationId,
             sender_id: userId,
+            text: `💰 议价请求: $${proposedPrice} (原价: $${conversation.product.price})`,
             message_type: 'price_negotiation',
             content: JSON.stringify({
                 negotiationId: negotiation.id,
@@ -536,6 +537,10 @@ app.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
             is_pinned: true,
             pinned_until: new Date(Date.now() + 48 * 60 * 60 * 1000) // 置顶48小时
         });
+
+        if (messageResult.error) {
+            console.error('Failed to insert negotiation message:', messageResult.error);
+        }
 
         res.json({ negotiation });
     } catch (error: any) {
@@ -748,7 +753,7 @@ app.get('/api/orders', requireAuth, async (req: any, res) => {
 
         const { data: orders, error } = await query;
         if (error) throw error;
-        res.json({ orders });
+        res.json({ orders: orders || [] });
     } catch (error: any) {
         console.error('Get orders error:', error);
         res.status(500).json({ error: 'Failed to get orders', message: error.message });
