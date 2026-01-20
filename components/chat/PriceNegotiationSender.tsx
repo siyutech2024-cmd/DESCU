@@ -70,6 +70,12 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                 return;
             }
 
+            console.log('[Negotiation] Sending proposal:', {
+                conversationId,
+                productId,
+                proposedPrice: parseFloat(proposedPrice)
+            });
+
             const response = await fetch(`${API_BASE_URL}/api/negotiations/propose`, {
                 method: 'POST',
                 headers: {
@@ -83,16 +89,22 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                 })
             });
 
+            console.log('[Negotiation] Response status:', response.status);
+
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.message || 'Failed to propose');
+                console.error('[Negotiation] Error response:', err);
+                throw new Error(err.message || err.error || 'Failed to propose');
             }
+
+            const result = await response.json();
+            console.log('[Negotiation] Success:', result);
 
             setProposedPrice('');
             toast.success('议价已发送 / Oferta enviada ✓');
             onSent?.();
         } catch (error: any) {
-            console.error('Error proposing price:', error);
+            console.error('[Negotiation] Error proposing price:', error);
             toast.error(error.message || '发送议价失败，请重试 / Error al enviar oferta');
         } finally {
             setIsSending(false);
