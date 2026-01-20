@@ -91,10 +91,12 @@ export const HomePage: React.FC<HomePageProps> = ({
                             </span>
                             <div className="flex flex-col">
                                 <span className="text-xs font-bold text-gray-900">
-                                    {region === 'MX' ? 'Mexico' : region === 'US' ? 'USA' : region === 'CN' ? 'China' : region === 'EU' ? 'Europe' : region === 'JP' ? 'Japan' : 'Global'}
+                                    {locationInfo?.city || (region === 'MX' ? 'Mexico' : region === 'US' ? 'USA' : region === 'CN' ? 'China' : region === 'EU' ? 'Europe' : region === 'JP' ? 'Japan' : 'Global')}
                                 </span>
-                                {locationInfo?.displayName && (
-                                    <span className="text-[9px] text-gray-600">{locationInfo.displayName}</span>
+                                {(locationInfo?.town || locationInfo?.district) && (
+                                    <span className="text-[9px] text-gray-600">
+                                        {locationInfo.town || locationInfo.district}
+                                    </span>
                                 )}
                             </div>
                         </div>
