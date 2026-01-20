@@ -633,11 +633,21 @@ app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => 
             .single();
 
         if (negError || !negotiation) {
+            console.error('[Negotiation Response] Not found:', negError);
             return res.status(404).json({ error: 'Negotiation not found' });
         }
 
-        // 验证卖家身份
-        if (negotiation.conversation.seller_id !== userId) {
+        console.log('[Negotiation Response] Found negotiation:', {
+            id: negotiation.id,
+            seller_id: negotiation.seller_id,
+            buyer_id: negotiation.buyer_id,
+            offered_price: negotiation.offered_price,
+            status: negotiation.status
+        });
+
+        // 验证卖家身份 - 使用 negotiation.seller_id
+        if (negotiation.seller_id !== userId) {
+            console.error('[Negotiation Response] Not seller:', { expected: negotiation.seller_id, actual: userId });
             return res.status(403).json({ error: 'Only seller can respond' });
         }
 
@@ -654,8 +664,8 @@ app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => 
         let messageContent: any = {
             negotiationId: id,
             originalPrice: negotiation.original_price,
-            proposedPrice: negotiation.proposed_price,
-            productTitle: negotiation.product.title
+            proposedPrice: negotiation.offered_price,  // 使用 offered_price 而不是 proposed_price
+            productTitle: negotiation.product?.title || 'Unknown Product'
         };
 
         // 处理不同响应
@@ -668,7 +678,7 @@ app.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) => 
                 // 更新产品价格
                 await supabase
                     .from('products')
-                    .update({ price: negotiation.proposed_price })
+                    .update({ price: negotiation.offered_price })
                     .eq('id', negotiation.product_id);
 
                 break;
