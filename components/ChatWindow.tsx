@@ -414,7 +414,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   {messageType === 'price_negotiation' && msg.content && (
                     <PriceNegotiationCard
                       content={JSON.parse(msg.content)}
-                      isSeller={conversation.sellerId === currentUser.id}
+                      isSeller={productSellerId === currentUser.id}
                       onUpdate={() => {
                         // 重新加载消息
                         getMessages(conversation.id).then(setMessages);
@@ -424,7 +424,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   {messageType === 'price_negotiation_response' && msg.content && (
                     <PriceNegotiationCard
                       content={JSON.parse(msg.content)}
-                      isSeller={conversation.sellerId === currentUser.id}
+                      isSeller={productSellerId === currentUser.id}
                       onUpdate={() => {
                         getMessages(conversation.id).then(setMessages);
                       }}
