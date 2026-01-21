@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
-Disallow: /api/
 
-Sitemap: https://descu.ai/sitemap.xml
+# 动态 Sitemap
+Sitemap: https://descu.ai/api/sitemap.xml
