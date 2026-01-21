@@ -73,7 +73,9 @@ export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose,
 
         // 2. Call Gemini API
         try {
+            console.log('[CameraSellFlow] Starting AI analysis...');
             const analysis = await analyzeImageWithGemini(imageBase64);
+            console.log('[CameraSellFlow] AI analysis result:', analysis);
 
             if (analysis) {
                 setAiResult({
@@ -86,11 +88,14 @@ export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose,
                 });
                 setStep('confirm');
             } else {
-                throw new Error("AI could not identify the item.");
+                // API Key 可能缺失或 AI 无法识别
+                console.error('[CameraSellFlow] AI returned null - API Key may be missing');
+                setError("AI 无法识别，请手动填写 / AI could not identify. Please fill manually.");
+                setStep('camera'); // Go back
             }
-        } catch (err) {
-            console.error(err);
-            setError("AI Analysis failed. Please try again.");
+        } catch (err: any) {
+            console.error('[CameraSellFlow] AI Analysis error:', err?.message || err);
+            setError(`AI 分析失败 / AI Analysis failed: ${err?.message || 'Unknown error'}`);
             setStep('camera'); // Go back
         }
     };

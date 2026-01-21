@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { MessageCircle, Clock, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users } from 'lucide-react';
+import { MessageCircle, Clock, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
 
 interface ChatListProps {
   conversations: Conversation[];
@@ -30,6 +30,13 @@ export const ChatList: React.FC<ChatListProps> = ({
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
+  const [hiddenConversations, setHiddenConversations] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{ convId: string; x: number; y: number } | null>(null);
+
+  // iOS 滑动删除状态
+  const [swipedConvId, setSwipedConvId] = useState<string | null>(null);
+  const touchStartX = useRef<number>(0);
+  const touchCurrentX = useRef<number>(0);
 
   // 分类对话
   const categorizedConversations = useMemo(() => {
@@ -51,16 +58,16 @@ export const ChatList: React.FC<ChatListProps> = ({
     });
   }, [conversations]);
 
-  // 根据标签筛选
+  // 根据标签筛选（排除隐藏的对话）
   const filteredConversations = useMemo(() => {
-    let filtered = categorizedConversations;
+    let filtered = categorizedConversations.filter(conv => !hiddenConversations.has(conv.id));
 
     if (activeTab !== 'all') {
-      filtered = categorizedConversations.filter(conv => conv.category === activeTab);
+      filtered = filtered.filter(conv => conv.category === activeTab);
     }
 
     return filtered.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-  }, [categorizedConversations, activeTab]);
+  }, [categorizedConversations, activeTab, hiddenConversations]);
 
   // 按产品分组
   const productGroups = useMemo(() => {
@@ -118,6 +125,46 @@ export const ChatList: React.FC<ChatListProps> = ({
       }
       return next;
     });
+  };
+
+  // 隐藏对话
+  const handleHideConversation = (convId: string) => {
+    setHiddenConversations(prev => new Set(prev).add(convId));
+    setContextMenu(null);
+  };
+
+  // 显示右键/长按菜单
+  const handleContextMenu = (e: React.MouseEvent | React.TouchEvent, convId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setContextMenu({ convId, x: rect.left, y: rect.bottom });
+  };
+
+  // iOS 滑动手势处理
+  const handleTouchStart = (e: React.TouchEvent, convId: string) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, convId: string) => {
+    touchCurrentX.current = e.touches[0].clientX;
+    const diff = touchStartX.current - touchCurrentX.current;
+    // 左滑超过 50px 则显示操作按钮
+    if (diff > 50) {
+      setSwipedConvId(convId);
+    } else if (diff < -30) {
+      // 右滑复位
+      setSwipedConvId(null);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    // 触摸结束时检查是否需要保持滑动状态
+    const diff = touchStartX.current - touchCurrentX.current;
+    if (diff < 50) {
+      setSwipedConvId(null);
+    }
   };
 
   if (conversations.length === 0) {
@@ -237,66 +284,100 @@ export const ChatList: React.FC<ChatListProps> = ({
 
                 {/* 展开的买家列表 */}
                 {isExpanded && (
-                  <div className="mt-1 ml-4 pl-4 border-l-2 border-brand-100 space-y-2">
+                  <div className="mt-1 ml-2 pl-2 border-l-2 border-brand-100 space-y-2">
                     {group.conversations.map((conv, idx) => {
                       const lastMsg = conv.messages?.[conv.messages.length - 1];
                       const unreadCount = conv.messages?.filter(m => !m.isRead && m.senderId !== currentUser.id).length || 0;
 
                       return (
-                        <div
-                          key={conv.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectConversation(conv.id);
-                          }}
-                          className="group relative flex items-center gap-3 bg-gray-50 hover:bg-white p-3 rounded-xl cursor-pointer hover:shadow-sm transition-all duration-200 border border-transparent hover:border-gray-100"
-                          style={{ animationDelay: `${idx * 30}ms` }}
-                        >
-                          {/* 状态指示条 */}
-                          <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-full ${conv.category === 'active' ? 'bg-blue-500' :
-                            conv.category === 'completed' ? 'bg-green-500' :
-                              'bg-orange-400'
-                            }`} />
-
-                          {/* 买家头像 */}
-                          <div className="relative flex-shrink-0 ml-2">
-                            <img
-                              src={conv.otherUser.avatar}
-                              alt={conv.otherUser.name}
-                              className="w-10 h-10 rounded-full object-cover border-2 border-white"
-                            />
-                            {unreadCount > 0 && (
-                              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full ring-2 ring-gray-50">
-                                {unreadCount}
-                              </span>
-                            )}
+                        <div key={conv.id} className="relative overflow-hidden rounded-xl">
+                          {/* 滑动操作按钮背景 - z-0 在底层 */}
+                          <div className="absolute right-0 top-0 bottom-0 flex items-stretch z-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleHideConversation(conv.id);
+                              }}
+                              className="w-14 bg-gray-500 text-white flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <EyeOff size={16} />
+                              <span className="text-[9px] font-bold">隐藏</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm('确定删除此对话？')) {
+                                  handleHideConversation(conv.id);
+                                }
+                              }}
+                              className="w-14 bg-red-500 text-white flex flex-col items-center justify-center gap-0.5"
+                            >
+                              <Trash2 size={16} />
+                              <span className="text-[9px] font-bold">删除</span>
+                            </button>
                           </div>
 
-                          {/* 买家信息 */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-center mb-0.5">
-                              <h4 className="font-semibold text-gray-800 text-sm truncate pr-2 group-hover:text-brand-600 transition-colors">
-                                {conv.otherUser.name}
-                              </h4>
-                              <span className="text-[10px] font-medium text-gray-400 flex-shrink-0">
-                                {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
-                              </span>
+                          {/* 对话卡片主体 - z-10 覆盖按钮 */}
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!contextMenu && swipedConvId !== conv.id) onSelectConversation(conv.id);
+                              if (swipedConvId === conv.id) setSwipedConvId(null);
+                            }}
+                            onTouchStart={(e) => handleTouchStart(e, conv.id)}
+                            onTouchMove={(e) => handleTouchMove(e, conv.id)}
+                            onTouchEnd={handleTouchEnd}
+                            onContextMenu={(e) => handleContextMenu(e, conv.id)}
+                            className={`group relative z-10 w-full flex items-center gap-3 bg-gray-50 hover:bg-white p-3 cursor-pointer hover:shadow-sm transition-transform duration-200 border border-transparent hover:border-gray-100 ${swipedConvId === conv.id ? '-translate-x-28' : 'translate-x-0'
+                              }`}
+                            style={{ animationDelay: `${idx * 30}ms` }}
+                          >
+                            {/* 状态指示条 */}
+                            <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-full ${conv.category === 'active' ? 'bg-blue-500' :
+                              conv.category === 'completed' ? 'bg-green-500' :
+                                'bg-orange-400'
+                              }`} />
+
+                            {/* 买家头像 */}
+                            <div className="relative flex-shrink-0 ml-2">
+                              <img
+                                src={conv.otherUser.avatar}
+                                alt={conv.otherUser.name}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-white"
+                              />
+                              {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full ring-2 ring-gray-50">
+                                  {unreadCount}
+                                </span>
+                              )}
                             </div>
 
-                            <p className={`text-xs truncate leading-relaxed ${unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
-                              {lastMsg?.senderId === currentUser.id && <span className="text-gray-400 font-normal mr-1">{t('chat.you')}:</span>}
-                              {lastMsg?.text || t('chat.no_msgs')}
-                            </p>
+                            {/* 买家信息 */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-center mb-0.5">
+                                <h4 className="font-semibold text-gray-800 text-sm truncate pr-2 group-hover:text-brand-600 transition-colors">
+                                  {conv.otherUser.name}
+                                </h4>
+                                <span className="text-[10px] font-medium text-gray-400 flex-shrink-0">
+                                  {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
+                                </span>
+                              </div>
+
+                              <p className={`text-xs truncate leading-relaxed ${unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
+                                {lastMsg?.senderId === currentUser.id && <span className="text-gray-400 font-normal mr-1">{t('chat.you')}:</span>}
+                                {lastMsg?.text || t('chat.no_msgs')}
+                              </p>
+                            </div>
+
+                            {/* 状态标签 */}
+                            {conv.category === 'active' && (
+                              <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">
+                                交易中
+                              </span>
+                            )}
+
+                            <ChevronRight size={16} className="text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
                           </div>
-
-                          {/* 状态标签 */}
-                          {conv.category === 'active' && (
-                            <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">
-                              交易中
-                            </span>
-                          )}
-
-                          <ChevronRight size={16} className="text-gray-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
                         </div>
                       );
                     })}
@@ -307,6 +388,50 @@ export const ChatList: React.FC<ChatListProps> = ({
           })
         )}
       </div>
+
+      {/* 上下文菜单 */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
+          <div
+            className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-48 animate-fade-in"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              onClick={() => handleHideConversation(contextMenu.convId)}
+              className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+            >
+              <EyeOff size={16} className="text-gray-400" />
+              隐藏对话 / Hide
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('确定删除此对话？此操作不可撤销。\nDelete this chat? This cannot be undone.')) {
+                  handleHideConversation(contextMenu.convId);
+                }
+              }}
+              className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3"
+            >
+              <Trash2 size={16} />
+              删除对话 / Delete
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* 隐藏的对话恢复提示 */}
+      {hiddenConversations.size > 0 && (
+        <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 animate-fade-in-up">
+          <button
+            onClick={() => setHiddenConversations(new Set())}
+            className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium hover:bg-gray-700 transition-colors"
+          >
+            <EyeOff size={14} />
+            {hiddenConversations.size} 个对话已隐藏
+            <X size={14} className="opacity-60" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

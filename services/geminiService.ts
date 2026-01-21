@@ -17,7 +17,7 @@ export interface AIAnalysisResult {
 
 export const analyzeImageWithGemini = async (imageBase64: string): Promise<AIAnalysisResult | null> => {
   if (!genAI) {
-    console.warn("Gemini API Key is missing");
+    console.error("[Gemini] API Key (VITE_GEMINI_API_KEY) is missing! Please check .env file.");
     return null;
   }
 

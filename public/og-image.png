@@ -1,0 +1,9 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pink background with rounded corners -->
+  <rect width="1024" height="1024" rx="200" fill="#E91E63"/>
+  
+  <!-- White "D" letter -->
+  <path d="M307 204 H512 C716 204 870 358 870 562 C870 766 716 920 512 920 H307 Z" stroke="white" stroke-width="82" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="461" cy="409" r="51" fill="white"/>
+  <path d="M307 204 V920" stroke="white" stroke-width="82" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

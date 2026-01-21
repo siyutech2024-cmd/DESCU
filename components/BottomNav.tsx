@@ -90,8 +90,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     setIsRegionModalOpen(false);
                   }}
                   className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${region === r.code
-                      ? 'bg-brand-50 border-2 border-brand-500'
-                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                    ? 'bg-brand-50 border-2 border-brand-500'
+                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                     }`}
                 >
                   <div className="flex items-center gap-3">
@@ -124,7 +124,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'home' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <Home size={22} strokeWidth={currentView === 'home' ? 2.5 : 2} fill={currentView === 'home' ? "currentColor" : "none"} />
-              <span className="text-[10px] font-bold">Home</span>
+              <span className="text-[10px] font-bold">{t('nav.home')}</span>
             </button>
 
             {/* 2. Location Button - Now opens modal */}
@@ -164,7 +164,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-bold">提醒</span>
+              <span className="text-[10px] font-bold">{t('nav.notifications')}</span>
             </button>
 
             {/* 5. Profile Button */}
@@ -173,7 +173,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'profile' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <UserIcon size={22} strokeWidth={currentView === 'profile' ? 2.5 : 2} fill={currentView === 'profile' ? "currentColor" : "none"} />
-              <span className="text-[10px] font-bold">Me</span>
+              <span className="text-[10px] font-bold">{t('nav.profile')}</span>
             </button>
           </div>
         </div>

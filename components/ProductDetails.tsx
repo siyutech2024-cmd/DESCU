@@ -70,7 +70,10 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
     return t(`delivery.${type}`);
   };
 
-  const shareUrl = window.location.href;
+  // 生成正确的分享链接（避免在移动端使用 capacitor://localhost）
+  const PRODUCTION_URL = 'https://descu.ai';
+  const productPath = `/product/${product.id}`;
+  const shareUrl = PRODUCTION_URL + productPath;
   const shareText = `Check out ${product.title} on DESCU!`;
 
   const handleShareWhatsApp = () => {
@@ -145,10 +148,10 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
               {product.distance !== undefined && (
                 <div className={`absolute top-6 left-6 z-20 backdrop-blur-md text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border ${product.distance <= 5
-                    ? 'bg-green-100/90 text-green-800 border-green-200'
-                    : product.distance <= 50
-                      ? 'bg-white/80 text-gray-800 border-white/50'
-                      : 'bg-orange-100/90 text-orange-800 border-orange-200'
+                  ? 'bg-green-100/90 text-green-800 border-green-200'
+                  : product.distance <= 50
+                    ? 'bg-white/80 text-gray-800 border-white/50'
+                    : 'bg-orange-100/90 text-orange-800 border-orange-200'
                   }`}>
                   <MapPin size={14} className={product.distance <= 5 ? 'text-green-600' : product.distance <= 50 ? 'text-brand-600' : 'text-orange-600'} />
                   {product.distance <= 5 ? t('card.nearby') : ''} {product.distance.toFixed(1)}km
@@ -203,8 +206,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
                 {/* Region Restriction Badge with Distance */}
                 <div className={`glass-card rounded-2xl p-4 mb-8 flex items-start gap-3 border ${!purchaseEligibility.canPurchase
-                    ? 'bg-orange-50/50 border-orange-200'
-                    : 'bg-blue-50/50 border-blue-100'
+                  ? 'bg-orange-50/50 border-orange-200'
+                  : 'bg-blue-50/50 border-blue-100'
                   }`}>
                   <MapPin size={20} className={!purchaseEligibility.canPurchase ? 'text-orange-600' : 'text-blue-600'} />
                   <div className="flex-1">
@@ -213,10 +216,10 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                       <p className="text-sm text-gray-700 font-medium">{product.city || '未知城市'}, {product.country || 'MX'}</p>
                       {product.distance !== undefined && (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${product.distance <= 5
-                            ? 'bg-green-100 text-green-700'
-                            : product.distance <= 50
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-orange-100 text-orange-700'
+                          ? 'bg-green-100 text-green-700'
+                          : product.distance <= 50
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-orange-100 text-orange-700'
                           }`}>
                           📍 {product.distance.toFixed(1)}km
                         </span>

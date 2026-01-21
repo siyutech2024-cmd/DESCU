@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Venya Marketplace</string>
+        <string>DESCU</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -49,11 +49,24 @@
     <string>Need camera access to take photos of products.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Need photo library access to upload product images.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Need permission to save photos to your photo library.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Need location access to show products near you.</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSPrivacyTrackingUsageDescription</key>
 	<string>We use tracking to personalize and improve your experience.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.venya.marketplace</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.venya.marketplace</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

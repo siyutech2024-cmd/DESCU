@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { X, LogIn } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -9,6 +10,8 @@ interface LoginModalProps {
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin }) => {
+    const { t } = useLanguage();
+
     if (!isOpen) return null;
 
     return (
@@ -34,10 +37,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                     </div>
 
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Login Required
+                        {t('login.required') || '需要登录 / Login Required'}
                     </h2>
                     <p className="text-gray-500 mb-8">
-                        Please log in to continue with this action. It only takes a second!
+                        {t('login.prompt') || '请登录以继续操作 / Please log in to continue'}
                     </p>
 
                     <button
@@ -49,11 +52,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
                             alt="Google"
                             className="w-5 h-5"
                         />
-                        Continue with Google
+                        {t('login.google') || 'Continue with Google'}
                     </button>
 
                     <p className="mt-6 text-xs text-gray-400">
-                        By continuing, you agree to our Terms of Service.
+                        {t('login.terms') || '继续即表示同意服务条款 / By continuing, you agree to our Terms'}
                     </p>
                 </div>
             </div>

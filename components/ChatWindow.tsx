@@ -51,6 +51,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const pendingMessageIds = useRef<Set<string>>(new Set()); // 跟踪正在发送的消息ID，防止重复
 
   // Pagination states
   const [messageOffset, setMessageOffset] = useState(0);
@@ -84,8 +85,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     // Subscribe to new messages
     unsubscribe = subscribeToMessages(conversation.id, (newMsg) => {
       setMessages(prev => {
-        // Avoid duplicates
-        if (prev.some(m => m.id === newMsg.id)) return prev;
+        // 避免重复：检查已存在或正在发送中
+        if (prev.some(m => m.id === newMsg.id) || pendingMessageIds.current.has(newMsg.id)) {
+          return prev;
+        }
         return [...prev, newMsg];
       });
       // Mark as read if from other user
@@ -145,6 +148,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       const text = newMessage.trim();
       const tempId = `temp-${Date.now()}`;
 
+      // 添加临时ID到pending集合
+      pendingMessageIds.current.add(tempId);
+
       // Optimistic update
       const tempMsg = {
         id: tempId,
@@ -164,11 +170,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       try {
         const sentMsg = await sendMessage(conversation.id, currentUser.id, text);
+        // 添加真实消息ID到pending集合
+        pendingMessageIds.current.add(sentMsg.id);
         setMessages(prev => prev.map(m => m.id === tempId ? sentMsg : m));
-        // Note: onSendMessage callback removed to avoid duplicate messages
-        // Realtime subscription will handle message updates
+
+        // 延迟清除pending IDs，确保realtime事件已处理
+        setTimeout(() => {
+          pendingMessageIds.current.delete(tempId);
+          pendingMessageIds.current.delete(sentMsg.id);
+        }, 2000);
       } catch (error) {
         console.error('Failed to send message:', error);
+        pendingMessageIds.current.delete(tempId);
         setMessages(prev => prev.filter(m => m.id !== tempId));
         alert('Send failed, please retry');
       } finally {

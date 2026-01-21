@@ -43,6 +43,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [orders, setOrders] = useState<any[]>([]);
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+  const [listingsLimit, setListingsLimit] = useState(6); // 商品列表分页限制
   // orders would be fetched based on tab. Simplification: fetching in useEffect when tab changes.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -365,84 +366,104 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         {/* Content Area */}
         {activeTab === 'listings' && (
           userProducts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-4">
-              {userProducts.map(product => (
-                <div
-                  key={product.id}
-                  className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all relative ${product.isPromoted ? 'border-yellow-400' : 'border-gray-100'}`}
-                >
-                  <div onClick={() => onProductClick(product)} className="aspect-square bg-gray-100 cursor-pointer">
-                    <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="font-bold text-red-500">¥{product.price}</p>
-                      {/* 标记已售出按钮 */}
-                      {(product.status === 'active' && !soldProducts.has(product.id)) && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMarkAsSold(product.id);
-                          }}
-                          disabled={markingSoldId === product.id}
-                          className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200 transition-colors flex items-center gap-1 disabled:opacity-50"
-                        >
-                          {markingSoldId === product.id ? (
-                            <Loader2 size={10} className="animate-spin" />
-                          ) : (
-                            <Check size={10} />
-                          )}
-                          已售出
-                        </button>
-                      )}
-                      {!product.isPromoted && onBoostProduct && product.status === 'active' && !soldProducts.has(product.id) && (
-                        <button
-                          onClick={() => onBoostProduct(product.id)}
-                          className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition-colors flex items-center gap-1"
-                        >
-                          <Zap size={10} />
-                          {t('profile.boost')}
-                        </button>
-                      )}
-                      {/* 状态标签 */}
-                      {((product.status && product.status !== 'active') || soldProducts.has(product.id) || relistedProducts.has(product.id)) && (
-                        <div className="flex flex-col gap-1">
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                {userProducts.slice(0, listingsLimit).map(product => (
+                  <div
+                    key={product.id}
+                    className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all relative ${product.isPromoted ? 'border-yellow-400' : 'border-gray-100'}`}
+                  >
+                    <div onClick={() => onProductClick(product)} className="aspect-square bg-gray-100 cursor-pointer">
+                      <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="p-3">
+                      <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="font-bold text-red-500">¥{product.price}</p>
+                        {/* 标记已售出按钮 */}
+                        {(product.status === 'active' && !soldProducts.has(product.id)) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsSold(product.id);
+                            }}
+                            disabled={markingSoldId === product.id}
+                            className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200 transition-colors flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {markingSoldId === product.id ? (
+                              <Loader2 size={10} className="animate-spin" />
+                            ) : (
+                              <Check size={10} />
+                            )}
+                            已售出
+                          </button>
+                        )}
+                        {!product.isPromoted && onBoostProduct && product.status === 'active' && !soldProducts.has(product.id) && (
+                          <button
+                            onClick={() => onBoostProduct(product.id)}
+                            className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition-colors flex items-center gap-1"
+                          >
+                            <Zap size={10} />
+                            {t('profile.boost')}
+                          </button>
+                        )}
+                        {/* 状态标签 */}
+                        {((product.status && product.status !== 'active') || soldProducts.has(product.id) || relistedProducts.has(product.id)) && (
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1
                             ${(product.status === 'pending_review' || relistedProducts.has(product.id)) ? 'bg-orange-100 text-orange-700' :
-                              product.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                (product.status === 'sold' || soldProducts.has(product.id)) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                            }`}>
-                            <Check size={10} />
-                            {(product.status === 'pending_review' || relistedProducts.has(product.id)) ? '审核中' :
-                              product.status === 'rejected' ? '已拒绝' :
-                                (product.status === 'sold' || soldProducts.has(product.id)) ? '已售出' : product.status}
-                          </span>
-                          {/* 重新上架按钮 - 仅已售出产品可见 */}
-                          {((product.status === 'sold' || soldProducts.has(product.id)) && !relistedProducts.has(product.id)) && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRelist(product.id);
-                              }}
-                              disabled={relistingId === product.id}
-                              className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors flex items-center gap-1 disabled:opacity-50"
-                            >
-                              {relistingId === product.id ? (
-                                <Loader2 size={10} className="animate-spin" />
-                              ) : (
-                                <Upload size={10} />
-                              )}
-                              重新上架
-                            </button>
-                          )}
-                        </div>
-                      )}
+                                product.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                  (product.status === 'sold' || soldProducts.has(product.id)) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                              }`}>
+                              <Check size={10} />
+                              {(product.status === 'pending_review' || relistedProducts.has(product.id)) ? '审核中' :
+                                product.status === 'rejected' ? '已拒绝' :
+                                  (product.status === 'sold' || soldProducts.has(product.id)) ? '已售出' : product.status}
+                            </span>
+                            {/* 重新上架按钮 - 仅已售出产品可见 */}
+                            {((product.status === 'sold' || soldProducts.has(product.id)) && !relistedProducts.has(product.id)) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRelist(product.id);
+                                }}
+                                disabled={relistingId === product.id}
+                                className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors flex items-center gap-1 disabled:opacity-50"
+                              >
+                                {relistingId === product.id ? (
+                                  <Loader2 size={10} className="animate-spin" />
+                                ) : (
+                                  <Upload size={10} />
+                                )}
+                                重新上架
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              {/* 显示更多按钮 */}
+              {userProducts.length > listingsLimit && (
+                <button
+                  onClick={() => setListingsLimit(prev => prev + 6)}
+                  className="w-full mt-4 py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  {t('list.load_more') || '加载更多'} ({userProducts.length - listingsLimit} {t('list.items_count') || '件'})
+                </button>
+              )}
+              {/* 收起按钮 */}
+              {listingsLimit > 6 && userProducts.length <= listingsLimit && (
+                <button
+                  onClick={() => setListingsLimit(6)}
+                  className="w-full mt-4 py-2 text-gray-400 hover:text-gray-600 font-medium text-sm transition-colors"
+                >
+                  收起 / Collapse
+                </button>
+              )}
+            </>
           ) : (
             <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-400">
               <ShoppingBag size={48} className="mx-auto mb-3 opacity-20" />
@@ -552,6 +573,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         {/* Bank info form is now inline above */}
 
       </div>
-    </div>
+    </div >
   );
 };

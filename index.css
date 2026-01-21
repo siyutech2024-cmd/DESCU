@@ -113,6 +113,25 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .mt-safe {
+    margin-top: env(safe-area-inset-top);
+  }
+}
+
+/* iOS Safe Area for the entire app */
+html {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Fix body to account for safe area */
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 /* Additional animations */
