@@ -196,6 +196,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         currency: formData.currency || 'MXN',
         images: [publicUrl], // Send URL, not Base64!
         category: formData.category as Category,
+        subcategory: formData.subcategory || undefined,
         deliveryType: formData.deliveryType!,
         location: userLocation,
         locationName: language === 'es' ? 'CDMX' : 'Nearby',

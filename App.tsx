@@ -437,6 +437,7 @@ const AppContent: React.FC = () => {
           currency: p.currency,
           images: p.images || [],
           category: p.category,
+          subcategory: p.subcategory,
           deliveryType: p.delivery_type,
           location: {
             latitude: p.latitude || coords.latitude || 0,
@@ -748,6 +749,7 @@ const AppContent: React.FC = () => {
           currency: newProductData.currency,
           images: newProductData.images,
           category: newProductData.category,
+          subcategory: newProductData.subcategory || null,
           delivery_type: newProductData.deliveryType,
           latitude: newProductData.location.latitude,
           longitude: newProductData.location.longitude,
