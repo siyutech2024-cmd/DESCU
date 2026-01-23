@@ -6,8 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Helper to create authenticated client
 const getAuthClient = (authHeader?: string) => {
-    const sbUrl = process.env.SUPABASE_URL;
-    const sbKey = process.env.SUPABASE_ANON_KEY;
+    const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
     if (!sbUrl || !sbKey) {
         throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');

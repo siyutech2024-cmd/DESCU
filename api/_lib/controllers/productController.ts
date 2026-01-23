@@ -70,8 +70,8 @@ export const createProduct = async (req: any, res: Response) => {
 
         // Create a scoped Supabase client for this user to pass RLS
         const scopedSupabase = createClient(
-            process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!,
+            process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+            process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
             {
                 global: {
                     headers: {
@@ -124,8 +124,8 @@ export const getProducts = async (req: Request, res: Response) => {
 
         // If user is authenticated, use their context (for RLS)
         if (authHeader) {
-            const sbUrl = process.env.SUPABASE_URL;
-            const sbKey = process.env.SUPABASE_ANON_KEY;
+            const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+            const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
             if (!sbUrl || !sbKey) {
                 throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
