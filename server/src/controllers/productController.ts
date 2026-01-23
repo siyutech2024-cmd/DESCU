@@ -27,7 +27,10 @@ export const createProduct = async (req: any, res: Response) => {
             longitude,
             location_name,
             country,
-            city
+            city,
+            town,
+            district,
+            location_display_name
         } = req.body;
 
         // Validation
@@ -53,6 +56,9 @@ export const createProduct = async (req: any, res: Response) => {
             location_name: location_name || '',
             country: country || 'MX',
             city: city || 'Unknown',
+            town: town || null,
+            district: district || null,
+            location_display_name: location_display_name || city || 'Unknown',
             status: 'pending_review',
             views_count: 0,
             reported_count: 0,

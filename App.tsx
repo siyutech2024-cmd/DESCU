@@ -711,6 +711,18 @@ const AppContent: React.FC = () => {
 
       if (!token) throw new Error('请先登录验证身份');
 
+      // Fetch detailed location (town/district level)
+      let detailedLocation = null;
+      try {
+        detailedLocation = await getDetailedLocation(
+          newProductData.location.latitude,
+          newProductData.location.longitude
+        );
+      } catch (error) {
+        console.error('Failed to get detailed location:', error);
+        // Continue without detailed location
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/products`, {
         method: 'POST',
         headers: {
@@ -733,8 +745,11 @@ const AppContent: React.FC = () => {
           latitude: newProductData.location.latitude,
           longitude: newProductData.location.longitude,
           location_name: newProductData.locationName,
-          country: user.country || 'Unknown',  // From user's IP location
-          city: user.city || 'Unknown',        // From user's IP location
+          country: user.country || detailedLocation?.city || 'Unknown',
+          city: user.city || detailedLocation?.city || 'Unknown',
+          town: detailedLocation?.town || null,
+          district: detailedLocation?.district || null,
+          location_display_name: detailedLocation?.displayName || user.city || 'Unknown',
         }),
       });
 

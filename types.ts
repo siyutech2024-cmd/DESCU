@@ -51,6 +51,9 @@ export interface Product {
   locationName: string;
   country?: string;  // New: Product country code (e.g., "MX", "US")
   city?: string;     // New: Product city name
+  town?: string;     // New: Town/village level
+  district?: string; // New: District/suburb level
+  location_display_name?: string; // New: Formatted display "City · Town"
   createdAt: number;
   distance?: number;
   isPromoted?: boolean; // New: Boosted status
