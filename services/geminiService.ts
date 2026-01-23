@@ -12,6 +12,7 @@ export interface AIAnalysisResult {
   currency: string;
   description: string;
   category: string;
+  subcategory?: string; // New: Subcategory from AI analysis
   deliveryType: 'Meetup' | 'Shipping' | 'Both';
 }
 

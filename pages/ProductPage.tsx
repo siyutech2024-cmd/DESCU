@@ -92,6 +92,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
                     currency: dbProduct.currency,
                     images: dbProduct.images || [],
                     category: dbProduct.category,
+                    subcategory: dbProduct.subcategory,
                     deliveryType: dbProduct.delivery_type,
                     location: {
                         latitude: dbProduct.latitude,

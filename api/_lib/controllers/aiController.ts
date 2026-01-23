@@ -33,10 +33,32 @@ export const analyzeImage = async (req: Request, res: Response) => {
                 title: { type: "STRING" },
                 description: { type: "STRING" },
                 category: { type: "STRING", enum: ['electronics', 'furniture', 'clothing', 'books', 'sports', 'vehicles', 'real_estate', 'services', 'other'] },
+                subcategory: {
+                    type: "STRING", enum: [
+                        // Electronics
+                        'phones', 'laptops', 'tablets', 'cameras', 'audio', 'gaming', 'wearables', 'accessories',
+                        // Vehicles
+                        'cars', 'motorcycles', 'bicycles', 'trucks', 'parts',
+                        // RealEstate
+                        'apartments', 'houses', 'land', 'commercial', 'rentals',
+                        // Furniture
+                        'sofas', 'beds', 'tables', 'storage', 'office',
+                        // Clothing
+                        'women', 'men', 'kids', 'shoes', 'fashion_accessories',
+                        // Sports
+                        'fitness', 'outdoor', 'team_sports', 'water_sports', 'winter_sports',
+                        // Services
+                        'repair', 'cleaning', 'teaching', 'beauty', 'moving',
+                        // Books
+                        'fiction', 'textbooks', 'children', 'magazines', 'comics',
+                        // Other
+                        'collectibles', 'pets', 'food', 'plants'
+                    ]
+                },
                 suggestedPrice: { type: "NUMBER" },
                 suggestedDeliveryType: { type: "STRING", enum: ['meetup', 'shipping', 'both'] }
             },
-            required: ["title", "description", "category", "suggestedPrice", "suggestedDeliveryType"],
+            required: ["title", "description", "category", "subcategory", "suggestedPrice", "suggestedDeliveryType"],
         };
 
         const getLanguageName = (lang: string): string => {
@@ -68,7 +90,22 @@ export const analyzeImage = async (req: Request, res: Response) => {
                   - Do not generate descriptions for items promoting political misinformation or election interference.
                   - If the image contains sensitive political figures or controversial propaganda, return a neutral but firm description refusing the listing due to safety policies.
                   
-                  TASK: Analyze this image and generate a listing. The title and description MUST be in ${langName}. The category must be one of the enum values provided. If it looks like a car, use 'vehicles'. If it looks like a house/apartment, use 'real_estate'. For large items, suggest 'meetup' as delivery type.`,
+                  TASK: Analyze this image and generate a listing. The title and description MUST be in ${langName}. 
+                  
+                  CATEGORY RULES:
+                  - category: Main category (electronics, furniture, clothing, books, sports, vehicles, real_estate, services, other)
+                  - subcategory: Specific subcategory within the main category. Examples:
+                    * electronics: phones, laptops, tablets, cameras, audio, gaming, wearables, accessories
+                    * vehicles: cars, motorcycles, bicycles, trucks, parts
+                    * real_estate: apartments, houses, land, commercial, rentals
+                    * furniture: sofas, beds, tables, storage, office
+                    * clothing: women, men, kids, shoes, fashion_accessories
+                    * sports: fitness, outdoor, team_sports, water_sports, winter_sports
+                    * services: repair, cleaning, teaching, beauty, moving
+                    * books: fiction, textbooks, children, magazines, comics
+                    * other: collectibles, pets, food, plants
+                  
+                  For large items, suggest 'meetup' as delivery type.`,
                         },
                     ],
                 },

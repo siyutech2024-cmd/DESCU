@@ -170,7 +170,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               <div className="mb-auto">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="glass-pill px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider text-brand-700">
-                    {t(`cat.${product.category}`)}
+                    {product.subcategory ? t(`subcat.${product.subcategory}`) : t(`cat.${product.category}`)}
                   </span>
                   <span className="flex items-center gap-1.5 text-gray-500 text-xs font-medium bg-white/30 px-2 py-1 rounded-full">
                     <Clock size={12} />

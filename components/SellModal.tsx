@@ -70,10 +70,11 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     setToast({ show: true, message, type });
   };
 
-  const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; currency: string; deliveryType: DeliveryType | null }>({
+  const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; currency: string; deliveryType: DeliveryType | null; subcategory?: string }>({
     title: '',
     description: '',
     category: Category.Other,
+    subcategory: undefined,
     price: '',
     currency: 'MXN',
     deliveryType: null, // Force user selection
@@ -89,6 +90,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         title: '',
         description: '',
         category: Category.Other,
+        subcategory: undefined,
         price: '',
         currency: regionCurrency,
         deliveryType: null
@@ -118,6 +120,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
           title: result.title,
           description: result.description,
           category: mapCategoryFromAI(result.category),
+          subcategory: result.subcategory || undefined,
           price: result.price.toString(),
           deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
         }));

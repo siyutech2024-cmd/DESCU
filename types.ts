@@ -58,7 +58,9 @@ export interface Product {
   distance?: number;
   isPromoted?: boolean; // New: Boosted status
   status?: 'active' | 'pending_review' | 'rejected' | 'sold' | 'deleted';
+  subcategory?: string; // New: Subcategory identifier (e.g., 'phones', 'cars')
 }
+
 
 export interface AISuggestion {
   title: string;
