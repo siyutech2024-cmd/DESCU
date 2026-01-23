@@ -99,7 +99,7 @@ export const auditProductWithGemini = async (product: { title: string; descripti
       Title: "${product.title}"
       Description: "${product.description}"
 
-      Return JSON:
+      IMPORTANT: Return ONLY a valid JSON object, no additional text or explanation.
       {
         "isSafe": boolean,
         "flaggedReason": "Reason if unsafe, else null",
@@ -109,20 +109,27 @@ export const auditProductWithGemini = async (product: { title: string; descripti
       }
     `;
 
-    // Note: We are only sending text for now to save bandwidth/complexity, 
-    // but could send image URL if we fetch it first.
-    // For now, text audit is a good first step.
-
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
-    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(cleanedText) as AIAuditResult;
+    let text = response.text();
+
+    // 清理可能的markdown代码块
+    text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+    // 尝试提取JSON对象（处理AI添加额外文本的情况）
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("[AI Audit] No JSON found in response:", text.substring(0, 100));
+      return null;
+    }
+
+    return JSON.parse(jsonMatch[0]) as AIAuditResult;
   } catch (error) {
     console.error("AI Audit Failed:", error);
     return null;
   }
 };
+
 
 export interface AIDisputeVerdict {
   verdict: 'Refund Buyer' | 'Release to Seller' | 'Split/Manual';
