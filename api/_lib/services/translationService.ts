@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from '@google/genai';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 
 const apiKey = process.env.GEMINI_API_KEY;
 // Lazy load to prevent startup crash if key missing or lib failure
