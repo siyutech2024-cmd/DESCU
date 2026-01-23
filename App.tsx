@@ -448,6 +448,8 @@ const AppContent: React.FC = () => {
           createdAt: new Date(p.created_at).getTime(),
           isPromoted: p.is_promoted || false,
           status: p.status,
+          // Calculate real distance from user location
+          distance: calculateDistance(coords, { latitude: p.latitude || coords.latitude || 0, longitude: p.longitude || coords.longitude || 0 }),
         }));
 
         if (convertedProducts.length < limit) {
@@ -767,7 +769,9 @@ const AppContent: React.FC = () => {
         city: savedProduct.city,
         createdAt: new Date(savedProduct.created_at).getTime(),
         isPromoted: savedProduct.is_promoted || false,
-        status: savedProduct.status // Added status mapping
+        status: savedProduct.status, // Added status mapping
+        // Calculate distance for newly created product using current user location
+        distance: location ? calculateDistance(location, { latitude: savedProduct.latitude, longitude: savedProduct.longitude }) : undefined,
       };
 
       setProducts(prev => [productForApp, ...prev]);
