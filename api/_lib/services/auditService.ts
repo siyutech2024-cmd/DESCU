@@ -77,6 +77,7 @@ export interface AuditResult {
     isSafe: boolean;
     categoryCorrect: boolean;
     suggestedCategory: string | null;
+    suggestedSubcategory: string | null;
     flaggedReason: string | null;
     confidence: number;
 }
@@ -104,6 +105,17 @@ Audit this product for:
 
 Available categories: electronics, furniture, clothing, books, sports, vehicles, real_estate, services, other
 
+Available subcategories (grouped by main category):
+- electronics: phones, laptops, tablets, cameras, audio, gaming, wearables, accessories
+- vehicles: cars, motorcycles, bicycles, trucks, parts
+- real_estate: apartments, houses, land, commercial, rentals
+- furniture: sofas, beds, tables, storage, office
+- clothing: women, men, kids, shoes, fashion_accessories
+- sports: fitness, outdoor, team_sports, water_sports, winter_sports
+- services: repair, cleaning, teaching, beauty, moving
+- books: fiction, textbooks, children, magazines, comics
+- other: collectibles, pets, food, plants
+
 Product:
 Title: "${product.title}"
 Description: "${product.description}"
@@ -113,7 +125,8 @@ Return ONLY valid JSON (no markdown):
   "isSafe": boolean,
   "flaggedReason": "Reason if unsafe or null",
   "categoryCorrect": boolean,
-  "suggestedCategory": "Best matching category from the list above if incorrect, or null",
+  "suggestedCategory": "Best matching main category if incorrect, or null",
+  "suggestedSubcategory": "Most specific subcategory that matches, or null",
   "confidence": number (0.0-1.0)
 }
 `;
@@ -211,14 +224,22 @@ export const autoReviewPendingProducts = async (
                         }
                     }
 
+                    // 构建更新对象
+                    const updateData: any = {
+                        status: 'active',
+                        category: finalCategory,
+                        review_note: reviewNote,
+                        reviewed_at: new Date().toISOString()
+                    };
+
+                    // 如果有子类目建议，也更新
+                    if (audit.suggestedSubcategory) {
+                        updateData.subcategory = audit.suggestedSubcategory;
+                    }
+
                     await supabase
                         .from('products')
-                        .update({
-                            status: 'active',
-                            category: finalCategory,
-                            review_note: reviewNote,
-                            reviewed_at: new Date().toISOString()
-                        })
+                        .update(updateData)
                         .eq('id', product.id);
 
                     stats.approved++;
