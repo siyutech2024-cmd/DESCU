@@ -1,14 +1,17 @@
 import { Request, Response } from 'express';
-import { supabase } from '../db/supabase';
-import { t } from '../utils/i18n';
+import { supabase } from '../db/supabase.js';
 
 // 创建新对话
 import { createClient } from '@supabase/supabase-js';
 
 // Helper to create authenticated client
 const getAuthClient = (authHeader?: string) => {
-    const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
-    const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY!;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_ANON_KEY;
+
+    if (!sbUrl || !sbKey) {
+        throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
+    }
 
     if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
         return supabase;
@@ -28,7 +31,7 @@ export const createConversation = async (req: Request, res: Response) => {
         // 严格验证 ID
         if (!user1_id || user1_id === 'undefined' || !user2_id || user2_id === 'undefined') {
             console.error('Invalid user IDs for conversation:', { user1_id, user2_id });
-            return res.status(400).json({ error: t(req, 'INVALID_USER_IDS') });
+            return res.status(400).json({ error: '无效的用户ID (Invalid user IDs)' });
         }
 
         // 检查对话是否已存在 (Use scoped client if possible, but reading requires permission. 
@@ -55,7 +58,7 @@ export const createConversation = async (req: Request, res: Response) => {
         res.status(201).json(data);
     } catch (error) {
         console.error('Error creating conversation:', error);
-        res.status(500).json({ error: t(req, 'FAILED_TO_CREATE_CONVERSATION') });
+        res.status(500).json({ error: 'Failed to create conversation' });
     }
 };
 
@@ -104,7 +107,7 @@ export const getUserConversations = async (req: Request, res: Response) => {
         res.json(conversationsWithDetails);
     } catch (error) {
         console.error('Error fetching conversations:', error);
-        res.status(500).json({ error: t(req, 'FAILED_TO_FETCH_CONVERSATIONS') });
+        res.status(500).json({ error: 'Failed to fetch conversations' });
     }
 };
 
@@ -114,7 +117,7 @@ export const sendMessage = async (req: Request, res: Response) => {
         const { conversation_id, sender_id, text } = req.body;
 
         if (!text || !text.trim()) {
-            return res.status(400).json({ error: t(req, 'MESSAGE_TEXT_REQUIRED') });
+            return res.status(400).json({ error: 'Message text is required' });
         }
 
         // 插入消息
@@ -138,7 +141,7 @@ export const sendMessage = async (req: Request, res: Response) => {
         res.status(201).json(message);
     } catch (error) {
         console.error('Error sending message:', error);
-        res.status(500).json({ error: t(req, 'FAILED_TO_SEND_MESSAGE') });
+        res.status(500).json({ error: 'Failed to send message' });
     }
 };
 
@@ -153,14 +156,16 @@ export const getMessages = async (req: Request, res: Response) => {
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
-            .order('timestamp', { ascending: true })
+            .order('created_at', { ascending: true })
             .range(offset, offset + limit - 1);
+
+        console.log(`[Chat] getMessages for ${conversationId}: found ${data?.length || 0} messages`);
 
         if (error) throw error;
         res.json(data || []);
     } catch (error) {
         console.error('Error fetching messages:', error);
-        res.status(500).json({ error: t(req, 'FAILED_TO_FETCH_MESSAGES') });
+        res.status(500).json({ error: 'Failed to fetch messages' });
     }
 };
 
@@ -181,6 +186,6 @@ export const markMessagesAsRead = async (req: Request, res: Response) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Error marking messages as read:', error);
-        res.status(500).json({ error: t(req, 'FAILED_TO_MARK_AS_READ') });
+        res.status(500).json({ error: 'Failed to mark messages as read' });
     }
 };

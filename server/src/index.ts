@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-dotenv.config();
+// import dotenv from 'dotenv'; // Removed for Vercel Production
+// dotenv.config();
 
 export const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,26 +28,26 @@ app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
 // Standard JSON parsing for everything else
 app.use(express.json({ limit: '10mb' }));
 
-// import { supabase } from './db/supabase';
+// import { supabase } from './db/supabase.js';
 
 // Routes
-import { analyzeImage } from './controllers/aiController';
-import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController';
-import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck, updatePayoutMethod } from './controllers/paymentController';
+// import { analyzeImage } from './controllers/aiController.js';
+// import { createProduct, getProducts, getProductById, productsHealthCheck } from './controllers/productController.js';
+// import { createPaymentIntent, handleStripeWebhook, createConnectAccount, getLoginLink, markOrderAsShipped, confirmOrder, getUserOrders, createDispute, verifyPayment, updateSellerBankInfo, ordersHealthCheck } from './controllers/paymentController.js';
 
-import { requireAuth } from './middleware/userAuth'; // Keep for products
-import { requireAdmin } from './middleware/adminAuth';
+// import { requireAuth } from './middleware/userAuth.js'; // Keep for products
+// import { requireAdmin } from './middleware/adminAuth.js';
 
+/* TEMPORARILY DISABLED FOR DEBUGGING - SAFETY MODE */
+/*
+// Chat Controller Imports
 import {
     createConversation,
     getUserConversations,
     sendMessage,
     getMessages,
     markMessagesAsRead
-} from './controllers/chatController';
-
-// Negotiation Controller Import
-import { proposePrice, respondToNegotiation } from './controllers/negotiationController';
+} from './controllers/chatController.js';
 
 
 // Admin Controller Imports
@@ -63,7 +63,7 @@ import {
     getSystemSettings,
     updateSystemSettings,
     batchUpdateSettings
-} from './controllers/adminController';
+} from './controllers/adminController.js';
 import {
     getAdminProducts,
     getAdminProduct,
@@ -73,40 +73,37 @@ import {
     updateProductStatus,
     updateProductPromotion,
     batchUpdateProducts
-} from './controllers/adminProductController';
+} from './controllers/adminProductController.js';
 import {
     getAdminUsers,
     getAdminUser,
     updateUserVerification,
     deleteAdminUser
-} from './controllers/adminUserController';
+} from './controllers/adminUserController.js';
 import {
     getAdminConversations,
     getAdminConversation,
     deleteAdminConversation,
     deleteAdminMessage,
     flagAdminMessage
-} from './controllers/adminMessageController';
+} from './controllers/adminMessageController.js';
+*/
 
 // API Endpoints
-app.post('/api/analyze', analyzeImage);
-app.get('/api/products/health', productsHealthCheck);
-app.post('/api/products', requireAuth, createProduct);
-app.get('/api/products', getProducts);
-app.get('/api/products/:id', getProductById);
+// app.post('/api/analyze', analyzeImage);
+// app.get('/api/products/health', productsHealthCheck);
+// app.post('/api/products', requireAuth, createProduct);
+// app.get('/api/products', getProducts);
+// app.get('/api/products/:id', getProductById);
 
 
-
+/*
 // Chat Endpoints
 app.post('/api/conversations', createConversation);
 app.get('/api/users/:userId/conversations', getUserConversations);
 app.get('/api/conversations/:conversationId/messages', getMessages);
 app.post('/api/messages', sendMessage);
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
-
-// Negotiation Endpoints
-app.post('/api/negotiations/propose', requireAuth, proposePrice);
-app.post('/api/negotiations/respond', requireAuth, respondToNegotiation);
 
 // Payment Endpoints
 // Webhook (No Auth required, uses Signature)
@@ -115,7 +112,6 @@ app.post('/api/payment/webhook', handleStripeWebhook);
 // Protected Payment & Order Routes (REQUIRE AUTH)
 app.post('/api/payment/create-intent', requireAuth, createPaymentIntent);
 app.post('/api/payment/connect', requireAuth, createConnectAccount);
-app.post('/api/payment/payout-method', requireAuth, updatePayoutMethod); // NEW
 app.post('/api/payment/bank-info', requireAuth, updateSellerBankInfo);
 app.get('/api/payment/dashboard/:userId', requireAuth, getLoginLink);
 app.post('/api/orders/ship', requireAuth, markOrderAsShipped);
@@ -124,18 +120,6 @@ app.get('/api/orders/health', ordersHealthCheck);
 
 app.post('/api/disputes', requireAuth, createDispute);
 app.post('/api/payment/verify', requireAuth, verifyPayment);
-
-// New Transaction System Orders Routes
-import ordersRouter from '../routes/orders';
-app.use('/api/orders', ordersRouter);
-
-// New Transaction System Stripe Routes
-import stripeRouter from '../routes/stripe';
-app.use('/api/stripe', stripeRouter);
-
-// New User Routes (Address Management)
-import usersRouter from '../routes/users';
-app.use('/api/users', usersRouter);
 
 // Admin Endpoints
 // Dashboard
@@ -179,15 +163,15 @@ app.get('/api/admin/reports', requireAdmin, getReportsData);
 app.get('/api/admin/settings', requireAdmin, getSystemSettings);
 app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
 app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
-// System Settings
+*/
 
 // SEO
-// import { generateSitemap } from './controllers/seoController';
+// import { generateSitemap } from './controllers/seoController.js';
 // app.get('/sitemap.xml', generateSitemap);
 
 // Location Proxy
-import { reverseGeocodeProxy } from './controllers/locationController';
-app.get('/api/location/reverse', reverseGeocodeProxy);
+// import { reverseGeocodeProxy } from './controllers/locationController.js';
+// app.get('/api/location/reverse', reverseGeocodeProxy);
 
 app.get('/', (req, res) => {
     res.send('DESCU Marketplace API is running');

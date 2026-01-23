@@ -109,7 +109,7 @@ export const productsHealthCheck = (req: Request, res: Response) => {
         env: {
             hasSupabaseUrl: !!process.env.SUPABASE_URL,
             hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY,
-            hasViteSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
+            hasSupabaseServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
             hasGeminiKey: !!process.env.GEMINI_API_KEY
         }
     });
@@ -124,22 +124,24 @@ export const getProducts = async (req: Request, res: Response) => {
 
         // If user is authenticated, use their context (for RLS)
         if (authHeader) {
-            const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-            const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+            const sbUrl = process.env.SUPABASE_URL;
+            const sbKey = process.env.SUPABASE_ANON_KEY;
 
-            if (sbUrl && sbKey) {
-                client = createClient(
-                    sbUrl,
-                    sbKey,
-                    {
-                        global: {
-                            headers: {
-                                Authorization: authHeader
-                            }
+            if (!sbUrl || !sbKey) {
+                throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
+            }
+
+            client = createClient(
+                sbUrl,
+                sbKey,
+                {
+                    global: {
+                        headers: {
+                            Authorization: authHeader
                         }
                     }
-                );
-            }
+                }
+            );
         }
 
         let query = client

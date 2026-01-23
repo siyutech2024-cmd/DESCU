@@ -479,7 +479,8 @@ export const getUserOrders = async (req: Request, res: Response) => {
             stack: error.stack,
             envCheck: {
                 hasSupabaseUrl: !!process.env.SUPABASE_URL,
-                hasViteSupabaseUrl: !!process.env.VITE_SUPABASE_URL
+                hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY,
+                hasSupabaseServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY
             }
         });
     }

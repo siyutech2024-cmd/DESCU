@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 
 export const getAuthClient = (authHeader?: string): SupabaseClient => {
     // 1. If we have the Service Role Key (Admin), use the global admin client.
@@ -12,14 +12,12 @@ export const getAuthClient = (authHeader?: string): SupabaseClient => {
     }
 
     // 2. Fallback: Create a scoped client acting as the user (RLS enforcement).
-    // This requires VITE_ vars or standard vars to be present.
-    const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-    const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+    // This requires environment variables to be present.
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_ANON_KEY;
 
     if (!sbUrl || !sbKey) {
-        console.error('Supabase Helper: Missing Environment Variables');
-        // Return global client as last resort (likely Anon/Guest)
-        return supabase;
+        throw new Error('Supabase Helper: Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables');
     }
 
     return createClient(sbUrl, sbKey, {

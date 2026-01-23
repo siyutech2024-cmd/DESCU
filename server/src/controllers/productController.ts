@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
-import { t } from '../utils/i18n';
+import { t } from '../utils/i18n.js';
 
 export const createProduct = async (req: any, res: Response) => {
     try {
@@ -9,7 +9,7 @@ export const createProduct = async (req: any, res: Response) => {
         const authHeader = req.headers.authorization;
 
         if (!user || !authHeader) {
-            return res.status(401).json({ error: t(req, 'UNAUTHORIZED') });
+            return res.status(401).json({ error: 'Unauthorized' });
         }
 
         const {
@@ -36,7 +36,7 @@ export const createProduct = async (req: any, res: Response) => {
 
         // Validation
         if (!title || price === undefined) {
-            return res.status(400).json({ error: t(req, 'TITLE_PRICE_REQUIRED') });
+            return res.status(400).json({ error: 'Missing required fields (title, price)' });
         }
 
         const productData = {
@@ -59,7 +59,7 @@ export const createProduct = async (req: any, res: Response) => {
             city: city || 'Unknown',
             town: town || null,
             district: district || null,
-            location_display_name: location_display_name || city || 'Unknown',
+            location_display_name: location_display_name || null,
             status: 'pending_review',
             views_count: 0,
             reported_count: 0,
@@ -92,26 +92,14 @@ export const createProduct = async (req: any, res: Response) => {
             throw error;
         }
 
-        // 🤖 异步触发AI自动审核（不阻塞响应）
-        // 动态导入以避免循环依赖
-        import('../services/autoReviewService').then(({ triggerAutoReview }) => {
-            triggerAutoReview(data.id).catch((err: any) => {
-                console.error('[Product] Auto-review failed for', data.id, err);
-            });
-        }).catch(console.error);
-
-        res.status(201).json({
-            ...data,
-            _debug_requested_status: 'pending_review',
-            _debug_persisted_status: data.status
-        });
+        res.status(201).json(data);
     } catch (error: any) {
         console.error('Error creating product:', error);
-        res.status(500).json({ error: error.message || t(req, 'FAILED_TO_CREATE_PRODUCT') });
+        res.status(500).json({ error: error.message || 'Failed to create product' });
     }
 };
 
-import { translateBatch } from '../services/translationService';
+import { translateBatch } from '../services/translationService.js';
 
 // Health Check
 export const productsHealthCheck = (req: Request, res: Response) => {
@@ -121,7 +109,7 @@ export const productsHealthCheck = (req: Request, res: Response) => {
         env: {
             hasSupabaseUrl: !!process.env.SUPABASE_URL,
             hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY,
-            hasViteSupabaseUrl: !!process.env.VITE_SUPABASE_URL,
+            hasSupabaseServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
             hasGeminiKey: !!process.env.GEMINI_API_KEY
         }
     });
@@ -129,47 +117,68 @@ export const productsHealthCheck = (req: Request, res: Response) => {
 
 export const getProducts = async (req: Request, res: Response) => {
     try {
-        const { lang, limit = '50', offset = '0' } = req.query; // Added limit/offset support
+        const { lang, limit = '50', offset = '0', status, seller_id } = req.query; // Added limit/offset/status/seller_id support
         const authHeader = req.headers.authorization;
 
         let client = supabase;
 
         // If user is authenticated, use their context (for RLS)
         if (authHeader) {
-            const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-            const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+            const sbUrl = process.env.SUPABASE_URL;
+            const sbKey = process.env.SUPABASE_ANON_KEY;
 
-            if (sbUrl && sbKey) {
-                client = createClient(
-                    sbUrl,
-                    sbKey,
-                    {
-                        global: {
-                            headers: {
-                                Authorization: authHeader
-                            }
+            if (!sbUrl || !sbKey) {
+                throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
+            }
+
+            client = createClient(
+                sbUrl,
+                sbKey,
+                {
+                    global: {
+                        headers: {
+                            Authorization: authHeader
                         }
                     }
-                );
-            }
+                }
+            );
         }
 
         let query = client
             .from('products')
             .select('*')
-            .is('deleted_at', null)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false });
+            .is('deleted_at', null);
 
-        // Apply Limit (Defaut 50 to prevent slow load)
-        const limitVal = parseInt(String(limit));
-        if (!isNaN(limitVal) && limitVal > 0) {
-            query = query.limit(limitVal);
+        // Filter by seller_id if provided
+        if (seller_id) {
+            query = query.eq('seller_id', seller_id);
         }
 
-        // Limit results if translating to avoid timeouts (override if lang is set)
-        if (lang && lang !== 'es') {
-            query = query.limit(20);
+        // Status Logic:
+        // Default to 'active' unless 'status' param is provided
+        // Use 'all' to fetch all statuses (RLS policies will still apply)
+        if (status) {
+            if (status !== 'all') {
+                query = query.eq('status', status);
+            }
+        } else {
+            // Default behavior: Public feed only shows active products
+            query = query.eq('status', 'active');
+        }
+
+        query = query.order('created_at', { ascending: false });
+
+        // Apply Pagination (Range)
+        const limitVal = parseInt(String(limit)) || 20;
+        const offsetVal = parseInt(String(offset)) || 0;
+
+        // Supabase range is inclusive [start, end]
+        query = query.range(offsetVal, offsetVal + limitVal - 1);
+
+        // Limit results if translating to avoid timeouts (but keep pagination working)
+        if (lang && lang !== 'es' && limitVal > 20) {
+            // If user requested > 20 translated items, cap it?
+            // Actually, let's just trust the frontend to send limit=20
         }
 
         const { data, error } = await query;

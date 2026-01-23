@@ -1,7 +1,8 @@
 import { Response } from 'express';
-import { AdminRequest } from '../middleware/adminAuth';
-import { supabase } from '../db/supabase';
-import { logAdminAction } from './adminController';
+import { AdminRequest } from '../middleware/adminAuth.js';
+import { supabase } from '../db/supabase.js';
+import { createClient } from '@supabase/supabase-js';
+import { logAdminAction } from './adminController.js';
 
 /**
  * 获取商品列表（管理员视图）
@@ -31,11 +32,18 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
         const offset = (Number(page) - 1) * Number(limit);
 
         // Create a dedicated Admin Client to ensure we bypass RLS
-        const adminUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const adminUrl = process.env.SUPABASE_URL;
         const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const adminClient = (adminUrl && adminKey)
-            ? require('@supabase/supabase-js').createClient(adminUrl, adminKey, { auth: { autoRefreshToken: false, persistSession: false } })
-            : supabase;
+
+        if (!adminUrl || !adminKey) {
+            return res.status(500).json({
+                error: 'Server configuration error: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+            });
+        }
+
+        const adminClient = createClient(adminUrl, adminKey, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
 
         let query = adminClient
             .from('products')
@@ -51,9 +59,9 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
             query = query.or(`title.ilike.%${search}%,seller_name.ilike.%${search}%,seller_email.ilike.%${search}%`);
         }
 
-        // 基础筛选
+        // 基础筛选 - 使用 ilike 进行不区分大小写的匹配
         if (category && category !== 'all' && category !== 'undefined') {
-            query = query.eq('category', category);
+            query = query.ilike('category', String(category));
         }
         if (status && status !== 'all' && status !== 'undefined') {
             query = query.eq('status', status);

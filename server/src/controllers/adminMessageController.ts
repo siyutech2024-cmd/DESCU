@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { AdminRequest } from '../middleware/adminAuth';
-import { supabase } from '../db/supabase';
-import { logAdminAction } from './adminController';
+import { AdminRequest } from '../middleware/adminAuth.js';
+import { supabase } from '../db/supabase.js';
+import { logAdminAction } from './adminController.js';
 
 /**
  * 获取对话列表

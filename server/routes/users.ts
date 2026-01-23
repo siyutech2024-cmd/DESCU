@@ -141,9 +141,19 @@ router.delete('/addresses/:id', authenticateToken, async (req, res) => {
 router.get('/:id/credit', async (req, res) => {
     try {
         const { id } = req.params;
-        const { getCreditScore } = await import('../src/services/creditService');
-        const score = await getCreditScore(id);
-        res.json({ score });
+
+        // Inline credit score retrieval (creditService was removed)
+        const { data, error } = await supabase
+            .from('credit_scores')
+            .select('score')
+            .eq('user_id', id)
+            .single();
+
+        if (error && error.code !== 'PGRST116') {
+            throw error;
+        }
+
+        res.json({ score: data?.score || 500 }); // Default start score
     } catch (error) {
         console.error('Get credit score error:', error);
         res.status(500).json({ error: 'Failed to fetch credit score' });

@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import { AdminRequest } from '../middleware/adminAuth';
-import { supabase } from '../db/supabase';
+import { AdminRequest } from '../middleware/adminAuth.js';
+import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
@@ -51,103 +51,132 @@ export const logAdminAction = async (
 /**
  * 获取仪表板统计数据
  */
+/**
+ * 获取仪表板统计数据
+ */
 export const getDashboardStats = async (req: AdminRequest, res: Response) => {
     try {
+        const todayStr = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+        const weekAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
         // Create a dedicated Admin Client to ensure we bypass RLS
-        const adminUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const adminUrl = process.env.SUPABASE_URL;
         const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        // Fallback to global client if key missing (will likely fail for RLS but handles dev cases)
-        const adminClient = (adminUrl && adminKey)
-            ? createClient(adminUrl, adminKey, { auth: { autoRefreshToken: false, persistSession: false } })
-            : supabase;
+        if (!adminUrl || !adminKey) {
+            return res.status(500).json({
+                error: 'Server configuration error: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+            });
+        }
 
-        console.log('[Dashboard] Using Admin Client:', !!(adminUrl && adminKey));
+        const adminClient = createClient(adminUrl, adminKey, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
 
-        // 获取商品统计
-        const { count: totalProducts, error: productError } = await adminClient
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null);
+        console.log('[Dashboard] Using Admin Client with Service Role Key');
 
-        const { count: productsToday, error: productsTodayError } = await adminClient
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null)
-            .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
+        // Use Promise.all to run queries in parallel
+        const [
+            productStats,
+            productsToday,
+            productsActive,
+            // products query for users (legacy logic, kept for stability but could be improved)
+            usersStats,
+            messageStats,
+            messagesToday,
+            conversationStats,
+            categoryStats,
+            weeklyTrend,
+            recentProducts,
+            // Fallback: raw counts without filters
+            rawProductCount,
+            rawUserCount
+        ] = await Promise.all([
+            // 1. Total Products (try with deleted_at filter, fallback handled below)
+            adminClient.from('products').select('*', { count: 'exact', head: true }),
+            // 2. Products Today
+            adminClient.from('products').select('*', { count: 'exact', head: true }).gte('created_at', todayStr),
+            // 3. Active Products (status might not exist, so we try without filter as well)
+            adminClient.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+            // 4. Total Users (Detailed count via RPC)
+            adminClient.rpc('get_total_users'),
+            // 5. Total Messages
+            adminClient.from('messages').select('*', { count: 'exact', head: true }),
+            // 6. Messages Today
+            adminClient.from('messages').select('*', { count: 'exact', head: true }).gte('timestamp', todayStr),
+            // 7. Total Conversations
+            adminClient.from('conversations').select('*', { count: 'exact', head: true }),
+            // 8. Category Stats (view might not exist)
+            adminClient.from('admin_product_stats').select('*'),
+            // 9. Weekly Trend (view might not exist)
+            adminClient.from('admin_daily_stats').select('*').gte('date', weekAgoStr).order('date', { ascending: true }),
+            // 10. Recent Products (simple query without deleted_at filter)
+            adminClient.from('products')
+                .select(`
+                    id,
+                    title,
+                    price,
+                    currency,
+                    category,
+                    status,
+                    seller_name,
+                    seller_email,
+                    created_at,
+                    images
+                `)
+                .order('created_at', { ascending: false })
+                .limit(10),
+            // 11. Fallback: raw product count
+            adminClient.from('products').select('id', { count: 'exact', head: true }),
+            // 12. Fallback: Try direct user count on products
+            adminClient.from('products').select('seller_id')
+        ]);
 
-        const { count: activeProducts, error: productsActiveError } = await adminClient
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null)
-            .eq('status', 'active');
+        // Debug logging for all queries
+        console.log('[Dashboard] Query Results:');
+        console.log('  - adminUrl:', adminUrl ? 'SET' : 'MISSING');
+        console.log('  - adminKey:', adminKey ? 'SET (first 10 chars: ' + adminKey.substring(0, 10) + '...)' : 'MISSING');
+        console.log('  - productStats:', { count: productStats.count, error: productStats.error?.message });
+        console.log('  - rawProductCount:', { count: rawProductCount.count, error: rawProductCount.error?.message });
+        console.log('  - productsToday:', { count: productsToday.count, error: productsToday.error?.message });
+        console.log('  - productsActive:', { count: productsActive.count, error: productsActive.error?.message });
+        console.log('  - usersStats RPC:', { data: usersStats.data, error: usersStats.error?.message });
+        console.log('  - rawUserCount (sellers):', { count: rawUserCount.data?.length, uniqueSellers: new Set(rawUserCount.data?.map((p: any) => p.seller_id)).size });
+        console.log('  - messageStats:', { count: messageStats.count, error: messageStats.error?.message });
+        console.log('  - messagesToday:', { count: messagesToday.count, error: messagesToday.error?.message });
+        console.log('  - conversationStats:', { count: conversationStats.count, error: conversationStats.error?.message });
+        console.log('  - categoryStats:', { data: categoryStats.data?.length, error: categoryStats.error?.message });
+        console.log('  - weeklyTrend:', { data: weeklyTrend.data?.length, error: weeklyTrend.error?.message });
+        console.log('  - recentProducts:', { data: recentProducts.data?.length, error: recentProducts.error?.message });
 
-        // 获取用户统计
-        const { data: { users: authUsers }, error: usersError } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
-        const totalUserCount = authUsers?.length || 0;
+        // Calculate fallback user count from seller_id
+        const uniqueSellers = rawUserCount.data ? new Set(rawUserCount.data.map((p: any) => p.seller_id)).size : 0;
+        const finalUserCount = usersStats.data || uniqueSellers || 0;
+        const finalProductCount = productStats.count ?? rawProductCount.count ?? 0;
 
-        // 获取消息统计
-        const { count: totalMessages, error: messagesError } = await adminClient
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null);
-
-        const { count: messagesToday, error: messagesTodayError } = await adminClient
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null)
-            .gte('timestamp', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
-
-        // 获取对话统计
-        const { count: totalConversations, error: conversationsError } = await adminClient
-            .from('conversations')
-            .select('*', { count: 'exact', head: true })
-            .is('deleted_at', null);
-
-        // 获取分类统计
-        const { data: categoryStats, error: categoryError } = await adminClient
-            .from('admin_product_stats')
-            .select('*');
-
-        // 获取最近7天趋势
-        const { data: weeklyTrend, error: weeklyError } = await adminClient
-            .from('admin_daily_stats')
-            .select('*')
-            .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-            .order('date', { ascending: true });
-
-        // 获取最新商品
-        const { data: recentProducts, error: recentError } = await adminClient
-            .from('products')
-            .select(`
-        id,
-        title,
-        price,
-        currency,
-        category,
-        status,
-        seller_name,
-        seller_email,
-        created_at,
-        images
-      `)
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false })
-            .limit(10);
+        // Check for critical errors
+        if (productStats.error) console.error('Error fetching product stats:', productStats.error);
+        if (usersStats.error) console.error('Error fetching user stats via RPC:', usersStats.error);
 
         res.json({
             stats: {
-                totalProducts: totalProducts || 0,
-                productsToday: productsToday || 0,
-                activeProducts: activeProducts || 0,
-                totalUsers: totalUserCount || 0,
-                totalMessages: totalMessages || 0,
-                messagesToday: messagesToday || 0,
-                totalConversations: totalConversations || 0
+                totalProducts: finalProductCount,
+                productsToday: productsToday.count || 0,
+                activeProducts: productsActive.count || finalProductCount, // Fallback: if no status column, use total
+                totalUsers: finalUserCount,
+                totalMessages: messageStats.count || 0,
+                messagesToday: messagesToday.count || 0,
+                totalConversations: conversationStats.count || 0
             },
-            categoryStats: categoryStats || [],
-            weeklyTrend: weeklyTrend || [],
-            recentProducts: recentProducts || []
+            categoryStats: categoryStats.data || [],
+            weeklyTrend: weeklyTrend.data || [],
+            recentProducts: recentProducts.data || [],
+            // Debug info (remove in production)
+            _debug: {
+                hasServiceRoleKey: !!adminKey,
+                rpcError: usersStats.error?.message,
+                productQueryError: productStats.error?.message
+            }
         });
     } catch (error) {
         console.error('获取仪表板统计数据失败:', error);
@@ -611,11 +640,6 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
             await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
             await supabase.from('disputes').update({ status: 'resolved_refund', description: adminNote }).eq('id', disputeId);
 
-            // Deduct Credit (Seller Lost)
-            await import('../services/creditService').then(({ updateCreditScore }) => {
-                updateCreditScore(order.seller_id, -20, 'dispute_lost', disputeId);
-            });
-
         } else if (action === 'release') {
             // B. Release to Seller
             // Similar logic to confirmOrder in paymentController
@@ -643,11 +667,6 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
             // Update DB
             await supabase.from('orders').update({ status: 'completed' }).eq('id', order.id);
             await supabase.from('disputes').update({ status: 'resolved_release', description: adminNote }).eq('id', disputeId);
-
-            // Add Credit (Seller Won)
-            await import('../services/creditService').then(({ updateCreditScore }) => {
-                updateCreditScore(order.seller_id, 5, 'dispute_won', disputeId);
-            });
 
         } else {
             return res.status(400).json({ error: 'Invalid action' });

@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import { supabase } from '../db/supabase';
-import { AuthenticatedRequest } from '../middleware/userAuth';
-import { getAuthClient } from '../utils/supabaseHelper';
-import { t } from '../utils/i18n';
+import { supabase } from '../db/supabase.js';
+import { AuthenticatedRequest } from '../middleware/userAuth.js';
+import { getAuthClient } from '../utils/supabaseHelper.js';
 
 export const ordersHealthCheck = (req: Request, res: Response) => {
     res.json({
@@ -43,13 +42,13 @@ const getStripe = () => {
 export const createConnectAccount = async (req: Request, res: Response) => {
     try {
         const authReq = req as AuthenticatedRequest;
-        const userId = authReq.user?.id;
-        const email = authReq.user?.email || req.body.email;
+        const userId = authReq.user?.id; // Use authenticated ID
+        const email = authReq.user?.email || req.body.email; // Fallback to body email if auth email missing, but ID must be auth
 
-        if (!userId) return res.status(401).json({ error: t(req, 'UNAUTHORIZED') });
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         // 1. Check if seller record exists
-        let { data: seller } = await supabase
+        let { data: seller, error: fetchError } = await supabase
             .from('sellers')
             .select('*')
             .eq('user_id', userId)
@@ -57,20 +56,16 @@ export const createConnectAccount = async (req: Request, res: Response) => {
 
         let accountId = seller?.stripe_connect_id;
 
-        const country = req.body.country || 'MX';
-
-        // 2. If not, create Stripe Custom Account
+        // 2. If not, create Stripe Account
         if (!accountId) {
             const account = await getStripe().accounts.create({
-                type: 'custom',
-                country: country,
+                type: 'express',
+                country: 'MX', // Defaulting to Mexico
                 email: email,
                 capabilities: {
                     card_payments: { requested: true },
                     transfers: { requested: true },
                 },
-                business_type: 'individual',
-                metadata: { userId }
             });
             accountId = account.id;
 
@@ -86,84 +81,18 @@ export const createConnectAccount = async (req: Request, res: Response) => {
             if (upsertError) throw upsertError;
         }
 
-        // 3. Check requirements
-        const account = await getStripe().accounts.retrieve(accountId);
-        const requirements = account.requirements?.currently_due || [];
+        // 3. Create Account Link (for onboarding)
+        const accountLink = await getStripe().accountLinks.create({
+            account: accountId,
+            refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`,
+            return_url: `${req.headers.origin}/profile?onboarding_success=true`,
+            type: 'account_onboarding',
+        });
 
-        if (requirements.length > 0) {
-            // For Custom accounts, we use account links for "onboarding" only if strictly needed (Identity)
-            // or we handle it via API.
-            // For this MVP, we return a link in case they need to upload ID.
-            try {
-                const accountLink = await getStripe().accountLinks.create({
-                    account: accountId,
-                    refresh_url: `${req.headers.origin}/profile?onboarding_refresh=true`,
-                    return_url: `${req.headers.origin}/profile?onboarding_success=true`,
-                    type: 'account_onboarding',
-                    collect: 'eventually_due'
-                });
-                return res.json({
-                    accountId,
-                    requirements,
-                    onboardingUrl: accountLink.url
-                });
-            } catch (e) {
-                // Sometime custom accounts can't use hosted onboarding easily without config
-                console.warn("Could not create onboarding link for custom account, user might need API verification", e);
-            }
-        }
-
-        res.json({ accountId, requirements, onboardingUrl: null });
+        res.json({ url: accountLink.url });
 
     } catch (error: any) {
         console.error('Error creating connect account:', error);
-        res.status(500).json({ error: error.message });
-    }
-};
-
-// Add External Account (Card/Bank)
-export const updatePayoutMethod = async (req: Request, res: Response) => {
-    try {
-        const authReq = req as AuthenticatedRequest;
-        const userId = authReq.user?.id;
-        const { token } = req.body; // Token from Stripe Elements (tok_...)
-
-        if (!userId) return res.status(401).json({ error: t(req, 'UNAUTHORIZED') });
-        if (!token) return res.status(400).json({ error: t(req, 'TOKEN_REQUIRED') });
-
-        // 1. Get Seller
-        const { data: seller } = await supabase
-            .from('sellers')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-
-        if (!seller?.stripe_connect_id) {
-            return res.status(404).json({ error: t(req, 'CREATE_ACCOUNT_FIRST') });
-        }
-
-        // 2. Attach External Account
-        const bankAccount = await getStripe().accounts.createExternalAccount(
-            seller.stripe_connect_id,
-            {
-                external_account: token,
-                default_for_currency: true
-            }
-        );
-
-        // 3. Update DB
-        await supabase
-            .from('sellers')
-            .update({
-                payout_method_id: bankAccount.id,
-                onboarding_complete: true // Assume ready if they added a card
-            })
-            .eq('user_id', userId);
-
-        res.json({ success: true, payoutMethod: bankAccount });
-
-    } catch (error: any) {
-        console.error('Error updating payout method:', error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -176,7 +105,7 @@ export const getLoginLink = async (req: Request, res: Response) => {
 
         // Security check: only allow own dashboard link
         if (!userId || userId !== paramId) {
-            return res.status(403).json({ error: t(req, 'FORBIDDEN') });
+            return res.status(403).json({ error: 'Forbidden' });
         }
 
         // Fetch seller
@@ -187,7 +116,7 @@ export const getLoginLink = async (req: Request, res: Response) => {
             .single();
 
         if (!seller || !seller.stripe_connect_id) {
-            return res.status(404).json({ error: t(req, 'SELLER_ACCOUNT_NOT_FOUND') });
+            return res.status(404).json({ error: 'Seller account not found' });
         }
 
         const loginLink = await getStripe().accounts.createLoginLink(seller.stripe_connect_id);
@@ -245,7 +174,7 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
             .single();
 
         if (productError || !product) {
-            return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
+            return res.status(404).json({ error: 'Product not found' });
         }
 
         if (product.status === 'sold') {
@@ -416,11 +345,6 @@ export const confirmOrder = async (req: Request, res: Response) => {
             })
             .eq('id', orderId);
 
-        // 4. Update Credit Score (Seller +10)
-        await import('../services/creditService').then(({ updateCreditScore }) => {
-            updateCreditScore(order.seller_id, 10, 'order_completion', order.id);
-        });
-
         res.json({ success: true, status: newStatus });
 
     } catch (error: any) {
@@ -514,7 +438,7 @@ export const getUserOrders = async (req: Request, res: Response) => {
         // 1. Fetch Orders
         let query = client
             .from('orders')
-            .select('*, product:products(*)');
+            .select('*, products(*)');
 
         if (role === 'seller') {
             query = query.eq('seller_id', userId);
@@ -555,7 +479,8 @@ export const getUserOrders = async (req: Request, res: Response) => {
             stack: error.stack,
             envCheck: {
                 hasSupabaseUrl: !!process.env.SUPABASE_URL,
-                hasViteSupabaseUrl: !!process.env.VITE_SUPABASE_URL
+                hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY,
+                hasSupabaseServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY
             }
         });
     }

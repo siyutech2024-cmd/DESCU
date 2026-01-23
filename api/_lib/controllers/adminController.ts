@@ -60,15 +60,20 @@ export const getDashboardStats = async (req: AdminRequest, res: Response) => {
         const weekAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
         // Create a dedicated Admin Client to ensure we bypass RLS
-        const adminUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const adminUrl = process.env.SUPABASE_URL;
         const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        // Fallback to global client if key missing (will likely fail for RLS but handles dev cases)
-        const adminClient = (adminUrl && adminKey)
-            ? createClient(adminUrl, adminKey, { auth: { autoRefreshToken: false, persistSession: false } })
-            : supabase;
+        if (!adminUrl || !adminKey) {
+            return res.status(500).json({
+                error: 'Server configuration error: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+            });
+        }
 
-        console.log('[Dashboard] Using Admin Client:', !!(adminUrl && adminKey));
+        const adminClient = createClient(adminUrl, adminKey, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
+
+        console.log('[Dashboard] Using Admin Client with Service Role Key');
 
         // Use Promise.all to run queries in parallel
         const [

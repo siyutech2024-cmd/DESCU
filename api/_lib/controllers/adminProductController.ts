@@ -32,11 +32,18 @@ export const getAdminProducts = async (req: AdminRequest, res: Response) => {
         const offset = (Number(page) - 1) * Number(limit);
 
         // Create a dedicated Admin Client to ensure we bypass RLS
-        const adminUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const adminUrl = process.env.SUPABASE_URL;
         const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        const adminClient = (adminUrl && adminKey)
-            ? createClient(adminUrl, adminKey, { auth: { autoRefreshToken: false, persistSession: false } })
-            : supabase;
+
+        if (!adminUrl || !adminKey) {
+            return res.status(500).json({
+                error: 'Server configuration error: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+            });
+        }
+
+        const adminClient = createClient(adminUrl, adminKey, {
+            auth: { autoRefreshToken: false, persistSession: false }
+        });
 
         let query = adminClient
             .from('products')
