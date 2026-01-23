@@ -36,16 +36,30 @@ const mapToSystemCategory = (suggestedCategory: string | null): string => {
         return suggestion;
     }
 
-    // 分类关键词映射
+    // 分类关键词映射 - 扩展版
     const mappings: Array<{ keywords: string[], category: string }> = [
-        { keywords: ['electronic', 'phone', 'computer', 'laptop', 'camera', 'gadget', 'appliance', 'kitchen appliance', 'small appliance'], category: 'electronics' },
-        { keywords: ['furniture', 'table', 'chair', 'sofa', 'bed', 'desk', 'cabinet', 'shelf'], category: 'furniture' },
-        { keywords: ['clothing', 'clothes', 'shoe', 'fashion', 'accessori', 'beauty', 'fragrance', 'cosmetic', 'jewelry', 'bag', 'watch'], category: 'clothing' },
-        { keywords: ['book', 'magazine', 'textbook', 'novel', 'comic'], category: 'books' },
-        { keywords: ['sport', 'fitness', 'gym', 'bicycle', 'bike', 'outdoor', 'exercise', 'ball', 'racket'], category: 'sports' },
-        { keywords: ['vehicle', 'car', 'motorcycle', 'auto', 'truck', 'motor'], category: 'vehicles' },
-        { keywords: ['real estate', 'house', 'apartment', 'property', 'home', 'rent'], category: 'real_estate' },
-        { keywords: ['service', 'repair', 'cleaning', 'install', 'maintenance'], category: 'services' },
+        // 电子产品
+        { keywords: ['electronic', 'phone', 'computer', 'laptop', 'camera', 'gadget', 'appliance', 'kitchen appliance', 'small appliance', 'tablet', 'headphone', 'speaker', 'tv', 'television', 'monitor'], category: 'electronics' },
+        // 家具
+        { keywords: ['furniture', 'table', 'chair', 'sofa', 'bed', 'desk', 'cabinet', 'shelf', 'wardrobe', 'drawer'], category: 'furniture' },
+        // 服饰 & 美妆
+        { keywords: ['clothing', 'clothes', 'shoe', 'fashion', 'accessori', 'beauty', 'fragrance', 'cosmetic', 'jewelry', 'bag', 'watch', 'perfume', 'skincare', 'cream', 'makeup', 'health', 'lotion', 'shampoo'], category: 'clothing' },
+        // 书籍
+        { keywords: ['book', 'magazine', 'textbook', 'novel', 'comic', 'manga', 'reading'], category: 'books' },
+        // 运动
+        { keywords: ['sport', 'fitness', 'gym', 'bicycle', 'bike', 'outdoor', 'exercise', 'ball', 'racket', 'yoga', 'running'], category: 'sports' },
+        // 车辆
+        { keywords: ['vehicle', 'car', 'motorcycle', 'auto', 'truck', 'motor', 'scooter'], category: 'vehicles' },
+        // 房产
+        { keywords: ['real estate', 'house', 'apartment', 'property', 'rent', 'room'], category: 'real_estate' },
+        // 服务
+        { keywords: ['service', 'repair', 'cleaning', 'install', 'maintenance', 'lesson', 'tutoring'], category: 'services' },
+        // 食品饮料 -> 映射到 other
+        { keywords: ['food', 'snack', 'beverage', 'drink', 'juice', 'candy', 'chocolate', 'grocery', 'fruit', 'vegetable', 'meat', 'coffee', 'tea'], category: 'other' },
+        // 收藏品 -> 映射到 other
+        { keywords: ['collectible', 'souvenir', 'memorabilia', 'antique', 'vintage', 'rare', 'limited edition', 'figurine', 'toy', 'game', 'puzzle', 'lego', 'doll', 'plush'], category: 'other' },
+        // 家居园艺 -> 映射到 furniture
+        { keywords: ['home', 'garden', 'plant', 'pot', 'decor', 'decoration', 'lamp', 'light', 'curtain', 'rug', 'carpet'], category: 'furniture' },
     ];
 
     for (const mapping of mappings) {
