@@ -84,11 +84,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
           </div>
         )}
 
-        {/* Location Badge - Compact for Mobile */}
-        {isNearby && product.status !== 'sold' && (
-          <div className="absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 bg-white/80 backdrop-blur-md text-gray-800 text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full flex items-center gap-0.5 shadow-sm border border-white/50">
-            <MapPin size={8} className="text-brand-600 md:w-[10px] md:h-[10px]" />
-            {product.distance}km
+        {/* Location Badge - Show distance for all products */}
+        {product.distance !== undefined && product.status !== 'sold' && (
+          <div className={`absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 backdrop-blur-md text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full flex items-center gap-0.5 shadow-sm border ${product.distance <= 5
+              ? 'bg-green-100/90 text-green-800 border-green-200'
+              : product.distance <= 50
+                ? 'bg-white/80 text-gray-800 border-white/50'
+                : 'bg-orange-100/90 text-orange-800 border-orange-200'
+            }`}>
+            <MapPin size={8} className={`md:w-[10px] md:h-[10px] ${product.distance <= 5 ? 'text-green-600' : product.distance <= 50 ? 'text-brand-600' : 'text-orange-600'}`} />
+            {product.distance.toFixed(1)}km
           </div>
         )}
       </div>
