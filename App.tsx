@@ -745,11 +745,11 @@ const AppContent: React.FC = () => {
           latitude: newProductData.location.latitude,
           longitude: newProductData.location.longitude,
           location_name: newProductData.locationName,
-          country: user.country || detailedLocation?.city || 'Unknown',
-          city: user.city || detailedLocation?.city || 'Unknown',
+          country: detailedLocation?.city ? (user.country || 'MX') : (user.country || 'MX'),
+          city: detailedLocation?.city || user.city || 'Unknown',
           town: detailedLocation?.town || null,
           district: detailedLocation?.district || null,
-          location_display_name: detailedLocation?.displayName || user.city || 'Unknown',
+          location_display_name: detailedLocation?.displayName || (user.city ? `${user.city}` : 'Unknown'),
         }),
       });
 
