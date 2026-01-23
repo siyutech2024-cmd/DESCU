@@ -158,7 +158,7 @@ const AppContent: React.FC = () => {
 
           if (error) {
             console.error('[App] Set session error:', error);
-            showToast('登录验证失败', 'error');
+            showToast(t('toast.login_failed'), 'error');
           } else if (data.session) {
             console.log('[App] Session set successfully');
             const userWithLocation = await loadUserWithLocation(data.session);
@@ -365,7 +365,7 @@ const AppContent: React.FC = () => {
       setIsLoginModalOpen(false);
     } catch (error) {
       console.error('登录失败:', error);
-      showToast('登录失败，请重试', 'error');
+      showToast(t('toast.login_failed'), 'error');
     }
   };
 
@@ -379,10 +379,10 @@ const AppContent: React.FC = () => {
       });
       if (error) throw error;
       setUser(updatedUser);
-      showToast('个人资料已更新', 'success');
+      showToast(t('toast.profile_updated'), 'success');
     } catch (error) {
       console.error('更新失败:', error);
-      showToast('更新失败', 'error');
+      showToast(t('toast.update_failed'), 'error');
     }
   };
 
@@ -683,7 +683,7 @@ const AppContent: React.FC = () => {
     try {
       const { toggleFavorite } = await import('./services/favoriteService');
       await toggleFavorite(user.id, product.id);
-      showToast(isFav ? 'Removed from favorites' : 'Added to favorites', 'success');
+      showToast(isFav ? t('toast.favorite_removed') : t('toast.favorite_added'), 'success');
     } catch (error) {
       console.error('Favorite toggle failed', error);
       // Revert
@@ -693,13 +693,13 @@ const AppContent: React.FC = () => {
         else next.delete(product.id);
         return next;
       });
-      showToast('Failed to update favorite', 'error');
+      showToast(t('toast.favorite_update_failed'), 'error');
     }
   };
 
   const handleProductSubmit = async (newProductData: Omit<Product, 'id' | 'createdAt' | 'distance'>) => {
     if (!user) {
-      showToast('请先登录', 'warning');
+      showToast(t('toast.please_login'), 'warning');
       return;
     }
 
@@ -799,10 +799,10 @@ const AppContent: React.FC = () => {
       setProducts(prev => [productForApp, ...prev]);
       setIsSellModalOpen(false);
       navigate('/');
-      showToast('🎉 商品发布成功！', 'success');
+      showToast(t('toast.product_published'), 'success');
     } catch (error) {
       console.error('商品创建失败:', error);
-      showToast(`❌ 商品发布失败: ${error instanceof Error ? error.message : '请稍后重试'}`, 'error');
+      showToast(`${t('toast.product_publish_failed')}${error instanceof Error ? ': ' + error.message : ''}`, 'error');
     } finally {
       setIsCreatingProduct(false);
     }
@@ -846,7 +846,7 @@ const AppContent: React.FC = () => {
       navigate(`/chat/${newConversation.id}`);
     } catch (error) {
       console.error('创建对话失败:', error);
-      showToast('❌ 无法打开聊天，请稍后重试', 'error');
+      showToast(t('toast.chat_open_failed'), 'error');
     }
   };
 
@@ -902,7 +902,7 @@ const AppContent: React.FC = () => {
         }
         return c;
       }));
-      showToast('❌ 消息发送失败，请重试', 'error');
+      showToast(t('toast.message_send_failed'), 'error');
     }
   };
 

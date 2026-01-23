@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { supabase } from '../db/supabase';
 import { AuthenticatedRequest } from '../middleware/userAuth';
 import { getAuthClient } from '../utils/supabaseHelper';
+import { t } from '../utils/i18n';
 
 export const ordersHealthCheck = (req: Request, res: Response) => {
     res.json({
@@ -45,7 +46,7 @@ export const createConnectAccount = async (req: Request, res: Response) => {
         const userId = authReq.user?.id;
         const email = authReq.user?.email || req.body.email;
 
-        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+        if (!userId) return res.status(401).json({ error: t(req, 'UNAUTHORIZED') });
 
         // 1. Check if seller record exists
         let { data: seller } = await supabase
@@ -127,8 +128,8 @@ export const updatePayoutMethod = async (req: Request, res: Response) => {
         const userId = authReq.user?.id;
         const { token } = req.body; // Token from Stripe Elements (tok_...)
 
-        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-        if (!token) return res.status(400).json({ error: 'Token is required' });
+        if (!userId) return res.status(401).json({ error: t(req, 'UNAUTHORIZED') });
+        if (!token) return res.status(400).json({ error: t(req, 'TOKEN_REQUIRED') });
 
         // 1. Get Seller
         const { data: seller } = await supabase
@@ -138,7 +139,7 @@ export const updatePayoutMethod = async (req: Request, res: Response) => {
             .single();
 
         if (!seller?.stripe_connect_id) {
-            return res.status(404).json({ error: 'Seller account not found. Create account first.' });
+            return res.status(404).json({ error: t(req, 'CREATE_ACCOUNT_FIRST') });
         }
 
         // 2. Attach External Account
@@ -175,7 +176,7 @@ export const getLoginLink = async (req: Request, res: Response) => {
 
         // Security check: only allow own dashboard link
         if (!userId || userId !== paramId) {
-            return res.status(403).json({ error: 'Forbidden' });
+            return res.status(403).json({ error: t(req, 'FORBIDDEN') });
         }
 
         // Fetch seller
@@ -186,7 +187,7 @@ export const getLoginLink = async (req: Request, res: Response) => {
             .single();
 
         if (!seller || !seller.stripe_connect_id) {
-            return res.status(404).json({ error: 'Seller account not found' });
+            return res.status(404).json({ error: t(req, 'SELLER_ACCOUNT_NOT_FOUND') });
         }
 
         const loginLink = await getStripe().accounts.createLoginLink(seller.stripe_connect_id);
@@ -244,7 +245,7 @@ export const createPaymentIntent = async (req: Request, res: Response) => {
             .single();
 
         if (productError || !product) {
-            return res.status(404).json({ error: 'Product not found' });
+            return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
         if (product.status === 'sold') {

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { GoogleGenAI } from '@google/genai';
+import { t } from '../utils/i18n';
 
 // --- LAZY AI INIT ---
 let aiInstance: GoogleGenAI | null = null;
@@ -17,13 +18,13 @@ export const analyzeImage = async (req: Request, res: Response) => {
         const { image, language } = req.body;
 
         if (!image) {
-            return res.status(400).json({ error: 'Image data is required' });
+            return res.status(400).json({ error: t(req, 'IMAGE_REQUIRED') });
         }
 
         const ai = getAI();
         if (!ai) {
             console.error('Gemini API Key is missing in server environment variables.');
-            return res.status(500).json({ error: 'Gemini API not configured (Server)' });
+            return res.status(500).json({ error: t(req, 'GEMINI_NOT_CONFIGURED') });
         }
 
         // Schema definition (simplified for backend)
@@ -97,13 +98,13 @@ export const analyzeImage = async (req: Request, res: Response) => {
         } catch (error: any) {
             console.error('AI Analysis failed:', error);
             res.status(500).json({
-                error: 'Failed to analyze image',
+                error: t(req, 'FAILED_TO_ANALYZE_IMAGE'),
                 details: error.message || 'Unknown error'
             });
         }
 
     } catch (error) {
         console.error('AI Analysis failed (General):', error);
-        res.status(500).json({ error: 'Failed to analyze image' });
+        res.status(500).json({ error: t(req, 'FAILED_TO_ANALYZE_IMAGE') });
     }
 };

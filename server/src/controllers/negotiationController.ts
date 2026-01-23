@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { supabase } from '../db/supabase';
+import { t } from '../utils/i18n';
 
 /**
  * 发起议价请求
@@ -11,11 +12,11 @@ export const proposePrice = async (req: Request, res: Response) => {
         const userId = (req as any).user?.id;
 
         if (!userId) {
-            return res.status(401).json({ message: '未登录 / No has iniciado sesión' });
+            return res.status(401).json({ message: t(req, 'PLEASE_LOGIN') });
         }
 
         if (!conversationId || !productId || proposedPrice === undefined) {
-            return res.status(400).json({ message: '缺少必要参数 / Faltan parámetros' });
+            return res.status(400).json({ message: t(req, 'MISSING_FIELDS') });
         }
 
         // 获取产品信息
@@ -27,12 +28,12 @@ export const proposePrice = async (req: Request, res: Response) => {
 
         if (productError || !product) {
             console.error('Product not found:', productError);
-            return res.status(404).json({ message: '产品不存在 / Producto no encontrado' });
+            return res.status(404).json({ message: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
         // 验证用户不是卖家（买家才能议价）
         if (product.seller_id === userId) {
-            return res.status(400).json({ message: '卖家不能对自己的产品议价 / No puedes ofertar tu propio producto' });
+            return res.status(400).json({ message: t(req, 'CANNOT_OFFER_OWN_PRODUCT') });
         }
 
         // 创建议价消息内容
@@ -70,7 +71,7 @@ export const proposePrice = async (req: Request, res: Response) => {
         res.json({ success: true, message, negotiation: negotiationContent });
     } catch (error: any) {
         console.error('Propose price error:', error);
-        res.status(500).json({ message: error.message || '服务器错误' });
+        res.status(500).json({ message: error.message || t(req, 'SERVER_ERROR') });
     }
 };
 
@@ -93,7 +94,7 @@ export const respondToNegotiation = async (req: Request, res: Response) => {
 
         // 验证响应类型
         if (!['accepted', 'rejected', 'counter'].includes(response)) {
-            return res.status(400).json({ message: '无效的响应类型' });
+            return res.status(400).json({ message: t(req, 'INVALID_RESPONSE_TYPE') });
         }
 
         // 获取原议价消息
@@ -105,7 +106,7 @@ export const respondToNegotiation = async (req: Request, res: Response) => {
 
         if (fetchError || !origMessage) {
             console.error('Original message not found:', fetchError);
-            return res.status(404).json({ message: '消息不存在 / Mensaje no encontrado' });
+            return res.status(404).json({ message: t(req, 'MESSAGE_NOT_FOUND') });
         }
 
         // 解析原议价内容
@@ -113,12 +114,12 @@ export const respondToNegotiation = async (req: Request, res: Response) => {
         try {
             origContent = JSON.parse(origMessage.content);
         } catch {
-            return res.status(400).json({ message: '无效的议价消息格式' });
+            return res.status(400).json({ message: t(req, 'INVALID_NEGOTIATION_FORMAT') });
         }
 
         // 验证只有卖家可以响应
         if (origContent.sellerId !== userId) {
-            return res.status(403).json({ message: '只有卖家可以响应议价 / Solo el vendedor puede responder' });
+            return res.status(403).json({ message: t(req, 'ONLY_SELLER_CAN_RESPOND') });
         }
 
         // 更新议价状态

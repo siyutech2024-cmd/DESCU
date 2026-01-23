@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../db/supabase';
 import { createClient } from '@supabase/supabase-js';
+import { t } from '../utils/i18n';
 
 export const createProduct = async (req: any, res: Response) => {
     try {
@@ -8,7 +9,7 @@ export const createProduct = async (req: any, res: Response) => {
         const authHeader = req.headers.authorization;
 
         if (!user || !authHeader) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            return res.status(401).json({ error: t(req, 'UNAUTHORIZED') });
         }
 
         const {
@@ -35,7 +36,7 @@ export const createProduct = async (req: any, res: Response) => {
 
         // Validation
         if (!title || price === undefined) {
-            return res.status(400).json({ error: 'Missing required fields (title, price)' });
+            return res.status(400).json({ error: t(req, 'TITLE_PRICE_REQUIRED') });
         }
 
         const productData = {
@@ -106,7 +107,7 @@ export const createProduct = async (req: any, res: Response) => {
         });
     } catch (error: any) {
         console.error('Error creating product:', error);
-        res.status(500).json({ error: error.message || 'Failed to create product' });
+        res.status(500).json({ error: error.message || t(req, 'FAILED_TO_CREATE_PRODUCT') });
     }
 };
 
@@ -237,7 +238,7 @@ export const getProductById = async (req: Request, res: Response) => {
             .single();
 
         if (error || !product) {
-            return res.status(404).json({ error: 'Product not found' });
+            return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
         // Apply Translation if needed

@@ -200,7 +200,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
       onClose();
     } catch (error: any) {
       console.error("Submission failed", error);
-      showToast('Failed to upload product. Please try again.', 'error');
+      showToast(t('toast.upload_failed'), 'error');
     } finally {
       setIsUploading(false);
     }
