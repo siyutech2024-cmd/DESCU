@@ -74,6 +74,7 @@ import {
 
 import { generateSitemap } from './_lib/controllers/seoController.js';
 import { reverseGeocodeProxy } from './_lib/controllers/locationController.js';
+import { autoReviewPendingProducts } from './_lib/services/auditService.js';
 
 const app = express();
 
@@ -186,6 +187,87 @@ app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
 app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 
 // ==================================================================
+// CRON JOBS - 定时任务
+// ==================================================================
+
+/**
+ * 自动商品审核定时任务
+ * 每小时执行一次，自动审核新上架的商品
+ * 由 Vercel Cron 触发
+ */
+app.post('/api/cron/auto-review', async (req: any, res) => {
+    try {
+        // 验证请求来源 - 支持 Vercel Cron header 或 CRON_SECRET
+        const authHeader = req.headers.authorization;
+        const vercelCron = req.headers['x-vercel-cron'];
+        const cronSecret = process.env.CRON_SECRET;
+
+        // Vercel Cron 请求会带有 x-vercel-cron header
+        const isVercelCron = vercelCron === '1';
+
+        // 或者通过 Bearer token 验证
+        const isAuthorized = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+        if (!isVercelCron && !isAuthorized) {
+            console.warn('[Cron] Unauthorized access attempt to auto-review');
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        console.log('[Cron] Starting auto-review job...');
+
+        // 执行自动审核，处理过去24小时内创建的待审核商品
+        const stats = await autoReviewPendingProducts(50, 24);
+
+        console.log('[Cron] Auto-review completed:', stats);
+
+        res.json({
+            success: true,
+            message: 'Auto-review completed',
+            stats,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error: any) {
+        console.error('[Cron] Auto-review failed:', error);
+        res.status(500).json({
+            error: 'Auto-review failed',
+            message: error.message
+        });
+    }
+});
+
+// 也支持 GET 方法 (Vercel Cron 默认使用 GET)
+app.get('/api/cron/auto-review', async (req: any, res) => {
+    // 复用 POST 逻辑
+    try {
+        const vercelCron = req.headers['x-vercel-cron'];
+        const cronSecret = process.env.CRON_SECRET;
+        const authHeader = req.headers.authorization;
+
+        const isVercelCron = vercelCron === '1';
+        const isAuthorized = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+        if (!isVercelCron && !isAuthorized) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        console.log('[Cron] Starting auto-review job (GET)...');
+        const stats = await autoReviewPendingProducts(50, 24);
+
+        res.json({
+            success: true,
+            message: 'Auto-review completed',
+            stats,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error: any) {
+        console.error('[Cron] Auto-review failed:', error);
+        res.status(500).json({ error: 'Auto-review failed', message: error.message });
+    }
+});
+
+// ==================================================================
 // PAYOUT MANAGEMENT (Manual Bank Transfer)
 // ==================================================================
 
@@ -194,8 +276,8 @@ app.get('/api/admin/payouts', requireAdmin, async (req: any, res) => {
     try {
         const status = req.query.status || 'pending';
 
-        // Get orders that are completed but not yet paid out
-        const { data: orders, error } = await supabase
+        // 构建基础查询
+        let query = supabase
             .from('orders')
             .select(`
                 id,
@@ -217,9 +299,18 @@ app.get('/api/admin/payouts', requireAdmin, async (req: any, res) => {
                     sellers(bank_clabe, bank_name, bank_holder_name)
                 )
             `)
-            .in('status', ['completed', 'delivered'])
-            .eq('payout_status', status === 'all' ? undefined : status)
-            .order('completed_at', { ascending: true });
+            .in('status', ['completed', 'delivered']);
+
+        // 根据状态筛选 - 修复NULL值匹配问题
+        if (status === 'pending') {
+            // pending包括NULL和'pending'两种情况
+            query = query.or('payout_status.is.null,payout_status.eq.pending');
+        } else if (status !== 'all') {
+            query = query.eq('payout_status', status);
+        }
+        // status === 'all' 时不添加任何payout_status过滤
+
+        const { data: orders, error } = await query.order('completed_at', { ascending: true });
 
         if (error) throw error;
 
@@ -246,6 +337,7 @@ app.get('/api/admin/payouts', requireAdmin, async (req: any, res) => {
         res.status(500).json({ error: 'Failed to get payouts', message: error.message });
     }
 });
+
 
 // Mark order as paid out (admin)
 app.post('/api/admin/payouts/:orderId/complete', requireAdmin, async (req: any, res) => {

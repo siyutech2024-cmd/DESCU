@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { showToast } from '../utils/toast';
-import { CheckCircle, XCircle, MessageSquare, Eye, Package, Sparkles } from 'lucide-react';
-import { auditProductWithGemini } from '../../services/geminiService';
+import { CheckCircle, XCircle, MessageSquare, Eye, Package, Sparkles, AlertTriangle } from 'lucide-react';
+import { auditProductWithGemini, AIAuditResult } from '../../services/geminiService';
 
 export const ProductReview: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -13,6 +13,7 @@ export const ProductReview: React.FC = () => {
     const [selectedProduct, setSelectedProduct] = useState<AdminProduct | null>(null);
     const [reviewNote, setReviewNote] = useState('');
     const [processing, setProcessing] = useState(false);
+    const [aiResults, setAiResults] = useState<Record<string, AIAuditResult>>({});
 
     const fetchPendingProducts = async () => {
         setLoading(true);
@@ -119,9 +120,13 @@ export const ProductReview: React.FC = () => {
                             });
                             approvedCount++;
                         } else {
-                            // Flag / Leave for review
-                            // Optionally update note even if not approving
-                            // await adminApi.updateProduct(product.id, { review_note: `[AI Flag] ${audit.flaggedReason || 'Category Mismatch'}` });
+                            // Flag / Leave for review - 保存拒绝原因
+                            const reason = audit.flaggedReason ||
+                                (!audit.categoryCorrect ? `分类建议: ${audit.suggestedCategory}` : '需人工复核');
+                            await adminApi.updateProduct(product.id, {
+                                review_note: `[AI标记] ${reason}`
+                            });
+                            setAiResults(prev => ({ ...prev, [product.id]: audit }));
                             flaggedCount++;
                         }
                     }
@@ -237,6 +242,17 @@ export const ProductReview: React.FC = () => {
                                             <span>分类: {product.category}</span>
                                             <span>卖家: {product.seller_name}</span>
                                         </div>
+                                        {/* AI审核结果显示 */}
+                                        {(aiResults[product.id] || product.review_note?.startsWith('[AI标记]')) && (
+                                            <div className="flex items-center gap-2 mt-2 text-red-600 bg-red-50 px-3 py-1 rounded-lg">
+                                                <AlertTriangle className="w-4 h-4" />
+                                                <span className="text-xs font-medium">
+                                                    {aiResults[product.id]?.flaggedReason ||
+                                                        product.review_note?.replace('[AI标记] ', '') ||
+                                                        '需人工复核'}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Actions */}
