@@ -214,7 +214,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                     <h4 className="text-sm font-bold text-gray-900 mb-1">商品位置 / Ubicación</h4>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm text-gray-700 font-medium">
-                        {product.location_display_name || `${product.city || '未知城市'}`}, {product.country || 'MX'}
+                        {product.location_display_name || product.town || product.district || product.city || '未知城市'}, {product.country || 'MX'}
                       </p>
                       {product.distance !== undefined && (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${product.distance <= 5

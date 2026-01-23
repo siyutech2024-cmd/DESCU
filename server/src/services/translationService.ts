@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from '@google/genai';
-import { supabase } from '../db/supabase';
+import { supabase } from '../db/supabase.js';
 
 const apiKey = process.env.GEMINI_API_KEY;
 // Lazy load to prevent startup crash if key missing or lib failure
@@ -147,12 +147,15 @@ export const translateBatch = async (
     // 5. 调用AI翻译未缓存的产品
     const ai = getAI();
     if (!ai) {
-        console.warn('Gemini AI not available, returning original items');
-        return items;
+        console.warn('[Translation] Gemini AI not available (GEMINI_API_KEY missing), returning original items');
+        // 返回原始未翻译项目
+        needsTranslation.forEach(item => results.push(item));
+        return results;
     }
 
     // Limit batch size to avoid context limits
     const chunk = needsTranslation.slice(0, 50);
+    console.log(`[Translation] Translating ${chunk.length} items to ${targetLang}...`);
 
     // Create a minified map to save tokens
     const textMap = chunk.reduce((acc, item) => {
@@ -169,55 +172,74 @@ export const translateBatch = async (
     Input: ${JSON.stringify(textMap)}
     `;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash", // Upgraded to 2.5 for higher quota
-            contents: {
-                parts: [{ text: prompt }]
-            },
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
+    // 添加重试逻辑
+    const maxRetries = 2;
+    let lastError: Error | null = null;
 
-        let text = response.text;
-        if (!text) {
-            console.error('No translation response from AI');
-            return items;
-        }
-
-        text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        const translatedMap = JSON.parse(text);
-
-        // 6. 处理翻译结果
-        const newTranslations: TranslatableItem[] = [];
-        chunk.forEach(item => {
-            const translated = translatedMap[item.id];
-            if (translated) {
-                const translatedItem: TranslatableItem = {
-                    id: item.id,
-                    title: translated.t || item.title,
-                    description: translated.d || item.description
-                };
-                newTranslations.push(translatedItem);
-                results.push(translatedItem);
-            } else {
-                // Fallback to original
-                results.push(item);
-            }
-        });
-
-        // 7. 异步保存到缓存（不阻塞响应）
-        if (newTranslations.length > 0) {
-            saveCachedTranslations(newTranslations, langCode).catch(err => {
-                console.error('Failed to save cache asynchronously:', err);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: {
+                    parts: [{ text: prompt }]
+                },
+                config: {
+                    responseMimeType: "application/json"
+                }
             });
+
+            let text = response.text;
+            if (!text) {
+                console.error(`[Translation] Attempt ${attempt}: Empty response from AI`);
+                continue;
+            }
+
+            text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+            const translatedMap = JSON.parse(text);
+
+            // 6. 处理翻译结果
+            const newTranslations: TranslatableItem[] = [];
+            chunk.forEach(item => {
+                const translated = translatedMap[item.id];
+                if (translated) {
+                    const translatedItem: TranslatableItem = {
+                        id: item.id,
+                        title: translated.t || item.title,
+                        description: translated.d || item.description
+                    };
+                    newTranslations.push(translatedItem);
+                    results.push(translatedItem);
+                } else {
+                    // Fallback to original
+                    results.push(item);
+                }
+            });
+
+            console.log(`[Translation] Success: Translated ${newTranslations.length} items`);
+
+            // 7. 异步保存到缓存（不阻塞响应）
+            if (newTranslations.length > 0) {
+                saveCachedTranslations(newTranslations, langCode).catch(err => {
+                    console.error('[Translation] Failed to save cache:', err);
+                });
+            }
+
+            return results;
+
+        } catch (error: any) {
+            lastError = error;
+            console.error(`[Translation] Attempt ${attempt}/${maxRetries} failed:`, error.message || error);
+
+            if (attempt < maxRetries) {
+                // 等待一秒后重试
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
-
-        return results;
-
-    } catch (error) {
-        console.error('Translation failed:', error);
-        return items; // Fallback to original
     }
+
+    // 所有重试都失败，返回原始内容
+    console.error('[Translation] All retries failed, returning original items. Last error:', lastError?.message);
+    needsTranslation.forEach(item => results.push(item));
+    return results;
 };
+
