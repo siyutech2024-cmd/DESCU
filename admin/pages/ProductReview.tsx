@@ -112,17 +112,30 @@ export const ProductReview: React.FC = () => {
                     });
 
                     if (audit) {
-                        if (audit.isSafe && audit.categoryCorrect && audit.confidence > 0.8) {
-                            // Auto Approve
-                            await adminApi.updateProduct(product.id, {
+                        if (audit.isSafe && audit.confidence > 0.6) {
+                            // Auto Approve - 安全商品自动通过，分类不正确则纠正
+                            const updateData: Record<string, any> = {
                                 status: 'active',
                                 review_note: `[AI] Auto-approved. Confidence: ${(audit.confidence * 100).toFixed(0)}%`
-                            });
+                            };
+
+                            // 纠正分类
+                            if (!audit.categoryCorrect && audit.suggestedCategory) {
+                                updateData.category = audit.suggestedCategory.toLowerCase();
+                                updateData.review_note = `[AI] Auto-approved. Category corrected to ${audit.suggestedCategory}`;
+                            }
+
+                            // 添加子类目建议
+                            if ((audit as any).suggestedSubcategory) {
+                                updateData.subcategory = (audit as any).suggestedSubcategory;
+                            }
+
+                            await adminApi.updateProduct(product.id, updateData);
                             approvedCount++;
                         } else {
                             // Flag / Leave for review - 保存拒绝原因
                             const reason = audit.flaggedReason ||
-                                (!audit.categoryCorrect ? `分类建议: ${audit.suggestedCategory}` : '需人工复核');
+                                (!audit.isSafe ? '安全性需人工确认' : '需人工复核');
                             await adminApi.updateProduct(product.id, {
                                 review_note: `[AI标记] ${reason}`
                             });
