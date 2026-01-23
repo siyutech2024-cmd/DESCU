@@ -17,6 +17,48 @@ const getAI = () => {
     return aiInstance;
 };
 
+// 系统支持的分类
+const SYSTEM_CATEGORIES = [
+    'electronics', 'furniture', 'clothing', 'books',
+    'sports', 'vehicles', 'real_estate', 'services', 'other'
+];
+
+/**
+ * 将AI建议的详细分类映射到系统分类
+ */
+const mapToSystemCategory = (suggestedCategory: string | null): string => {
+    if (!suggestedCategory) return 'other';
+
+    const suggestion = suggestedCategory.toLowerCase();
+
+    // 如果已经是系统分类，直接返回
+    if (SYSTEM_CATEGORIES.includes(suggestion)) {
+        return suggestion;
+    }
+
+    // 分类关键词映射
+    const mappings: Array<{ keywords: string[], category: string }> = [
+        { keywords: ['electronic', 'phone', 'computer', 'laptop', 'camera', 'gadget', 'appliance', 'kitchen appliance', 'small appliance'], category: 'electronics' },
+        { keywords: ['furniture', 'table', 'chair', 'sofa', 'bed', 'desk', 'cabinet', 'shelf'], category: 'furniture' },
+        { keywords: ['clothing', 'clothes', 'shoe', 'fashion', 'accessori', 'beauty', 'fragrance', 'cosmetic', 'jewelry', 'bag', 'watch'], category: 'clothing' },
+        { keywords: ['book', 'magazine', 'textbook', 'novel', 'comic'], category: 'books' },
+        { keywords: ['sport', 'fitness', 'gym', 'bicycle', 'bike', 'outdoor', 'exercise', 'ball', 'racket'], category: 'sports' },
+        { keywords: ['vehicle', 'car', 'motorcycle', 'auto', 'truck', 'motor'], category: 'vehicles' },
+        { keywords: ['real estate', 'house', 'apartment', 'property', 'home', 'rent'], category: 'real_estate' },
+        { keywords: ['service', 'repair', 'cleaning', 'install', 'maintenance'], category: 'services' },
+    ];
+
+    for (const mapping of mappings) {
+        for (const keyword of mapping.keywords) {
+            if (suggestion.includes(keyword)) {
+                return mapping.category;
+            }
+        }
+    }
+
+    return 'other';
+};
+
 export interface AuditResult {
     isSafe: boolean;
     categoryCorrect: boolean;
@@ -46,6 +88,8 @@ Audit this product for:
 1. Safety/Ethics: Is it illegal, hateful, explicit, or prohibited (weapons, drugs, counterfeit)?
 2. Category Accuracy: Is the category "${product.category}" correct?
 
+Available categories: electronics, furniture, clothing, books, sports, vehicles, real_estate, services, other
+
 Product:
 Title: "${product.title}"
 Description: "${product.description}"
@@ -55,7 +99,7 @@ Return ONLY valid JSON (no markdown):
   "isSafe": boolean,
   "flaggedReason": "Reason if unsafe or null",
   "categoryCorrect": boolean,
-  "suggestedCategory": "Correct category if incorrect or null",
+  "suggestedCategory": "Best matching category from the list above if incorrect, or null",
   "confidence": number (0.0-1.0)
 }
 `;
@@ -93,8 +137,8 @@ Return ONLY valid JSON (no markdown):
 export const autoReviewPendingProducts = async (
     limit: number = 50,
     hoursAgo: number = 24
-): Promise<{ approved: number; flagged: number; errors: number }> => {
-    const stats = { approved: 0, flagged: 0, errors: 0 };
+): Promise<{ approved: number; categoryCorrected: number; flagged: number; errors: number }> => {
+    const stats = { approved: 0, categoryCorrected: 0, flagged: 0, errors: 0 };
 
     try {
         // 计算时间范围
@@ -127,7 +171,7 @@ export const autoReviewPendingProducts = async (
                 const audit = await auditProduct({
                     title: product.title,
                     description: product.description || '',
-                    category: product.category || 'Other'
+                    category: product.category || 'other'
                 });
 
                 if (!audit) {
@@ -135,31 +179,49 @@ export const autoReviewPendingProducts = async (
                     continue;
                 }
 
-                if (audit.isSafe && audit.categoryCorrect && audit.confidence > 0.8) {
-                    // 自动通过
+                // 核心逻辑：安全商品直接通过，不安全商品才需人工审核
+                if (audit.isSafe && audit.confidence > 0.6) {
+                    // 安全商品：自动通过，分类不正确则纠正
+                    let finalCategory = product.category;
+                    let reviewNote = `[AI自动审核] 通过，置信度: ${(audit.confidence * 100).toFixed(0)}%`;
+                    let wasCorrected = false;
+
+                    if (!audit.categoryCorrect && audit.suggestedCategory) {
+                        // 映射AI建议分类到系统分类
+                        const mappedCategory = mapToSystemCategory(audit.suggestedCategory);
+                        if (mappedCategory !== product.category) {
+                            finalCategory = mappedCategory;
+                            reviewNote = `[AI自动审核] 通过，分类从 "${product.category}" 纠正为 "${mappedCategory}"`;
+                            wasCorrected = true;
+                            stats.categoryCorrected++;
+                        }
+                    }
+
                     await supabase
                         .from('products')
                         .update({
                             status: 'active',
-                            review_note: `[AI自动审核] 通过，置信度: ${(audit.confidence * 100).toFixed(0)}%`,
+                            category: finalCategory,
+                            review_note: reviewNote,
                             reviewed_at: new Date().toISOString()
                         })
                         .eq('id', product.id);
+
                     stats.approved++;
-                    console.log(`[AutoReview] Approved: ${product.id}`);
+                    console.log(`[AutoReview] Approved: ${product.id}${wasCorrected ? ` (category: ${product.category} → ${finalCategory})` : ''}`);
+
                 } else {
-                    // 标记需人工复核
-                    const reason = audit.flaggedReason ||
-                        (!audit.categoryCorrect ? `分类建议: ${audit.suggestedCategory}` : '需人工复核');
+                    // 不安全商品：标记需人工复核
+                    const reason = audit.flaggedReason || '安全性需人工确认';
                     await supabase
                         .from('products')
                         .update({
-                            review_note: `[AI标记] ${reason}`,
+                            review_note: `[AI标记-不安全] ${reason}`,
                             reviewed_at: new Date().toISOString()
                         })
                         .eq('id', product.id);
                     stats.flagged++;
-                    console.log(`[AutoReview] Flagged: ${product.id} - ${reason}`);
+                    console.log(`[AutoReview] Flagged (unsafe): ${product.id} - ${reason}`);
                 }
 
                 // 添加小延迟避免API限流
@@ -171,7 +233,7 @@ export const autoReviewPendingProducts = async (
             }
         }
 
-        console.log(`[AutoReview] Complete: approved=${stats.approved}, flagged=${stats.flagged}, errors=${stats.errors}`);
+        console.log(`[AutoReview] Complete: approved=${stats.approved}, categoryCorrected=${stats.categoryCorrected}, flagged=${stats.flagged}, errors=${stats.errors}`);
         return stats;
 
     } catch (error) {
@@ -179,3 +241,4 @@ export const autoReviewPendingProducts = async (
         return stats;
     }
 };
+
