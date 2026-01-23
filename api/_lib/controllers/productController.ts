@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
+import { t } from '../utils/i18n.js';
 
 export const createProduct = async (req: any, res: Response) => {
     try {
@@ -244,7 +245,7 @@ export const getProductById = async (req: Request, res: Response) => {
             .single();
 
         if (error || !product) {
-            return res.status(404).json({ error: 'Product not found' });
+            return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
         // Apply Translation if needed
