@@ -712,14 +712,21 @@ const AppContent: React.FC = () => {
       if (!token) throw new Error('请先登录验证身份');
 
       // Fetch detailed location (town/district level)
+      console.log('[DEBUG] 开始获取详细位置信息...');
+      console.log('[DEBUG] 坐标:', {
+        lat: newProductData.location.latitude,
+        lon: newProductData.location.longitude
+      });
+
       let detailedLocation = null;
       try {
         detailedLocation = await getDetailedLocation(
           newProductData.location.latitude,
           newProductData.location.longitude
         );
+        console.log('[DEBUG] getDetailedLocation 返回:', detailedLocation);
       } catch (error) {
-        console.error('Failed to get detailed location:', error);
+        console.error('[DEBUG] 获取详细位置失败:', error);
         // Continue without detailed location
       }
 

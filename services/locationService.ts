@@ -120,9 +120,12 @@ export const getDetailedLocation = async (
         const address = data.address;
 
         // Extract location components with priority
+        // Note: Different cities return different fields:
+        // - Mexico City often returns "borough" (e.g., "Cuauhtémoc")
+        // - Other cities may return "suburb", "district", "town", or "village"
         const city = address.city || address.county || address.state || 'Unknown';
         const town = address.town || address.village;
-        const district = address.suburb || address.neighbourhood || address.district;
+        const district = address.borough || address.suburb || address.neighbourhood || address.district;
         const suburb = address.suburb;
 
         // Build display name: City · Town/District
@@ -137,13 +140,16 @@ export const getDetailedLocation = async (
             displayName += ` · ${district}`;
         }
 
-        return {
+        const result = {
             city,
             town,
             district,
             suburb,
             displayName
         };
+
+        console.log('[LocationService] 解析结果:', result);
+        return result;
     } catch (error) {
         console.error('Error getting detailed location:', error);
         // Return fallback with empty display name
