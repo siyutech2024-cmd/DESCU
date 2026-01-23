@@ -1,0 +1,39 @@
+name: Auto Review Products
+
+on:
+  schedule:
+    # 每小时执行一次 (UTC时间)
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # 允许手动触发
+
+jobs:
+  auto-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Auto Review API
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          API_URL: ${{ secrets.API_URL }}
+        run: |
+          # 使用环境变量或默认值
+          URL="${API_URL:-https://descu.ai}/api/cron/auto-review"
+          
+          echo "Calling auto-review API at $(date)"
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST "$URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json")
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "Response: $body"
+          echo "HTTP Code: $http_code"
+          
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Auto-review completed successfully"
+          else
+            echo "❌ Auto-review failed with HTTP $http_code"
+            exit 1
+          fi

@@ -31,11 +31,5 @@
                 }
             ]
         }
-    ],
-    "crons": [
-        {
-            "path": "/api/cron/auto-review",
-            "schedule": "0 * * * *"
-        }
     ]
 }
