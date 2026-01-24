@@ -75,6 +75,7 @@ import {
 import { generateSitemap } from './_lib/controllers/seoController.js';
 import { reverseGeocodeProxy } from './_lib/controllers/locationController.js';
 import { autoReviewPendingProducts } from './_lib/services/auditService.js';
+import { batchTranslateProducts } from './_lib/services/batchTranslateService.js';
 
 const app = express();
 
@@ -267,6 +268,8 @@ app.get('/api/cron/auto-review', async (req: any, res) => {
     }
 });
 
+// 批量翻译现有产品 (管理员可调用)
+app.post('/api/admin/batch-translate', requireAdmin, batchTranslateProducts);
 // ==================================================================
 // PAYOUT MANAGEMENT (Manual Bank Transfer)
 // ==================================================================
