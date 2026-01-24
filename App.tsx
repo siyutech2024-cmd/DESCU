@@ -433,6 +433,13 @@ const AppContent: React.FC = () => {
           },
           title: p.title,
           description: p.description,
+          // 多语言翻译字段
+          title_zh: p.title_zh,
+          title_en: p.title_en,
+          title_es: p.title_es,
+          description_zh: p.description_zh,
+          description_en: p.description_en,
+          description_es: p.description_es,
           price: p.price,
           currency: p.currency,
           images: p.images || [],
