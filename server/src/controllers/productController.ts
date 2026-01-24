@@ -210,6 +210,8 @@ export const getProducts = async (req: Request, res: Response) => {
                 });
 
                 if (productsNeedingTranslation.length > 0) {
+                    console.log(`[Translation] Need to translate ${productsNeedingTranslation.length} products to ${targetLang}`);
+
                     const translatableItems = productsNeedingTranslation.map(p => ({
                         id: p.id,
                         title: p.title,
@@ -217,6 +219,11 @@ export const getProducts = async (req: Request, res: Response) => {
                     }));
 
                     const translatedItems = await translateBatch(translatableItems, targetLang);
+
+                    console.log(`[Translation] Received ${translatedItems.length} translations`);
+                    if (translatedItems[0]) {
+                        console.log(`[Translation] Sample - Original: "${translatableItems[0].title}" -> Translated: "${translatedItems[0].title}"`);
+                    }
 
                     // Merge back
                     products = products.map(p => {
