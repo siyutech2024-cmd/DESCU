@@ -164,3 +164,56 @@ export const judgeDisputeWithGemini = async (dispute: { reason: string; descript
     return null;
   }
 };
+
+// 翻译结果接口
+export interface TranslationResult {
+  zh: { title: string; description: string };
+  en: { title: string; description: string };
+  es: { title: string; description: string };
+}
+
+// 翻译产品内容为三语言
+export const translateProductWithGemini = async (
+  title: string,
+  description: string
+): Promise<TranslationResult | null> => {
+  if (!genAI) {
+    console.error("[Gemini] AI not available for translation");
+    return null;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const prompt = `
+Translate the following product title and description into Chinese, English, and Spanish.
+Return ONLY valid JSON in this exact format:
+{
+  "zh": { "title": "中文标题", "description": "中文描述" },
+  "en": { "title": "English title", "description": "English description" },
+  "es": { "title": "Título en español", "description": "Descripción en español" }
+}
+
+Original content:
+Title: ${title}
+Description: ${description}
+`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text();
+
+    if (!text) {
+      console.error("[Gemini Translation] Empty response");
+      return null;
+    }
+
+    text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    const parsed = JSON.parse(text) as TranslationResult;
+    console.log(`[Gemini Translation] Success: "${title}" translated`);
+    return parsed;
+  } catch (error) {
+    console.error("[Gemini Translation] Failed:", error);
+    return null;
+  }
+};
+

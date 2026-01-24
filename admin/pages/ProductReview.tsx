@@ -3,7 +3,7 @@ import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { showToast } from '../utils/toast';
 import { CheckCircle, XCircle, MessageSquare, Eye, Package, Sparkles, AlertTriangle } from 'lucide-react';
-import { auditProductWithGemini, AIAuditResult } from '../../services/geminiService';
+import { auditProductWithGemini, AIAuditResult, translateProductWithGemini } from '../../services/geminiService';
 
 export const ProductReview: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -128,6 +128,22 @@ export const ProductReview: React.FC = () => {
                             // 添加子类目建议
                             if ((audit as any).suggestedSubcategory) {
                                 updateData.subcategory = (audit as any).suggestedSubcategory;
+                            }
+
+                            // 翻译产品内容为三语言
+                            try {
+                                const translations = await translateProductWithGemini(product.title, product.description || '');
+                                if (translations) {
+                                    updateData.title_zh = translations.zh.title;
+                                    updateData.description_zh = translations.zh.description;
+                                    updateData.title_en = translations.en.title;
+                                    updateData.description_en = translations.en.description;
+                                    updateData.title_es = translations.es.title;
+                                    updateData.description_es = translations.es.description;
+                                    console.log(`[AI Review] Translated: ${product.id}`);
+                                }
+                            } catch (transErr) {
+                                console.error(`[AI Review] Translation failed for ${product.id}:`, transErr);
                             }
 
                             await adminApi.updateProduct(product.id, updateData);
