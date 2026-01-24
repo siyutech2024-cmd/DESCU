@@ -99,6 +99,11 @@ export const ProductPage: React.FC<ProductPageProps> = ({
                         longitude: dbProduct.longitude
                     },
                     locationName: dbProduct.location_name,
+                    country: dbProduct.country,
+                    city: dbProduct.city,
+                    town: dbProduct.town,
+                    district: dbProduct.district,
+                    location_display_name: dbProduct.location_display_name,
                     createdAt: new Date(dbProduct.created_at).getTime(),
                     isPromoted: dbProduct.is_promoted,
                     status: dbProduct.status
