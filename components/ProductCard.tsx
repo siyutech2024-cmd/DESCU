@@ -14,8 +14,12 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onClick, isFavorite, onToggleFavorite }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
+
+  // 根据用户语言读取翻译字段
+  const localizedTitle = (product as any)[`title_${language}`] || product.title;
+
   const isNearby = product.distance !== undefined && product.distance <= 5.0;
 
   const productCurrency = product.currency || 'MXN'; // Fallback
@@ -69,7 +73,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
       <div className="relative aspect-square w-full overflow-hidden bg-gray-100">
         <img
           src={product.images[0]}
-          alt={product.title}
+          alt={localizedTitle}
           loading="lazy"
           className={`object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out ${product.status === 'sold' ? 'grayscale opacity-70' : ''}`}
         />
@@ -87,10 +91,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
         {/* Location Badge - Show distance for all products */}
         {product.distance !== undefined && product.status !== 'sold' && (
           <div className={`absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 backdrop-blur-md text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full flex items-center gap-0.5 shadow-sm border ${product.distance <= 5
-              ? 'bg-green-100/90 text-green-800 border-green-200'
-              : product.distance <= 50
-                ? 'bg-white/80 text-gray-800 border-white/50'
-                : 'bg-orange-100/90 text-orange-800 border-orange-200'
+            ? 'bg-green-100/90 text-green-800 border-green-200'
+            : product.distance <= 50
+              ? 'bg-white/80 text-gray-800 border-white/50'
+              : 'bg-orange-100/90 text-orange-800 border-orange-200'
             }`}>
             <MapPin size={8} className={`md:w-[10px] md:h-[10px] ${product.distance <= 5 ? 'text-green-600' : product.distance <= 50 ? 'text-brand-600' : 'text-orange-600'}`} />
             {product.distance.toFixed(1)}km
@@ -102,7 +106,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
       <div className="p-2.5 md:p-4 flex flex-col flex-grow relative bg-white/40 backdrop-blur-sm group-hover:bg-white/60 transition-colors">
         {/* Title - 2 lines max */}
         <h4 className="text-xs md:text-sm font-bold text-gray-800 line-clamp-2 leading-tight mb-2 min-h-[2.5em] group-hover:text-brand-700 transition-colors">
-          {product.title}
+          {localizedTitle}
         </h4>
 
         <div className="mt-auto">

@@ -89,7 +89,7 @@ export const batchTranslateProducts = async (req: Request, res: Response) => {
             .select('id, title, description')
             .is('title_zh', null)
             .eq('status', 'active')
-            .limit(50); // 每批最多50个
+            .limit(10); // 每批10个（避免超时）
 
         if (error) {
             return res.status(500).json({ error: 'Failed to query products', details: error.message });

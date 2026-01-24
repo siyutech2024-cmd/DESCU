@@ -191,51 +191,8 @@ export const getProducts = async (req: Request, res: Response) => {
 
         let products = data || [];
 
-        // Apply Translation
-        if (lang && typeof lang === 'string' && products.length > 0) {
-            // Mapping target language codes
-            const mapLang: Record<string, string> = {
-                'zh': 'Chinese (Simplified)',
-                'en': 'English',
-                'es': 'Spanish'
-            };
-
-            const targetLang = mapLang[lang];
-
-            if (targetLang) {
-                // 只翻译 source_language 与用户语言不同的产品
-                const productsNeedingTranslation = products.filter(p => {
-                    const srcLang = p.source_language || 'es'; // 向后兼容默认西班牙语
-                    return srcLang !== lang;
-                });
-
-                if (productsNeedingTranslation.length > 0) {
-                    console.log(`[Translation] Need to translate ${productsNeedingTranslation.length} products to ${targetLang}`);
-
-                    const translatableItems = productsNeedingTranslation.map(p => ({
-                        id: p.id,
-                        title: p.title,
-                        description: p.description
-                    }));
-
-                    const translatedItems = await translateBatch(translatableItems, targetLang);
-
-                    console.log(`[Translation] Received ${translatedItems.length} translations`);
-                    if (translatedItems[0]) {
-                        console.log(`[Translation] Sample - Original: "${translatableItems[0].title}" -> Translated: "${translatedItems[0].title}"`);
-                    }
-
-                    // Merge back
-                    products = products.map(p => {
-                        const trans = translatedItems.find(t => t.id === p.id);
-                        if (trans) {
-                            return { ...p, title: trans.title, description: trans.description };
-                        }
-                        return p;
-                    });
-                }
-            }
-        }
+        // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
+        // 移除实时翻译逻辑以提升性能
 
         res.json(products);
     } catch (error: any) {
@@ -267,29 +224,8 @@ export const getProductById = async (req: Request, res: Response) => {
             return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
-        // Apply Translation if needed - 当用户语言与产品原语不同时翻译
-        const productSourceLang = product.source_language || 'es'; // 向后兼容默认西班牙语
-        if (lang && typeof lang === 'string' && lang !== productSourceLang) {
-            const mapLang: Record<string, string> = {
-                'zh': 'Chinese (Simplified)',
-                'en': 'English',
-                'es': 'Spanish'
-            };
-            const targetLang = mapLang[lang];
-
-            if (targetLang) {
-                const translatableItems = [{
-                    id: product.id,
-                    title: product.title,
-                    description: product.description
-                }];
-                const translatedItems = await translateBatch(translatableItems, targetLang);
-                if (translatedItems[0]) {
-                    product.title = translatedItems[0].title;
-                    product.description = translatedItems[0].description;
-                }
-            }
-        }
+        // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
+        // 移除实时翻译逻辑以提升性能
 
         res.json(product);
     } catch (error: any) {
