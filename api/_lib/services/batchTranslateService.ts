@@ -11,9 +11,10 @@ import { supabase } from '../db/supabase.js';
 let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
     if (!aiInstance) {
-        const apiKey = process.env.GEMINI_API_KEY;
+        // 支持两种环境变量名称（兼容前端和后端）
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) {
-            console.error('[BatchTranslate] GEMINI_API_KEY not found');
+            console.error('[BatchTranslate] No GEMINI_API_KEY or VITE_GEMINI_API_KEY found');
             return null;
         }
         console.log('[BatchTranslate] Initializing AI with key length:', apiKey.length);

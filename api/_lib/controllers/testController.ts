@@ -7,7 +7,8 @@ import { GoogleGenAI } from '@google/genai';
 
 export const testTranslation = async (req: Request, res: Response) => {
     try {
-        const apiKey = process.env.GEMINI_API_KEY;
+        // 支持两种环境变量名称（兼容前端和后端）
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
         if (!apiKey) {
             return res.json({
