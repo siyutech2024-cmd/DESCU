@@ -1,9 +1,9 @@
 /**
- * 测试翻译 API
+ * 测试翻译 API - 使用与前端相同的包
  */
 
 import { Request, Response } from 'express';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const testTranslation = async (req: Request, res: Response) => {
     try {
@@ -12,14 +12,17 @@ export const testTranslation = async (req: Request, res: Response) => {
 
         if (!apiKey) {
             return res.json({
-                error: 'GEMINI_API_KEY not found',
-                hasKey: false
+                error: 'No API key found',
+                hasKey: false,
+                envKeys: Object.keys(process.env).filter(k => k.includes('GEMINI'))
             });
         }
 
         console.log('[TestTranslation] API Key exists, length:', apiKey.length);
 
-        const ai = new GoogleGenAI({ apiKey });
+        // 使用与前端相同的包 @google/generative-ai
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
         const prompt = `
 Translate the following product title and description into Chinese, English, and Spanish.
@@ -37,15 +40,10 @@ Description: This is a test description
 
         console.log('[TestTranslation] Calling Gemini AI...');
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ text: prompt }] },
-            config: { responseMimeType: 'application/json' }
-        });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text();
 
-        console.log('[TestTranslation] Response received');
-
-        let text = response.text;
         if (!text) {
             return res.json({
                 error: 'Empty response from AI',
@@ -56,20 +54,20 @@ Description: This is a test description
         }
 
         text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        const result = JSON.parse(text);
+        const parsed = JSON.parse(text);
 
         res.json({
             success: true,
             hasKey: true,
             aiCalled: true,
-            result
+            result: parsed
         });
     } catch (error: any) {
         console.error('[TestTranslation] Error:', error);
         res.json({
             error: error.message,
             stack: error.stack?.substring(0, 500),
-            hasKey: !!process.env.GEMINI_API_KEY
+            hasKey: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY)
         });
     }
 };
