@@ -17,6 +17,63 @@ const getAI = () => {
     return aiInstance;
 };
 
+/**
+ * 翻译产品内容为三语言 (中文、英文、西班牙语)
+ */
+interface TranslationResult {
+    zh: { title: string; description: string };
+    en: { title: string; description: string };
+    es: { title: string; description: string };
+}
+
+const translateProductContent = async (
+    title: string,
+    description: string
+): Promise<TranslationResult | null> => {
+    const ai = getAI();
+    if (!ai) {
+        console.warn('[Translation] AI not available for translation');
+        return null;
+    }
+
+    try {
+        const prompt = `
+Translate the following product title and description into Chinese, English, and Spanish.
+Return ONLY valid JSON in this exact format:
+{
+  "zh": { "title": "中文标题", "description": "中文描述" },
+  "en": { "title": "English title", "description": "English description" },
+  "es": { "title": "Título en español", "description": "Descripción en español" }
+}
+
+Original content:
+Title: ${title}
+Description: ${description}
+`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [{ text: prompt }] },
+            config: { responseMimeType: 'application/json' }
+        });
+
+        let text = response.text;
+        if (!text) {
+            console.error('[Translation] Empty response from AI');
+            return null;
+        }
+
+        text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        const result = JSON.parse(text) as TranslationResult;
+
+        console.log(`[Translation] Success: "${title}" translated to 3 languages`);
+        return result;
+    } catch (error: any) {
+        console.error('[Translation] Failed:', error.message || error);
+        return null;
+    }
+};
+
 // 系统支持的分类
 const SYSTEM_CATEGORIES = [
     'electronics', 'furniture', 'clothing', 'books',
@@ -235,6 +292,22 @@ export const autoReviewPendingProducts = async (
                     // 如果有子类目建议，也更新
                     if (audit.suggestedSubcategory) {
                         updateData.subcategory = audit.suggestedSubcategory;
+                    }
+
+                    // 翻译为三语言并保存
+                    try {
+                        const translations = await translateProductContent(product.title, product.description || '');
+                        if (translations) {
+                            updateData.title_zh = translations.zh.title;
+                            updateData.description_zh = translations.zh.description;
+                            updateData.title_en = translations.en.title;
+                            updateData.description_en = translations.en.description;
+                            updateData.title_es = translations.es.title;
+                            updateData.description_es = translations.es.description;
+                            console.log(`[AutoReview] Translations saved for: ${product.id}`);
+                        }
+                    } catch (transErr) {
+                        console.error(`[AutoReview] Translation failed for ${product.id}:`, transErr);
                     }
 
                     await supabase

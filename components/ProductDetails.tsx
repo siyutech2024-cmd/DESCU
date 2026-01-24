@@ -21,8 +21,12 @@ interface ProductDetailsProps {
 }
 
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onContactSeller, isInCart, user }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
+
+  // 根据用户语言读取对应的翻译版本
+  const localizedTitle = (product as any)[`title_${language}`] || product.title;
+  const localizedDescription = (product as any)[`description_${language}`] || product.description;
 
   const productCurrency = product.currency || 'MXN';
   const { price: convertedPrice, currency: targetCurrency } = convertPrice(product.price, productCurrency);
@@ -74,7 +78,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const PRODUCTION_URL = 'https://descu.ai';
   const productPath = `/product/${product.id}`;
   const shareUrl = PRODUCTION_URL + productPath;
-  const shareText = `Check out ${product.title} on DESCU!`;
+  const shareText = `Check out ${localizedTitle} on DESCU!`;
 
   const handleShareWhatsApp = () => {
     window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
@@ -179,7 +183,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 </div>
 
                 <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 leading-tight tracking-tight">
-                  {product.title}
+                  {localizedTitle}
                 </h1>
 
                 <div className="flex flex-col">
@@ -262,7 +266,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
                 <div className="prose prose-sm text-gray-600 mb-8 bg-white/30 p-6 rounded-2xl border border-white/40 backdrop-blur-sm">
                   <h3 className="text-gray-900 font-bold mb-2 text-lg">{t('detail.desc_title')}</h3>
-                  <p className="whitespace-pre-wrap leading-relaxed font-medium">{product.description}</p>
+                  <p className="whitespace-pre-wrap leading-relaxed font-medium">{localizedDescription}</p>
                 </div>
               </div>
 
