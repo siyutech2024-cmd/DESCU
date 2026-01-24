@@ -348,7 +348,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
                   className="w-full px-3 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none bg-white font-medium text-gray-700"
                 >
                   {Object.values(Category).map(c => (
-                    <option key={c} value={c}>{t(`cat.${c}`)}</option>
+                    <option key={c} value={c}>{t(`cat.${c.toLowerCase()}`)}</option>
                   ))}
                 </select>
               </div>

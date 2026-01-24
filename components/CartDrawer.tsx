@@ -78,7 +78,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <div>
                       <h3 className="font-medium text-gray-900 line-clamp-1">{item.title}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs text-gray-500">{t(`cat.${item.category}`)}</p>
+                        <p className="text-xs text-gray-500">{t(`cat.${item.category?.toLowerCase()}`)}</p>
                         <span className="text-gray-300">|</span>
                         <div className="flex items-center gap-1 text-xs text-brand-600">
                           {item.deliveryType === DeliveryType.Shipping ? (
