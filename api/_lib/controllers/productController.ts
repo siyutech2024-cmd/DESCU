@@ -24,6 +24,7 @@ export const createProduct = async (req: any, res: Response) => {
             images,
             category,
             subcategory,
+            source_language,
             delivery_type,
             latitude,
             longitude,
@@ -53,6 +54,7 @@ export const createProduct = async (req: any, res: Response) => {
             images: images || [],
             category: category || 'other',
             subcategory: subcategory || null,
+            source_language: source_language || 'es',
             delivery_type: delivery_type || 'both',
             latitude: latitude || 0,
             longitude: longitude || 0,
@@ -200,25 +202,31 @@ export const getProducts = async (req: Request, res: Response) => {
 
             const targetLang = mapLang[lang];
 
-            if (targetLang && lang !== 'es') { // Assuming base is mostly ES, or just always translate if lang is specified and supported
-                // Optimization: Only translate if no "cached" translation exists. 
-                // For MVP, dynamic translation.
-                const translatableItems = products.map(p => ({
-                    id: p.id,
-                    title: p.title,
-                    description: p.description
-                }));
-
-                const translatedItems = await translateBatch(translatableItems, targetLang);
-
-                // Merge back
-                products = products.map(p => {
-                    const trans = translatedItems.find(t => t.id === p.id);
-                    if (trans) {
-                        return { ...p, title: trans.title, description: trans.description };
-                    }
-                    return p;
+            if (targetLang) {
+                // 只翻译 source_language 与用户语言不同的产品
+                const productsNeedingTranslation = products.filter(p => {
+                    const srcLang = p.source_language || 'es'; // 向后兼容默认西班牙语
+                    return srcLang !== lang;
                 });
+
+                if (productsNeedingTranslation.length > 0) {
+                    const translatableItems = productsNeedingTranslation.map(p => ({
+                        id: p.id,
+                        title: p.title,
+                        description: p.description
+                    }));
+
+                    const translatedItems = await translateBatch(translatableItems, targetLang);
+
+                    // Merge back
+                    products = products.map(p => {
+                        const trans = translatedItems.find(t => t.id === p.id);
+                        if (trans) {
+                            return { ...p, title: trans.title, description: trans.description };
+                        }
+                        return p;
+                    });
+                }
             }
         }
 
@@ -252,8 +260,9 @@ export const getProductById = async (req: Request, res: Response) => {
             return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
-        // Apply Translation if needed
-        if (lang && typeof lang === 'string' && lang !== 'es') {
+        // Apply Translation if needed - 当用户语言与产品原语不同时翻译
+        const productSourceLang = product.source_language || 'es'; // 向后兼容默认西班牙语
+        if (lang && typeof lang === 'string' && lang !== productSourceLang) {
             const mapLang: Record<string, string> = {
                 'zh': 'Chinese (Simplified)',
                 'en': 'English',

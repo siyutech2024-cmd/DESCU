@@ -59,6 +59,7 @@ export interface Product {
   isPromoted?: boolean; // New: Boosted status
   status?: 'active' | 'pending_review' | 'rejected' | 'sold' | 'deleted';
   subcategory?: string; // New: Subcategory identifier (e.g., 'phones', 'cars')
+  source_language?: string; // New: 产品发布时的原始语言 (zh/en/es)
 }
 
 

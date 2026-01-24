@@ -750,6 +750,7 @@ const AppContent: React.FC = () => {
           images: newProductData.images,
           category: newProductData.category,
           subcategory: newProductData.subcategory || null,
+          source_language: language, // 保存发布时的语言
           delivery_type: newProductData.deliveryType,
           latitude: newProductData.location.latitude,
           longitude: newProductData.location.longitude,
