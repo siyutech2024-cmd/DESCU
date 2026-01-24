@@ -12,7 +12,11 @@ let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
     if (!aiInstance) {
         const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) return null;
+        if (!apiKey) {
+            console.error('[BatchTranslate] GEMINI_API_KEY not found');
+            return null;
+        }
+        console.log('[BatchTranslate] Initializing AI with key length:', apiKey.length);
         aiInstance = new GoogleGenAI({ apiKey });
     }
     return aiInstance;
@@ -25,18 +29,16 @@ interface TranslationResult {
 }
 
 /**
- * 翻译单个产品内容
+ * 翻译单个产品内容 - 与 auditService 完全相同的实现
  */
 const translateProduct = async (title: string, description: string): Promise<TranslationResult | null> => {
     const ai = getAI();
     if (!ai) {
-        console.error('[BatchTranslate] AI instance is null - GEMINI_API_KEY might be missing');
+        console.error('[BatchTranslate] AI instance is null');
         return null;
     }
 
     try {
-        console.log(`[BatchTranslate] Calling AI for: "${title.substring(0, 30)}..."`);
-
         const prompt = `
 Translate the following product title and description into Chinese, English, and Spanish.
 Return ONLY valid JSON in this exact format:
@@ -63,9 +65,11 @@ Description: ${description}
             return null;
         }
 
-        console.log(`[BatchTranslate] AI response received for: "${title.substring(0, 30)}..."`);
         text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        return JSON.parse(text) as TranslationResult;
+        const result = JSON.parse(text) as TranslationResult;
+
+        console.log(`[BatchTranslate] ✓ Translated: "${title.substring(0, 30)}..." => zh="${result.zh.title.substring(0, 30)}..."`);
+        return result;
     } catch (error: any) {
         console.error('[BatchTranslate] Translation error:', error.message || error);
         return null;
@@ -92,6 +96,7 @@ export const batchTranslateProducts = async (req: Request, res: Response) => {
             .limit(10); // 每批10个（避免超时）
 
         if (error) {
+            console.error('[BatchTranslate] Query error:', error);
             return res.status(500).json({ error: 'Failed to query products', details: error.message });
         }
 
@@ -106,10 +111,14 @@ export const batchTranslateProducts = async (req: Request, res: Response) => {
 
         for (const product of products) {
             try {
+                console.log(`[BatchTranslate] Processing: ${product.id} - "${product.title}"`);
+
+                // 使用与 auditService 相同的翻译方式
                 const translations = await translateProduct(product.title, product.description || '');
 
                 if (translations) {
-                    await supabase
+                    // 使用与 auditService 相同的更新方式
+                    const { data, error: updateError } = await supabase
                         .from('products')
                         .update({
                             title_zh: translations.zh.title,
@@ -119,18 +128,25 @@ export const batchTranslateProducts = async (req: Request, res: Response) => {
                             title_es: translations.es.title,
                             description_es: translations.es.description
                         })
-                        .eq('id', product.id);
+                        .eq('id', product.id)
+                        .select();
 
-                    translated++;
-                    console.log(`[BatchTranslate] Translated: ${product.id} - "${product.title}"`);
+                    if (updateError) {
+                        console.error(`[BatchTranslate] ✗ DB update failed for ${product.id}:`, updateError);
+                        failed++;
+                    } else {
+                        translated++;
+                        console.log(`[BatchTranslate] ✓ Saved: ${product.id}`);
+                    }
                 } else {
+                    console.error(`[BatchTranslate] ✗ Translation failed for: ${product.id}`);
                     failed++;
                 }
 
                 // 避免 API 限流
                 await new Promise(resolve => setTimeout(resolve, 500));
             } catch (err: any) {
-                console.error(`[BatchTranslate] Error for ${product.id}:`, err.message);
+                console.error(`[BatchTranslate] ✗ Error for ${product.id}:`, err.message);
                 failed++;
             }
         }
@@ -144,7 +160,7 @@ export const batchTranslateProducts = async (req: Request, res: Response) => {
             remaining: products.length - translated - failed
         });
     } catch (error: any) {
-        console.error('[BatchTranslate] Error:', error);
+        console.error('[BatchTranslate] Fatal error:', error);
         res.status(500).json({ error: error.message });
     }
 };
