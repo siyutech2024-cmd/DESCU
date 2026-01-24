@@ -32,13 +32,8 @@ export const ProductPage: React.FC<ProductPageProps> = ({
     console.log('[ProductPage] Mounting with id:', id, 'found in props:', !!products.find(p => p.id === id));
 
     React.useEffect(() => {
-        const foundInProps = products.find(p => p.id === id);
-
-        if (foundInProps) {
-            console.log('[ProductPage] Product found in props:', foundInProps.title);
-            setLoading(false);
-            return;
-        }
+        // 始终从 API 获取产品数据以确保翻译正确
+        // props 数据可能未翻译，所以不使用
 
         if (!id) {
             console.error('[ProductPage] No product ID provided');
