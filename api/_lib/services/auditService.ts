@@ -3,19 +3,19 @@
  * 用于自动审核待发布的商品
  */
 
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from '../db/supabase.js';
 
 // --- LAZY AI INIT ---
-let aiInstance: GoogleGenAI | null = null;
+let genAI: GoogleGenerativeAI | null = null;
 const getAI = () => {
-    if (!aiInstance) {
+    if (!genAI) {
         // 支持两种环境变量名称（兼容前端和后端）
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) return null;
-        aiInstance = new GoogleGenAI({ apiKey });
+        genAI = new GoogleGenerativeAI(apiKey);
     }
-    return aiInstance;
+    return genAI;
 };
 
 /**
@@ -38,6 +38,8 @@ const translateProductContent = async (
     }
 
     try {
+        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
         const prompt = `
 Translate the following product title and description into Chinese, English, and Spanish.
 Return ONLY valid JSON in this exact format:
@@ -52,23 +54,20 @@ Title: ${title}
 Description: ${description}
 `;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ text: prompt }] },
-            config: { responseMimeType: 'application/json' }
-        });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text();
 
-        let text = response.text;
         if (!text) {
             console.error('[Translation] Empty response from AI');
             return null;
         }
 
         text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        const result = JSON.parse(text) as TranslationResult;
+        const parsed = JSON.parse(text) as TranslationResult;
 
         console.log(`[Translation] Success: "${title}" translated to 3 languages`);
-        return result;
+        return parsed;
     } catch (error: any) {
         console.error('[Translation] Failed:', error.message || error);
         return null;
@@ -155,6 +154,8 @@ export const auditProduct = async (product: {
     }
 
     try {
+        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
         const prompt = `
 You are an AI Moderator for a second-hand marketplace (DESCU) in Mexico.
 Audit this product for:
@@ -189,16 +190,10 @@ Return ONLY valid JSON (no markdown):
 }
 `;
 
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                responseMimeType: "application/json",
-                temperature: 0.2
-            }
-        });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        let text = response.text();
 
-        let text = response.text;
         if (!text) {
             console.error('[AuditService] Empty response from AI');
             return null;

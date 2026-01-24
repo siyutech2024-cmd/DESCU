@@ -76,7 +76,6 @@ import { generateSitemap } from './_lib/controllers/seoController.js';
 import { reverseGeocodeProxy } from './_lib/controllers/locationController.js';
 import { autoReviewPendingProducts } from './_lib/services/auditService.js';
 import { batchTranslateProducts } from './_lib/services/batchTranslateService.js';
-import { testTranslation } from './_lib/controllers/testController.js';
 
 const app = express();
 
