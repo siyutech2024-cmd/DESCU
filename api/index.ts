@@ -274,6 +274,9 @@ app.post('/api/admin/batch-translate', requireAdmin, batchTranslateProducts);
 
 // 测试翻译 API (调试用)
 app.get('/api/test/translation', testTranslation);
+
+// 临时：公开的批量翻译端点（测试用）
+app.get('/api/test/batch-translate', batchTranslateProducts);
 // ==================================================================
 // PAYOUT MANAGEMENT (Manual Bank Transfer)
 // ==================================================================
