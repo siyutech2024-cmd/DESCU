@@ -32,14 +32,15 @@ export const ProductPage: React.FC<ProductPageProps> = ({
     console.log('[ProductPage] Mounting with id:', id, 'found in props:', !!products.find(p => p.id === id));
 
     React.useEffect(() => {
-        // 如果 props 中有产品，先使用它（避免 loading）
+        // 如果 props 中有产品，直接使用并停止
         const foundInProps = products.find(p => p.id === id);
         if (foundInProps) {
             console.log('[ProductPage] Product found in props:', foundInProps.title);
             setLoading(false);
-            // 不 return，继续尝试从 API 获取最新翻译
+            return; // 直接使用 props 数据，不再调用 API
         }
 
+        // 无 props 数据时从 API 获取
         if (!id) {
             console.error('[ProductPage] No product ID provided');
             setError('No product ID provided');
@@ -48,35 +49,25 @@ export const ProductPage: React.FC<ProductPageProps> = ({
         }
 
         const fetchProduct = async () => {
-            setLoading(true);
-            setError(null);
             console.log('[ProductPage] Fetching product from API:', `${API_BASE_URL}/api/products/${id}`);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/products/${id}?lang=${language}`);
-                console.log('[ProductPage] API response status:', response.status);
-
-                const contentType = response.headers.get('content-type');
-                console.log('[ProductPage] Content-Type:', contentType);
 
                 if (!response.ok) {
-                    const text = await response.text();
-                    console.error('[ProductPage] API error response:', text.substring(0, 200));
                     setError(`Product not found (${response.status})`);
                     return;
                 }
 
-                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
-                    console.error('[ProductPage] Unexpected content type:', contentType);
                     setError('Unexpected server response');
                     return;
                 }
 
                 const dbProduct = await response.json();
-                console.log('[ProductPage] Product fetched:', dbProduct.title, dbProduct.status);
+                console.log('[ProductPage] Product fetched:', dbProduct.title);
 
-                // Transform to App Product Type
                 const transformed: Product = {
                     id: dbProduct.id,
                     seller: {
