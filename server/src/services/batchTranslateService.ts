@@ -29,9 +29,14 @@ interface TranslationResult {
  */
 const translateProduct = async (title: string, description: string): Promise<TranslationResult | null> => {
     const ai = getAI();
-    if (!ai) return null;
+    if (!ai) {
+        console.error('[BatchTranslate] AI instance is null - GEMINI_API_KEY might be missing');
+        return null;
+    }
 
     try {
+        console.log(`[BatchTranslate] Calling AI for: "${title.substring(0, 30)}..."`);
+
         const prompt = `
 Translate the following product title and description into Chinese, English, and Spanish.
 Return ONLY valid JSON in this exact format:
@@ -53,12 +58,16 @@ Description: ${description}
         });
 
         let text = response.text;
-        if (!text) return null;
+        if (!text) {
+            console.error('[BatchTranslate] Empty response from AI');
+            return null;
+        }
 
+        console.log(`[BatchTranslate] AI response received for: "${title.substring(0, 30)}..."`);
         text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
         return JSON.parse(text) as TranslationResult;
     } catch (error: any) {
-        console.error('[BatchTranslate] Translation failed:', error.message);
+        console.error('[BatchTranslate] Translation error:', error.message || error);
         return null;
     }
 };
