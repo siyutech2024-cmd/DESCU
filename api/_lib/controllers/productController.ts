@@ -200,9 +200,9 @@ export const getProducts = async (req: Request, res: Response) => {
 
             const targetLang = mapLang[lang];
 
-            if (targetLang && lang !== 'es') { // Assuming base is mostly ES, or just always translate if lang is specified and supported
-                // Optimization: Only translate if no "cached" translation exists. 
-                // For MVP, dynamic translation.
+            if (targetLang) {
+                // 始终调用翻译服务，缓存会自动处理已翻译内容
+                // 翻译服务会检测语言并只翻译需要的内容
                 const translatableItems = products.map(p => ({
                     id: p.id,
                     title: p.title,
@@ -252,8 +252,8 @@ export const getProductById = async (req: Request, res: Response) => {
             return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
-        // Apply Translation if needed
-        if (lang && typeof lang === 'string' && lang !== 'es') {
+        // Apply Translation if needed - 始终调用翻译服务
+        if (lang && typeof lang === 'string') {
             const mapLang: Record<string, string> = {
                 'zh': 'Chinese (Simplified)',
                 'en': 'English',
@@ -262,6 +262,7 @@ export const getProductById = async (req: Request, res: Response) => {
             const targetLang = mapLang[lang];
 
             if (targetLang) {
+                // 始终调用翻译服务，缓存会自动处理
                 const translatableItems = [{
                     id: product.id,
                     title: product.title,

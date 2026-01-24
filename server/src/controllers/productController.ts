@@ -23,6 +23,7 @@ export const createProduct = async (req: any, res: Response) => {
             currency,
             images,
             category,
+            subcategory,
             delivery_type,
             latitude,
             longitude,
@@ -51,6 +52,7 @@ export const createProduct = async (req: any, res: Response) => {
             currency: currency || 'MXN',
             images: images || [],
             category: category || 'other',
+            subcategory: subcategory || null,
             delivery_type: delivery_type || 'both',
             latitude: latitude || 0,
             longitude: longitude || 0,
@@ -70,8 +72,8 @@ export const createProduct = async (req: any, res: Response) => {
 
         // Create a scoped Supabase client for this user to pass RLS
         const scopedSupabase = createClient(
-            process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!,
+            process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+            process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
             {
                 global: {
                     headers: {
@@ -124,8 +126,8 @@ export const getProducts = async (req: Request, res: Response) => {
 
         // If user is authenticated, use their context (for RLS)
         if (authHeader) {
-            const sbUrl = process.env.SUPABASE_URL;
-            const sbKey = process.env.SUPABASE_ANON_KEY;
+            const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+            const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
             if (!sbUrl || !sbKey) {
                 throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
@@ -198,9 +200,9 @@ export const getProducts = async (req: Request, res: Response) => {
 
             const targetLang = mapLang[lang];
 
-            if (targetLang && lang !== 'es') { // Assuming base is mostly ES, or just always translate if lang is specified and supported
-                // Optimization: Only translate if no "cached" translation exists. 
-                // For MVP, dynamic translation.
+            if (targetLang) {
+                // 始终调用翻译服务，缓存会自动处理已翻译内容
+                // 翻译服务会检测语言并只翻译需要的内容
                 const translatableItems = products.map(p => ({
                     id: p.id,
                     title: p.title,
@@ -250,8 +252,8 @@ export const getProductById = async (req: Request, res: Response) => {
             return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
         }
 
-        // Apply Translation if needed
-        if (lang && typeof lang === 'string' && lang !== 'es') {
+        // Apply Translation if needed - 始终调用翻译服务
+        if (lang && typeof lang === 'string') {
             const mapLang: Record<string, string> = {
                 'zh': 'Chinese (Simplified)',
                 'en': 'English',
@@ -260,6 +262,7 @@ export const getProductById = async (req: Request, res: Response) => {
             const targetLang = mapLang[lang];
 
             if (targetLang) {
+                // 始终调用翻译服务，缓存会自动处理
                 const translatableItems = [{
                     id: product.id,
                     title: product.title,
