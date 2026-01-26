@@ -280,7 +280,8 @@ export const markOrderAsShipped = async (req: Request, res: Response) => {
     }
 };
 
-// Confirm Receipt & Release Funds
+// Confirm Receipt & Release Funds from Escrow
+// This function handles the escrow release when buyer confirms receipt
 export const confirmOrder = async (req: Request, res: Response) => {
     try {
         const authReq = req as AuthenticatedRequest;
@@ -299,11 +300,20 @@ export const confirmOrder = async (req: Request, res: Response) => {
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.buyer_id !== userId) return res.status(403).json({ error: 'Only buyer can confirm receipt' });
 
+        // Check valid status for confirmation
+        const validStatuses = ['escrow_held', 'shipped', 'paid'];
+        if (!validStatuses.includes(order.status)) {
+            return res.status(400).json({
+                error: `Order cannot be confirmed. Current status: ${order.status}`,
+                validStatuses
+            });
+        }
+
         if (order.status === 'completed') {
             return res.status(400).json({ error: 'Order already completed' });
         }
 
-        // 2. Transfer Funds to Seller (Platform Fee: 5%)
+        // 2. Get Seller's Stripe Account
         const { data: seller } = await supabase
             .from('sellers')
             .select('stripe_connect_id')
@@ -311,47 +321,125 @@ export const confirmOrder = async (req: Request, res: Response) => {
             .single();
 
         let newStatus = 'completed';
+        let transferId: string | null = null;
+        let transferAmount = 0;
+        let platformFeeCollected = 0;
 
-        if (seller && seller.stripe_connect_id) {
-            const amount = Math.round(order.amount * 100);
-            const platformFee = Math.round(amount * 0.05);
-            const transferAmount = amount - platformFee;
+        // 3. Execute Transfer if seller has Stripe account and payment is online
+        const isOnlinePayment = order.payment_method === 'online' || order.stripe_payment_intent_id || order.payment_intent_id;
 
-            // Create Transfer
+        if (seller?.stripe_connect_id && isOnlinePayment) {
+            // Calculate amounts
+            const totalAmount = order.total_amount || order.amount;
+            const amountInCents = Math.round(totalAmount * 100);
+
+            // Use stored platform fee or calculate 5%
+            const platformFeePercent = 0.05;
+            platformFeeCollected = order.platform_fee
+                ? Math.round(order.platform_fee * 100)
+                : Math.round(amountInCents * platformFeePercent);
+
+            transferAmount = amountInCents - platformFeeCollected;
+
+            console.log(`[Escrow Release] Order ${orderId}: Total ${amountInCents}, Fee ${platformFeeCollected}, Transfer ${transferAmount}`);
+
+            // Execute Stripe Transfer - Move funds from platform to seller
             try {
-                await getStripe().transfers.create({
+                const transfer = await getStripe().transfers.create({
                     amount: transferAmount,
-                    currency: order.currency.toLowerCase(),
+                    currency: (order.currency || 'mxn').toLowerCase(),
                     destination: seller.stripe_connect_id,
-                    metadata: { orderId: order.id }
+                    metadata: {
+                        order_id: orderId,
+                        seller_id: order.seller_id,
+                        platform_fee: platformFeeCollected,
+                        original_amount: amountInCents
+                    },
+                    description: `DESCU Order ${orderId} - Escrow Release`
                 });
-            } catch (err) {
-                console.error("Stripe Transfer failed:", err);
-                throw err;
+
+                transferId = transfer.id;
+                console.log(`[Escrow Release] Transfer created: ${transfer.id}`);
+
+            } catch (transferError: any) {
+                console.error('[Escrow Release] Transfer failed:', transferError);
+
+                // If transfer fails, mark for manual payout
+                newStatus = 'completed_pending_payout';
+
+                // Record the failure in timeline
+                await supabase.from('order_timeline').insert({
+                    order_id: orderId,
+                    event_type: 'transfer_failed',
+                    description: `自动转账失败: ${transferError.message}`,
+                    metadata: {
+                        error: transferError.message,
+                        seller_stripe_id: seller.stripe_connect_id
+                    }
+                });
             }
-        } else {
-            // Manual Payout Mode: Funds stay in Platform Account
-            // Admin must manually pay the seller later.
+        } else if (!seller?.stripe_connect_id) {
+            // Manual Payout Mode: Seller hasn't set up Stripe
             newStatus = 'completed_pending_payout';
+            console.log(`[Escrow Release] Seller has no Stripe account, marking for manual payout`);
         }
 
-        // 3. Update Order Status
+        // 4. Update Order Status and Transfer Info
+        const updateData: any = {
+            status: newStatus,
+            confirmed_at: new Date(),
+            updated_at: new Date(),
+            escrow_status: transferId ? 'released' : 'pending_release'
+        };
+
+        if (transferId) {
+            updateData.stripe_transfer_id = transferId;
+            updateData.transferred_to_seller = true;
+            updateData.transfer_amount = transferAmount / 100;
+            updateData.platform_fee_collected = platformFeeCollected / 100;
+        }
+
         await supabase
             .from('orders')
-            .update({
-                status: newStatus,
-                confirmed_at: new Date(),
-                updated_at: new Date()
-            })
+            .update(updateData)
             .eq('id', orderId);
 
-        res.json({ success: true, status: newStatus });
+        // 5. Update Product status to sold (if not already)
+        await supabase
+            .from('products')
+            .update({ status: 'sold' })
+            .eq('id', order.product_id);
+
+        // 6. Record Timeline Event
+        await supabase.from('order_timeline').insert({
+            order_id: orderId,
+            event_type: transferId ? 'escrow_released' : 'order_confirmed',
+            description: transferId
+                ? `买家确认收货，资金 $${(transferAmount / 100).toFixed(2)} MXN 已转入卖家账户`
+                : '买家确认收货，等待手动打款',
+            created_by: userId,
+            metadata: {
+                transfer_id: transferId,
+                transfer_amount: transferAmount / 100,
+                platform_fee: platformFeeCollected / 100,
+                new_status: newStatus
+            }
+        });
+
+        res.json({
+            success: true,
+            status: newStatus,
+            transferId,
+            transferAmount: transferAmount / 100,
+            platformFee: platformFeeCollected / 100
+        });
 
     } catch (error: any) {
-        console.error("Payout failed:", error);
+        console.error('[Escrow Release] Error:', error);
         res.status(500).json({ error: error.message });
     }
 };
+
 
 // Create Dispute
 export const createDispute = async (req: Request, res: Response) => {

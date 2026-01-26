@@ -1533,8 +1533,9 @@ app.get('/api/stripe/v2/dashboard-link', requireAuth, async (req: any, res) => {
 });
 
 /**
- * Create Checkout Session with Destination Charge and Application Fee
- * This is the recommended way to monetize platform transactions
+ * Create Checkout Session with Escrow Pattern (Separate Charges and Transfers)
+ * Funds stay in platform account until buyer confirms receipt
+ * Then platform transfers to seller (minus platform fee)
  */
 app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) => {
     try {
@@ -1552,7 +1553,7 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
             return res.status(404).json({ error: 'Order not found' });
         }
 
-        // Get seller's Stripe account
+        // Get seller's Stripe account - still required for eventual transfer
         const { data: seller } = await supabase
             .from('sellers')
             .select('stripe_connect_id, onboarding_complete')
@@ -1570,13 +1571,14 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
         const productPrice = order.products?.price || order.total_amount;
         const amountInCents = Math.round(productPrice * 100);
 
-        // Platform fee: 5% (can be configured)
-        const applicationFeePercent = 0.05;
-        const applicationFeeAmount = Math.round(amountInCents * applicationFeePercent);
+        // Platform fee: 5% - will be deducted when transferring to seller
+        const platformFeePercent = 0.05;
+        const platformFeeAmount = Math.round(amountInCents * platformFeePercent);
 
         const baseUrl = process.env.VITE_API_URL || 'https://www.descu.ai';
 
-        // Create Checkout Session with Destination Charge
+        // Create Checkout Session - Escrow Pattern (Separate Charges and Transfers)
+        // Funds stay in platform account, NOT immediately transferred to seller
         const session = await stripe.checkout.sessions.create({
             line_items: [
                 {
@@ -1593,17 +1595,17 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
                 },
             ],
             payment_intent_data: {
-                // Platform fee that stays with DESCU
-                application_fee_amount: applicationFeeAmount,
-                // Transfer the rest to seller's connected account
-                transfer_data: {
-                    destination: seller.stripe_connect_id,
-                },
+                // NO transfer_data - funds stay in platform account (escrow)
+                // NO application_fee_amount - we'll deduct fee when transferring
+                capture_method: 'automatic',
                 metadata: {
                     order_id: orderId,
                     buyer_id: userId,
                     seller_id: order.seller_id,
-                    product_id: order.product_id
+                    seller_stripe_id: seller.stripe_connect_id,
+                    product_id: order.product_id,
+                    platform_fee: platformFeeAmount,
+                    escrow: 'true'  // Mark as escrow transaction
                 }
             },
             mode: 'payment',
@@ -1611,17 +1613,22 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
             cancel_url: `${baseUrl}/order/cancel?order_id=${orderId}`,
             metadata: {
                 order_id: orderId,
-                platform: 'DESCU'
+                seller_stripe_id: seller.stripe_connect_id,
+                platform_fee: platformFeeAmount.toString(),
+                platform: 'DESCU',
+                escrow: 'true'
             }
         });
 
-        // Update order with checkout session
+        // Update order with checkout session and escrow info
         await supabase.from('orders').update({
             stripe_checkout_session_id: session.id,
-            status: 'pending_payment'
+            status: 'pending_payment',
+            platform_fee: platformFeeAmount / 100,  // Store in decimal
+            escrow_status: 'pending'
         }).eq('id', orderId);
 
-        console.log('[StripeV2] Created checkout session:', session.id, 'for order:', orderId);
+        console.log('[StripeV2 Escrow] Created checkout session:', session.id, 'for order:', orderId, '(escrow mode)');
 
         res.json({
             success: true,
@@ -1630,10 +1637,11 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
         });
 
     } catch (error: any) {
-        console.error('[StripeV2] Create checkout session error:', error);
+        console.error('[StripeV2 Escrow] Create checkout session error:', error);
         res.status(500).json({ error: 'Failed to create checkout', message: error.message });
     }
 });
+
 
 /**
  * Handle Stripe Webhook events (Thin Events for V2)
@@ -1676,28 +1684,52 @@ app.post('/api/stripe/v2/webhook', express.raw({ type: 'application/json' }), as
                 break;
             }
 
-            // Payment events
+            // Payment events - Escrow Pattern
             case 'checkout.session.completed': {
                 const session = event.data.object as any;
-                console.log('[StripeV2 Webhook] Checkout completed:', session.id);
+                console.log('[StripeV2 Webhook] Checkout completed (escrow):', session.id);
 
                 const orderId = session.metadata?.order_id;
+                const isEscrow = session.metadata?.escrow === 'true';
+                const platformFee = session.metadata?.platform_fee;
+                const sellerStripeId = session.metadata?.seller_stripe_id;
+
                 if (orderId) {
+                    // Update order to escrow_held status - funds are in platform account
                     await supabase.from('orders').update({
-                        status: 'paid',
+                        status: isEscrow ? 'escrow_held' : 'paid',
                         payment_captured: true,
-                        stripe_payment_intent_id: session.payment_intent
+                        stripe_payment_intent_id: session.payment_intent,
+                        escrow_status: isEscrow ? 'held' : 'none',
+                        platform_fee: platformFee ? parseFloat(platformFee) / 100 : null
                     }).eq('id', orderId);
 
                     await supabase.from('order_timeline').insert({
                         order_id: orderId,
-                        event_type: 'payment_completed',
-                        description: 'Payment completed via Stripe Checkout',
-                        metadata: { session_id: session.id }
+                        event_type: isEscrow ? 'escrow_payment_received' : 'payment_completed',
+                        description: isEscrow
+                            ? '付款成功，资金已进入担保账户，等待买家确认收货后释放'
+                            : 'Payment completed via Stripe Checkout',
+                        metadata: {
+                            session_id: session.id,
+                            payment_intent: session.payment_intent,
+                            escrow: isEscrow,
+                            seller_stripe_id: sellerStripeId
+                        }
                     });
+
+                    // 🔔 发送担保支付通知
+                    if (isEscrow) {
+                        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+                            notifyOrderStatus(orderId, 'escrow_held', {
+                                message: '买家已付款，资金在担保中'
+                            }).catch(console.error);
+                        }).catch(console.error);
+                    }
                 }
                 break;
             }
+
 
             case 'payment_intent.succeeded': {
                 const paymentIntent = event.data.object as any;
@@ -1720,6 +1752,223 @@ app.post('/api/stripe/v2/webhook', express.raw({ type: 'application/json' }), as
     } catch (error: any) {
         console.error('[StripeV2 Webhook] Error processing event:', error);
         res.status(500).json({ error: 'Webhook handler failed' });
+    }
+});
+
+// ==================================================================
+// SELLER BALANCE & PAYOUT ENDPOINTS (Escrow System)
+// ==================================================================
+
+/**
+ * GET /api/stripe/seller-balance
+ * Query seller's Stripe Connected Account balance
+ */
+app.get('/api/stripe/seller-balance', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Get seller's Stripe account
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id, onboarding_complete')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller?.stripe_connect_id) {
+            return res.json({
+                available: 0,
+                pending: 0,
+                hasAccount: false,
+                message: 'No Stripe account linked'
+            });
+        }
+
+        if (!seller.onboarding_complete) {
+            return res.json({
+                available: 0,
+                pending: 0,
+                hasAccount: true,
+                onboardingComplete: false,
+                message: 'Please complete Stripe onboarding first'
+            });
+        }
+
+        // Retrieve balance from seller's connected account
+        const balance = await stripe.balance.retrieve({
+            stripeAccount: seller.stripe_connect_id
+        });
+
+        // Find MXN balance (primary currency)
+        const availableMXN = balance.available.find(b => b.currency === 'mxn')?.amount || 0;
+        const pendingMXN = balance.pending.find(b => b.currency === 'mxn')?.amount || 0;
+
+        // Also check for USD or other currencies
+        const availableUSD = balance.available.find(b => b.currency === 'usd')?.amount || 0;
+        const pendingUSD = balance.pending.find(b => b.currency === 'usd')?.amount || 0;
+
+        res.json({
+            available: availableMXN / 100,
+            pending: pendingMXN / 100,
+            availableUSD: availableUSD / 100,
+            pendingUSD: pendingUSD / 100,
+            hasAccount: true,
+            onboardingComplete: true,
+            currency: 'MXN',
+            accountId: seller.stripe_connect_id
+        });
+
+    } catch (error: any) {
+        console.error('[Seller Balance] Error:', error);
+        res.status(500).json({ error: 'Failed to retrieve balance', message: error.message });
+    }
+});
+
+/**
+ * POST /api/stripe/seller-payout
+ * Seller initiates withdrawal from Stripe balance to bank account
+ */
+app.post('/api/stripe/seller-payout', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { amount, currency = 'mxn' } = req.body; // amount in decimal (e.g., 100.50)
+
+        // 1. Get seller's Stripe account
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id, onboarding_complete')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller?.stripe_connect_id) {
+            return res.status(400).json({ error: 'No Stripe account linked' });
+        }
+
+        if (!seller.onboarding_complete) {
+            return res.status(400).json({ error: 'Please complete Stripe onboarding first' });
+        }
+
+        // 2. Check available balance
+        const balance = await stripe.balance.retrieve({
+            stripeAccount: seller.stripe_connect_id
+        });
+
+        const availableBalance = balance.available.find(b => b.currency === currency.toLowerCase());
+
+        if (!availableBalance || availableBalance.amount <= 0) {
+            return res.status(400).json({
+                error: 'No available balance to withdraw',
+                available: 0,
+                currency: currency.toUpperCase()
+            });
+        }
+
+        // 3. Calculate payout amount
+        const payoutAmountCents = amount
+            ? Math.min(Math.round(amount * 100), availableBalance.amount)
+            : availableBalance.amount;
+
+        if (payoutAmountCents <= 0) {
+            return res.status(400).json({ error: 'Invalid payout amount' });
+        }
+
+        // 4. Create Payout (transfer from Stripe balance to bank account)
+        const payout = await stripe.payouts.create({
+            amount: payoutAmountCents,
+            currency: currency.toLowerCase(),
+            metadata: {
+                user_id: userId,
+                initiated_by: 'seller_request'
+            }
+        }, {
+            stripeAccount: seller.stripe_connect_id
+        });
+
+        console.log(`[Seller Payout] Created payout ${payout.id} for user ${userId}, amount: ${payoutAmountCents}`);
+
+        // 5. Record in database for tracking
+        await supabase.from('order_timeline').insert({
+            event_type: 'seller_payout_initiated',
+            description: `卖家发起提现 $${(payoutAmountCents / 100).toFixed(2)} ${currency.toUpperCase()}`,
+            created_by: userId,
+            metadata: {
+                payout_id: payout.id,
+                amount: payoutAmountCents / 100,
+                currency: currency.toUpperCase(),
+                arrival_date: payout.arrival_date
+            }
+        });
+
+        res.json({
+            success: true,
+            payoutId: payout.id,
+            amount: payoutAmountCents / 100,
+            currency: currency.toUpperCase(),
+            status: payout.status,
+            arrivalDate: payout.arrival_date,
+            message: `提现已发起，预计 ${new Date(payout.arrival_date * 1000).toLocaleDateString()} 到账`
+        });
+
+    } catch (error: any) {
+        console.error('[Seller Payout] Error:', error);
+
+        // Handle specific Stripe errors
+        if (error.type === 'StripeInvalidRequestError') {
+            return res.status(400).json({
+                error: 'Payout failed',
+                message: error.message,
+                code: error.code
+            });
+        }
+
+        res.status(500).json({ error: 'Payout failed', message: error.message });
+    }
+});
+
+/**
+ * GET /api/stripe/seller-payouts
+ * Get seller's payout history
+ */
+app.get('/api/stripe/seller-payouts', requireAuth, async (req: any, res) => {
+    try {
+        const userId = req.user.id;
+        const { limit = 10 } = req.query;
+
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id')
+            .eq('user_id', userId)
+            .single();
+
+        if (!seller?.stripe_connect_id) {
+            return res.json({ payouts: [], hasAccount: false });
+        }
+
+        // List payouts from seller's connected account
+        const payouts = await stripe.payouts.list({
+            limit: parseInt(limit as string)
+        }, {
+            stripeAccount: seller.stripe_connect_id
+        });
+
+        const formattedPayouts = payouts.data.map(p => ({
+            id: p.id,
+            amount: p.amount / 100,
+            currency: p.currency.toUpperCase(),
+            status: p.status,
+            arrivalDate: p.arrival_date,
+            created: p.created,
+            method: p.method,
+            type: p.type
+        }));
+
+        res.json({
+            payouts: formattedPayouts,
+            hasMore: payouts.has_more
+        });
+
+    } catch (error: any) {
+        console.error('[Seller Payouts List] Error:', error);
+        res.status(500).json({ error: 'Failed to retrieve payouts', message: error.message });
     }
 });
 
