@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin/
 
 # 动态 Sitemap
-Sitemap: https://descu.ai/api/sitemap.xml
+Sitemap: https://descu.ai/sitemap.xml

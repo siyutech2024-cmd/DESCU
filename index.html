@@ -98,20 +98,28 @@
   }
   </script>
 
-  <!-- Structured Data - Organization with Logo -->
+  <!-- Structured Data - Organization (Google Knowledge Panel & Logo) -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Organization",
     "name": "DESCU",
     "url": "https://descu.ai",
-    "logo": "https://descu.ai/logo-512.png",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://descu.ai/logo-512.png",
+      "width": 512,
+      "height": 512
+    },
     "image": "https://descu.ai/logo-512.png",
-    "description": "AI智能二手交易平台",
+    "alternateName": ["DESCU Marketplace", "DESCU二手交易"],
+    "description": "AI智能二手交易平台 - The best AI-powered marketplace for buying and selling used items",
+    "foundingDate": "2024",
+    "slogan": "AI驱动的本地二手交易",
     "sameAs": [
-      "https://www.facebook.com/descu",
-      "https://www.instagram.com/descu",
-      "https://twitter.com/descu"
+      "https://www.facebook.com/profile.php?id=61572770731498",
+      "https://www.instagram.com/descumarketplace",
+      "https://x.com/descumarketplace"
     ],
     "contactPoint": {
       "@type": "ContactPoint",
@@ -139,7 +147,7 @@
   }
   </script>
 
-  <!-- Structured Data - Breadcrumb -->
+  <!-- Structured Data - Breadcrumb (Homepage) -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -148,14 +156,8 @@
       {
         "@type": "ListItem",
         "position": 1,
-        "name": "首页",
+        "name": "Home",
         "item": "https://descu.ai/"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "商品",
-        "item": "https://descu.ai/?category=all"
       }
     ]
   }

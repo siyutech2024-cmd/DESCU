@@ -62,26 +62,57 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
         if (product) {
             formattedSchema = {
                 "@context": "https://schema.org/",
-                "@type": "Product",
-                "name": product.title,
-                "image": (product.images && product.images.length > 0)
-                    ? product.images
-                    : ['https://www.descu.ai/og-image.png'],
-                "description": product.description,
-                "sku": product.id,
-                "brand": { "@type": "Brand", "name": "DESCU" },
-                "offers": {
-                    "@type": "Offer",
-                    "url": currentUrl,
-                    "priceCurrency": product.currency || "MXN",
-                    "price": product.price,
-                    "availability": "https://schema.org/InStock",
-                    "itemCondition": "https://schema.org/UsedCondition",
-                    "seller": {
-                        "@type": "Person",
-                        "name": product.seller?.name || "Verified Seller"
+                "@graph": [
+                    {
+                        "@type": "BreadcrumbList",
+                        "itemListElement": [
+                            {
+                                "@type": "ListItem",
+                                "position": 1,
+                                "name": "Home",
+                                "item": "https://descu.ai/"
+                            },
+                            {
+                                "@type": "ListItem",
+                                "position": 2,
+                                "name": product.category || "Products",
+                                "item": `https://descu.ai/?category=${product.category || 'all'}`
+                            },
+                            {
+                                "@type": "ListItem",
+                                "position": 3,
+                                "name": product.title,
+                                "item": currentUrl
+                            }
+                        ]
+                    },
+                    {
+                        "@type": "Product",
+                        "name": product.title,
+                        "image": (product.images && product.images.length > 0)
+                            ? product.images
+                            : ['https://descu.ai/og-image.png'],
+                        "description": product.description,
+                        "sku": product.id,
+                        "brand": {
+                            "@type": "Brand",
+                            "name": product.seller?.name || "DESCU Seller"
+                        },
+                        "category": product.category,
+                        "offers": {
+                            "@type": "Offer",
+                            "url": currentUrl,
+                            "priceCurrency": product.currency || "MXN",
+                            "price": product.price,
+                            "availability": "https://schema.org/InStock",
+                            "itemCondition": "https://schema.org/UsedCondition",
+                            "seller": {
+                                "@type": "Person",
+                                "name": product.seller?.name || "Verified Seller"
+                            }
+                        }
                     }
-                }
+                ]
             };
         } else {
             // Detailed WebSite schema for Homepage + Breadcrumbs
