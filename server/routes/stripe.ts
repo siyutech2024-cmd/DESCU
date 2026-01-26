@@ -7,7 +7,7 @@ const router = express.Router();
 
 // 初始化Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover' as any, // Cast to any to be safe if types are slightly off, but try without first? error said assignable to "2025-12-15.clover", so string literal should work.
+    apiVersion: '2024-12-18.acacia' as any, // Unified API version
 });
 
 /**

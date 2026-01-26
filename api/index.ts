@@ -1191,7 +1191,7 @@ app.delete('/api/users/addresses/:id', requireAuth, async (req: any, res) => {
 // ------------------------------------------------------------------
 import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-12-15.clover' as any, // Cast to match local
+    apiVersion: '2024-12-18.acacia' as any, // Unified API version
 });
 
 app.post('/api/stripe/add-bank-account', requireAuth, async (req: any, res) => {
