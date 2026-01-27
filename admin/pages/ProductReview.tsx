@@ -95,12 +95,20 @@ export const ProductReview: React.FC = () => {
         setProcessing(true);
 
         try {
+            // 从 Supabase session 获取 token
+            const { data: { session } } = await import('../../services/supabase').then(m => m.supabase.auth.getSession());
+            const token = session?.access_token;
+
+            if (!token) {
+                throw new Error('登录已过期，请重新登录');
+            }
+
             // 调用后端 AI 审核 API（使用服务器端 Gemini API Key，更安全）
             const response = await fetch('/api/admin/trigger-review', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
