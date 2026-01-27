@@ -3,7 +3,6 @@ import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { showToast } from '../utils/toast';
 import { CheckCircle, XCircle, MessageSquare, Eye, Package, Sparkles, AlertTriangle } from 'lucide-react';
-import { auditProductWithGemini, AIAuditResult, translateProductWithGemini } from '../../services/geminiService';
 
 export const ProductReview: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -13,7 +12,6 @@ export const ProductReview: React.FC = () => {
     const [selectedProduct, setSelectedProduct] = useState<AdminProduct | null>(null);
     const [reviewNote, setReviewNote] = useState('');
     const [processing, setProcessing] = useState(false);
-    const [aiResults, setAiResults] = useState<Record<string, AIAuditResult>>({});
 
     const fetchPendingProducts = async () => {
         setLoading(true);
@@ -92,81 +90,34 @@ export const ProductReview: React.FC = () => {
     };
 
     const handleAiAudit = async () => {
-        if (!confirm(`AI将自动扫描这 ${products.length} 个商品。安全且分类正确的商品将自动通过，有风险的将被标记。\n确定开始吗？`)) return;
+        if (!confirm(`AI将自动扫描所有待审核商品。安全且分类正确的商品将自动通过，有风险的将被标记。\n确定开始吗？`)) return;
 
         setProcessing(true);
-        let approvedCount = 0;
-        let flaggedCount = 0;
 
         try {
-            // Process sequentially to be safe with rate limits, or parallel batches of 3
-            // Batch processing 3 at a time
-            for (let i = 0; i < products.length; i += 3) {
-                const batch = products.slice(i, i + 3);
-                await Promise.all(batch.map(async (product) => {
-                    // 1. Audit
-                    const audit = await auditProductWithGemini({
-                        title: product.title,
-                        description: product.description || '',
-                        category: product.category || 'Other'
-                    });
+            // 调用后端 AI 审核 API（使用服务器端 Gemini API Key，更安全）
+            const response = await fetch('/api/admin/trigger-review', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                }
+            });
 
-                    if (audit) {
-                        if (audit.isSafe && audit.confidence > 0.6) {
-                            // Auto Approve - 安全商品自动通过，分类不正确则纠正
-                            const updateData: Record<string, any> = {
-                                status: 'active',
-                                review_note: `[AI] Auto-approved. Confidence: ${(audit.confidence * 100).toFixed(0)}%`
-                            };
+            const data = await response.json();
 
-                            // 纠正分类
-                            if (!audit.categoryCorrect && audit.suggestedCategory) {
-                                updateData.category = audit.suggestedCategory.toLowerCase();
-                                updateData.review_note = `[AI] Auto-approved. Category corrected to ${audit.suggestedCategory}`;
-                            }
-
-                            // 添加子类目建议
-                            if ((audit as any).suggestedSubcategory) {
-                                updateData.subcategory = (audit as any).suggestedSubcategory;
-                            }
-
-                            // 翻译产品内容为三语言
-                            try {
-                                const translations = await translateProductWithGemini(product.title, product.description || '');
-                                if (translations) {
-                                    updateData.title_zh = translations.zh.title;
-                                    updateData.description_zh = translations.zh.description;
-                                    updateData.title_en = translations.en.title;
-                                    updateData.description_en = translations.en.description;
-                                    updateData.title_es = translations.es.title;
-                                    updateData.description_es = translations.es.description;
-                                    console.log(`[AI Review] Translated: ${product.id}`);
-                                }
-                            } catch (transErr) {
-                                console.error(`[AI Review] Translation failed for ${product.id}:`, transErr);
-                            }
-
-                            await adminApi.updateProduct(product.id, updateData);
-                            approvedCount++;
-                        } else {
-                            // Flag / Leave for review - 保存拒绝原因
-                            const reason = audit.flaggedReason ||
-                                (!audit.isSafe ? '安全性需人工确认' : '需人工复核');
-                            await adminApi.updateProduct(product.id, {
-                                review_note: `[AI标记] ${reason}`
-                            });
-                            setAiResults(prev => ({ ...prev, [product.id]: audit }));
-                            flaggedCount++;
-                        }
-                    }
-                }));
+            if (!response.ok) {
+                throw new Error(data.message || data.error || 'AI审核失败');
             }
 
-            showToast.success(`AI 审核完成: 自动通过 ${approvedCount} 个，标记需人工复核 ${flaggedCount} 个`);
+            const { stats } = data;
+            showToast.success(
+                `AI 审核完成: 自动通过 ${stats.approved} 个，分类纠正 ${stats.categoryCorrected} 个，标记需人工复核 ${stats.flagged} 个`
+            );
             fetchPendingProducts();
-        } catch (error) {
+        } catch (error: any) {
             console.error("AI Audit Error", error);
-            showToast.error("AI 审核过程中发生错误");
+            showToast.error(error.message || "AI 审核过程中发生错误");
         } finally {
             setProcessing(false);
         }
@@ -272,13 +223,11 @@ export const ProductReview: React.FC = () => {
                                             <span>卖家: {product.seller_name}</span>
                                         </div>
                                         {/* AI审核结果显示 */}
-                                        {(aiResults[product.id] || product.review_note?.startsWith('[AI标记]')) && (
+                                        {product.review_note?.startsWith('[AI标记]') && (
                                             <div className="flex items-center gap-2 mt-2 text-red-600 bg-red-50 px-3 py-1 rounded-lg">
                                                 <AlertTriangle className="w-4 h-4" />
                                                 <span className="text-xs font-medium">
-                                                    {aiResults[product.id]?.flaggedReason ||
-                                                        product.review_note?.replace('[AI标记] ', '') ||
-                                                        '需人工复核'}
+                                                    {product.review_note?.replace('[AI标记] ', '') || '需人工复核'}
                                                 </span>
                                             </div>
                                         )}
