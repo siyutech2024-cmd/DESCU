@@ -216,22 +216,26 @@ Return ONLY valid JSON (no markdown):
  */
 export const autoReviewPendingProducts = async (
     limit: number = 50,
-    hoursAgo: number = 24
+    hoursAgo: number = 0 // 默认 0 表示不限制时间
 ): Promise<{ approved: number; categoryCorrected: number; flagged: number; errors: number }> => {
     const stats = { approved: 0, categoryCorrected: 0, flagged: 0, errors: 0 };
 
     try {
-        // 计算时间范围
-        const since = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
-
-        // 查询待审核商品
-        const { data: products, error } = await supabase
+        // 构建查询
+        let query = supabase
             .from('products')
             .select('id, title, description, category')
             .eq('status', 'pending_review')
-            .gte('created_at', since)
             .order('created_at', { ascending: true })
             .limit(limit);
+
+        // 仅在指定时间范围时应用时间筛选
+        if (hoursAgo > 0) {
+            const since = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString();
+            query = query.gte('created_at', since);
+        }
+
+        const { data: products, error } = await query;
 
         if (error) {
             console.error('[AutoReview] Query failed:', error);

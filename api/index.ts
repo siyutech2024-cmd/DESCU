@@ -210,7 +210,7 @@ app.post('/api/admin/trigger-review', requireAdmin, async (req: any, res) => {
         }
 
         // 执行自动审核
-        const stats = await autoReviewPendingProducts(50, 24);
+        const stats = await autoReviewPendingProducts(50);
 
         console.log('[Admin] Manual AI review completed:', stats);
 
@@ -282,7 +282,7 @@ app.post('/api/cron/auto-review', async (req: any, res) => {
         console.log('[Cron] Starting auto-review job...');
 
         // 执行自动审核，处理过去24小时内创建的待审核商品
-        const stats = await autoReviewPendingProducts(50, 24);
+        const stats = await autoReviewPendingProducts(50);
 
         console.log('[Cron] Auto-review completed:', stats);
 
@@ -318,7 +318,7 @@ app.get('/api/cron/auto-review', async (req: any, res) => {
         }
 
         console.log('[Cron] Starting auto-review job (GET)...');
-        const stats = await autoReviewPendingProducts(50, 24);
+        const stats = await autoReviewPendingProducts(50);
 
         res.json({
             success: true,
