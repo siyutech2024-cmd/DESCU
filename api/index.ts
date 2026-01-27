@@ -188,6 +188,71 @@ app.put('/api/admin/settings', requireAdmin, updateSystemSettings);
 app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 
 // ==================================================================
+// ADMIN MANUAL TRIGGER - 管理员手动触发
+// ==================================================================
+
+/**
+ * 管理员手动触发AI审核
+ * 在后台可以直接触发，无需等待定时任务
+ */
+app.post('/api/admin/trigger-review', requireAdmin, async (req: any, res) => {
+    try {
+        console.log('[Admin] Manual AI review triggered by admin:', req.admin?.id);
+
+        // 检查 AI 配置状态
+        const hasGeminiKey = !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY);
+
+        if (!hasGeminiKey) {
+            return res.status(503).json({
+                error: 'AI service not configured',
+                message: 'GEMINI_API_KEY environment variable is not set'
+            });
+        }
+
+        // 执行自动审核
+        const stats = await autoReviewPendingProducts(50, 24);
+
+        console.log('[Admin] Manual AI review completed:', stats);
+
+        res.json({
+            success: true,
+            message: 'AI review completed',
+            stats,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error: any) {
+        console.error('[Admin] Manual AI review failed:', error);
+        res.status(500).json({
+            error: 'AI review failed',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * 获取 AI 服务状态
+ */
+app.get('/api/admin/ai-status', requireAdmin, async (req: any, res) => {
+    const hasGeminiKey = !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY);
+    const hasCronSecret = !!process.env.CRON_SECRET;
+
+    // 获取待审核商品数量
+    const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending_review');
+
+    res.json({
+        aiConfigured: hasGeminiKey,
+        cronConfigured: hasCronSecret,
+        pendingReviewCount: count || 0,
+        message: hasGeminiKey
+            ? 'AI service is configured and ready'
+            : 'GEMINI_API_KEY is not configured - AI review will not work'
+    });
+});
+
+// ==================================================================
 // CRON JOBS - 定时任务
 // ==================================================================
 

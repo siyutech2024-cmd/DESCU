@@ -322,25 +322,45 @@ router.post('/transfer-to-seller', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: '当面付款无需转账' });
         }
 
-        // 4. 获取卖家Stripe账户
-        const { data: sellerAccount } = await supabase
-            .from('stripe_accounts')
-            .select()
+        // 4. 优先从 sellers 表获取 Stripe 账户，回退到 stripe_accounts 表
+        let stripeAccountId: string | null = null;
+
+        // 先查询 sellers 表（与 confirmOrder 逻辑一致）
+        const { data: seller } = await supabase
+            .from('sellers')
+            .select('stripe_connect_id')
             .eq('user_id', order.seller_id)
             .single();
 
-        if (!sellerAccount || !sellerAccount.account_verified) {
+        if (seller?.stripe_connect_id) {
+            stripeAccountId = seller.stripe_connect_id;
+        } else {
+            // 回退到 stripe_accounts 表
+            const { data: sellerAccount } = await supabase
+                .from('stripe_accounts')
+                .select('stripe_account_id, account_verified')
+                .eq('user_id', order.seller_id)
+                .single();
+
+            if (sellerAccount?.account_verified) {
+                stripeAccountId = sellerAccount.stripe_account_id;
+            }
+        }
+
+        if (!stripeAccountId) {
             return res.status(400).json({ error: '卖家未设置收款账户或未验证' });
         }
 
-        // 5. 计算转账金额（扣除平台手续费）
-        const sellerAmount = order.product_amount - order.platform_fee;
+        // 5. 计算转账金额（扣除平台手续费） - 使用统一字段
+        const totalAmount = order.total_amount || order.amount;
+        const platformFee = order.platform_fee || (totalAmount * 0.05);
+        const sellerAmount = totalAmount - platformFee;
 
         // 6. 转账到卖家
         const transfer = await stripe.transfers.create({
             amount: Math.round(sellerAmount * 100),
             currency: 'mxn',
-            destination: sellerAccount.stripe_account_id,
+            destination: stripeAccountId,
             description: `订单 ${order.id} 收款`,
             metadata: {
                 order_id: order.id,

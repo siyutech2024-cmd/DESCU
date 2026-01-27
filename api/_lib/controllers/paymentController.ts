@@ -326,7 +326,8 @@ export const confirmOrder = async (req: Request, res: Response) => {
         let platformFeeCollected = 0;
 
         // 3. Execute Transfer if seller has Stripe account and payment is online
-        const isOnlinePayment = order.payment_method === 'online' || order.stripe_payment_intent_id;
+        // 检查多个字段以确保覆盖所有在线支付场景
+        const isOnlinePayment = order.payment_method === 'online' || order.stripe_payment_intent_id || order.payment_intent_id;
 
         if (seller?.stripe_connect_id && isOnlinePayment) {
             // Calculate amounts
@@ -684,6 +685,45 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
             .from('products')
             .update({ status: 'sold' })
             .eq('id', productId);
+    }
+
+    // Handle Checkout Session Completed - 担保付款完成
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object as any;
+        console.log('[Webhook] Checkout completed (escrow):', session.id);
+
+        const orderId = session.metadata?.order_id;
+        const isEscrow = session.metadata?.escrow === 'true';
+        const platformFee = session.metadata?.platform_fee;
+        const sellerStripeId = session.metadata?.seller_stripe_id;
+
+        if (orderId) {
+            // Update order to escrow_held status - funds are in platform account
+            await supabase.from('orders').update({
+                status: isEscrow ? 'escrow_held' : 'paid',
+                payment_captured: true,
+                stripe_payment_intent_id: session.payment_intent,
+                escrow_status: isEscrow ? 'held' : 'none',
+                platform_fee: platformFee ? parseFloat(platformFee) / 100 : null,
+                updated_at: new Date()
+            }).eq('id', orderId);
+
+            await supabase.from('order_timeline').insert({
+                order_id: orderId,
+                event_type: isEscrow ? 'escrow_payment_received' : 'payment_completed',
+                description: isEscrow
+                    ? '付款成功，资金已进入担保账户，等待买家确认收货后释放'
+                    : 'Payment completed via Stripe Checkout',
+                metadata: {
+                    session_id: session.id,
+                    payment_intent: session.payment_intent,
+                    escrow: isEscrow,
+                    seller_stripe_id: sellerStripeId
+                }
+            });
+
+            console.log(`[Webhook] Order ${orderId} updated to ${isEscrow ? 'escrow_held' : 'paid'}`);
+        }
     }
 
     res.send();
