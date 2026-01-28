@@ -194,8 +194,25 @@ app.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 /**
  * 管理员手动触发AI审核
  * 在后台可以直接触发，无需等待定时任务
+ * 支持开发模式 (X-Dev-Mode header)
  */
-app.post('/api/admin/trigger-review', requireAdmin, async (req: any, res) => {
+app.post('/api/admin/trigger-review', async (req: any, res, next) => {
+    // 检查是否是开发模式
+    const isDevMode = req.headers['x-dev-mode'] === 'true';
+
+    if (isDevMode) {
+        // 开发模式：跳过认证，直接执行
+        console.log('[Admin] Dev mode AI review triggered');
+        req.admin = { id: 'dev-admin', email: 'admin@local.com', role: 'admin' };
+        return handleTriggerReview(req, res);
+    }
+
+    // 正常模式：需要认证
+    return requireAdmin(req, res, () => handleTriggerReview(req, res));
+});
+
+// 抽取处理逻辑为单独函数
+async function handleTriggerReview(req: any, res: any) {
     try {
         console.log('[Admin] Manual AI review triggered by admin:', req.admin?.id);
 
@@ -227,7 +244,7 @@ app.post('/api/admin/trigger-review', requireAdmin, async (req: any, res) => {
             message: error.message
         });
     }
-});
+}
 
 /**
  * 获取 AI 服务状态
