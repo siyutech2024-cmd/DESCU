@@ -149,7 +149,7 @@ export const auditProduct = async (product: {
 }): Promise<AuditResult | null> => {
     const ai = getAI();
     if (!ai) {
-        console.error('[AuditService] Gemini API not available');
+        console.error('[AuditService] Gemini API not available - check GEMINI_API_KEY');
         return null;
     }
 
@@ -190,6 +190,7 @@ Return ONLY valid JSON (no markdown):
 }
 `;
 
+        console.log(`[AuditService] Calling Gemini for: ${product.title.substring(0, 50)}...`);
         const result = await model.generateContent(prompt);
         const response = await result.response;
         let text = response.text();
@@ -199,12 +200,19 @@ Return ONLY valid JSON (no markdown):
             return null;
         }
 
-        // Clean markdown code blocks if present
-        text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        return JSON.parse(text) as AuditResult;
+        console.log(`[AuditService] Raw AI response: ${text.substring(0, 200)}...`);
 
-    } catch (error) {
-        console.error('[AuditService] Audit failed:', error);
+        // Clean markdown code blocks if present
+        text = text.replace(/^```json\\s*/, '').replace(/\\s*```$/, '');
+        text = text.replace(/^```\\s*/, '').replace(/\\s*```$/, '');
+        text = text.trim();
+
+        const parsed = JSON.parse(text) as AuditResult;
+        console.log(`[AuditService] Parsed: isSafe=${parsed.isSafe}, confidence=${parsed.confidence}`);
+        return parsed;
+
+    } catch (error: any) {
+        console.error('[AuditService] Audit failed:', error.message || error);
         return null;
     }
 };
