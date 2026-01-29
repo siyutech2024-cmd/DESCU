@@ -356,7 +356,7 @@ app.get('/api/admin/db-test', async (req: any, res) => {
 // ==================================================================
 
 /**
- * AI 测试端点：直接测试 Gemini API 调用
+ * AI 测试端点：使用真实待审核产品测试完整审核流程
  */
 app.get('/api/admin/ai-test', async (req: any, res) => {
     const isDevMode = req.headers['x-dev-mode'] === 'true';
@@ -366,25 +366,87 @@ app.get('/api/admin/ai-test', async (req: any, res) => {
 
     try {
         const { auditProduct } = await import('./_lib/services/auditService.js');
+        const sb = getSupabase();
 
-        const testProduct = {
-            title: 'Test Product - iPhone Case',
-            description: 'A simple phone case for iPhone, new condition',
-            category: 'other'
+        // 获取一个真实的待审核产品
+        const { data: products, error: queryError } = await sb
+            .from('products')
+            .select('id, title, description, category')
+            .eq('status', 'pending_review')
+            .limit(1);
+
+        if (queryError) {
+            return res.json({
+                success: false,
+                stage: 'query',
+                error: queryError.message
+            });
+        }
+
+        if (!products || products.length === 0) {
+            return res.json({
+                success: false,
+                stage: 'query',
+                error: 'No pending products found'
+            });
+        }
+
+        const product = products[0];
+        console.log('[AI-Test] Testing with real product:', product.id, product.title);
+
+        // 调用审核
+        const auditResult = await auditProduct({
+            title: product.title,
+            description: product.description || '',
+            category: product.category || 'other'
+        });
+
+        if (!auditResult) {
+            return res.json({
+                success: false,
+                stage: 'audit',
+                product: { id: product.id, title: product.title },
+                error: 'auditProduct returned null'
+            });
+        }
+
+        // 尝试更新产品
+        const updateData: any = {
+            status: 'active',
+            review_note: `[AI-Test] isSafe=${auditResult.isSafe}, confidence=${auditResult.confidence}`,
+            reviewed_at: new Date().toISOString()
         };
 
-        console.log('[AI-Test] Testing Gemini API...');
-        const result = await auditProduct(testProduct);
+        const { error: updateError } = await sb
+            .from('products')
+            .update(updateData)
+            .eq('id', product.id);
+
+        if (updateError) {
+            return res.json({
+                success: false,
+                stage: 'update',
+                product: { id: product.id, title: product.title },
+                auditResult,
+                updateData,
+                error: updateError.message,
+                hint: updateError.hint,
+                code: updateError.code
+            });
+        }
 
         res.json({
-            success: !!result,
-            hasGeminiKey: !!process.env.GEMINI_API_KEY,
-            geminiKeyPrefix: process.env.GEMINI_API_KEY?.substring(0, 10) + '...',
-            result
+            success: true,
+            product: { id: product.id, title: product.title },
+            auditResult,
+            updateData,
+            message: 'Product updated successfully!'
         });
+
     } catch (err: any) {
         res.status(500).json({
             success: false,
+            stage: 'exception',
             error: err.message,
             stack: err.stack?.split('\n').slice(0, 5)
         });
