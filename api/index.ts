@@ -413,8 +413,7 @@ app.get('/api/admin/ai-test', async (req: any, res) => {
         // 尝试更新产品
         const updateData: any = {
             status: 'active',
-            review_note: `[AI-Test] isSafe=${auditResult.isSafe}, confidence=${auditResult.confidence}`,
-            reviewed_at: new Date().toISOString()
+            review_note: `[AI-Test] isSafe=${auditResult.isSafe}, confidence=${auditResult.confidence}`
         };
 
         const { error: updateError } = await sb

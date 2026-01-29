@@ -296,8 +296,7 @@ export const autoReviewPendingProducts = async (
                     const updateData: any = {
                         status: 'active',
                         category: finalCategory,
-                        review_note: reviewNote,
-                        reviewed_at: new Date().toISOString()
+                        review_note: reviewNote
                     };
 
                     // 如果有子类目建议，也更新
@@ -341,8 +340,7 @@ export const autoReviewPendingProducts = async (
                     const { error: flagError } = await getSupabase()
                         .from('products')
                         .update({
-                            review_note: `[AI标记-不安全] ${reason}`,
-                            reviewed_at: new Date().toISOString()
+                            review_note: `[AI标记-不安全] ${reason}`
                         })
                         .eq('id', product.id);
 
