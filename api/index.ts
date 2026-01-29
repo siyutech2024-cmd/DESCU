@@ -5,7 +5,7 @@ import path from 'path';
 
 // Imports from Local Lib (Bundled)
 import { analyzeImage } from './_lib/controllers/aiController.js';
-import { supabase } from './_lib/db/supabase.js';
+import { supabase, getSupabase } from './_lib/db/supabase.js';
 import { createProduct, getProducts, getProductById, productsHealthCheck } from './_lib/controllers/productController.js';
 import { requireAuth } from './_lib/middleware/userAuth.js';
 import { requireAdmin } from './_lib/middleware/adminAuth.js';
@@ -267,6 +267,88 @@ app.get('/api/admin/ai-status', requireAdmin, async (req: any, res) => {
             ? 'AI service is configured and ready'
             : 'GEMINI_API_KEY is not configured - AI review will not work'
     });
+});
+
+/**
+ * 诊断端点：测试数据库更新权限
+ */
+app.get('/api/admin/db-test', async (req: any, res) => {
+    // 开发模式检查
+    const isDevMode = req.headers['x-dev-mode'] === 'true';
+    if (!isDevMode) {
+        return res.status(403).json({ error: 'Dev mode required' });
+    }
+
+    try {
+        const sb = getSupabase();
+
+        // 1. 测试读取
+        const { data: products, error: readError } = await sb
+            .from('products')
+            .select('id, title, status, review_note')
+            .eq('status', 'pending_review')
+            .limit(1);
+
+        if (readError) {
+            return res.json({
+                success: false,
+                stage: 'read',
+                error: readError.message,
+                hint: readError.hint
+            });
+        }
+
+        if (!products || products.length === 0) {
+            return res.json({
+                success: true,
+                stage: 'read',
+                message: 'No pending products to test update'
+            });
+        }
+
+        const testProduct = products[0];
+
+        // 2. 测试更新 (只更新 review_note 不改变 status)
+        const testNote = `[DB Test] ${new Date().toISOString()}`;
+        const { error: updateError } = await sb
+            .from('products')
+            .update({ review_note: testNote })
+            .eq('id', testProduct.id);
+
+        if (updateError) {
+            return res.json({
+                success: false,
+                stage: 'update',
+                productId: testProduct.id,
+                error: updateError.message,
+                hint: updateError.hint,
+                code: updateError.code
+            });
+        }
+
+        // 3. 验证更新成功
+        const { data: updated } = await sb
+            .from('products')
+            .select('id, review_note')
+            .eq('id', testProduct.id)
+            .single();
+
+        res.json({
+            success: true,
+            stage: 'complete',
+            productId: testProduct.id,
+            originalNote: testProduct.review_note,
+            updatedNote: updated?.review_note,
+            updateWorked: updated?.review_note === testNote
+        });
+
+    } catch (err: any) {
+        res.status(500).json({
+            success: false,
+            stage: 'exception',
+            error: err.message
+        });
+    }
 });
 
 // ==================================================================
