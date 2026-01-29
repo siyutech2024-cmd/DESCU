@@ -4,7 +4,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { supabase } from '../db/supabase.js';
+import { getSupabase } from '../db/supabase.js';
 
 // --- LAZY AI INIT ---
 let genAI: GoogleGenerativeAI | null = null;
@@ -222,7 +222,7 @@ export const autoReviewPendingProducts = async (
 
     try {
         // 构建查询
-        let query = supabase
+        let query = getSupabase()
             .from('products')
             .select('id, title, description, category')
             .eq('status', 'pending_review')
@@ -310,10 +310,16 @@ export const autoReviewPendingProducts = async (
                         console.error(`[AutoReview] Translation failed for ${product.id}:`, transErr);
                     }
 
-                    await supabase
+                    const { error: updateError } = await getSupabase()
                         .from('products')
                         .update(updateData)
                         .eq('id', product.id);
+
+                    if (updateError) {
+                        console.error(`[AutoReview] Update failed for ${product.id}:`, updateError);
+                        stats.errors++;
+                        continue;
+                    }
 
                     stats.approved++;
                     console.log(`[AutoReview] Approved: ${product.id}${wasCorrected ? ` (category: ${product.category} → ${finalCategory})` : ''}`);
@@ -321,13 +327,19 @@ export const autoReviewPendingProducts = async (
                 } else {
                     // 不安全商品：标记需人工复核
                     const reason = audit.flaggedReason || '安全性需人工确认';
-                    await supabase
+                    const { error: flagError } = await getSupabase()
                         .from('products')
                         .update({
                             review_note: `[AI标记-不安全] ${reason}`,
                             reviewed_at: new Date().toISOString()
                         })
                         .eq('id', product.id);
+
+                    if (flagError) {
+                        console.error(`[AutoReview] Flag update failed for ${product.id}:`, flagError);
+                        stats.errors++;
+                        continue;
+                    }
                     stats.flagged++;
                     console.log(`[AutoReview] Flagged (unsafe): ${product.id} - ${reason}`);
                 }
