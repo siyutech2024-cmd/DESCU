@@ -356,6 +356,42 @@ app.get('/api/admin/db-test', async (req: any, res) => {
 // ==================================================================
 
 /**
+ * AI 测试端点：直接测试 Gemini API 调用
+ */
+app.get('/api/admin/ai-test', async (req: any, res) => {
+    const isDevMode = req.headers['x-dev-mode'] === 'true';
+    if (!isDevMode) {
+        return res.status(403).json({ error: 'Dev mode required' });
+    }
+
+    try {
+        const { auditProduct } = await import('./_lib/services/auditService.js');
+
+        const testProduct = {
+            title: 'Test Product - iPhone Case',
+            description: 'A simple phone case for iPhone, new condition',
+            category: 'other'
+        };
+
+        console.log('[AI-Test] Testing Gemini API...');
+        const result = await auditProduct(testProduct);
+
+        res.json({
+            success: !!result,
+            hasGeminiKey: !!process.env.GEMINI_API_KEY,
+            geminiKeyPrefix: process.env.GEMINI_API_KEY?.substring(0, 10) + '...',
+            result
+        });
+    } catch (err: any) {
+        res.status(500).json({
+            success: false,
+            error: err.message,
+            stack: err.stack?.split('\n').slice(0, 5)
+        });
+    }
+});
+
+/**
  * 自动商品审核定时任务
  * 每小时执行一次，自动审核新上架的商品
  * 由 Vercel Cron 触发
