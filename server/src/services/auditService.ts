@@ -267,9 +267,12 @@ export const autoReviewPendingProducts = async (
                 });
 
                 if (!audit) {
+                    console.error(`[AutoReview] auditProduct returned null for ${product.id}: ${product.title}`);
                     stats.errors++;
                     continue;
                 }
+
+                console.log(`[AutoReview] Product ${product.id}: isSafe=${audit.isSafe}, confidence=${audit.confidence}`);
 
                 // 核心逻辑：安全商品直接通过，不安全商品才需人工审核
                 if (audit.isSafe && audit.confidence > 0.6) {
