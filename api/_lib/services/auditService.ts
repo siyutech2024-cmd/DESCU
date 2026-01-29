@@ -203,8 +203,8 @@ Return ONLY valid JSON (no markdown):
         console.log(`[AuditService] Raw AI response: ${text.substring(0, 200)}...`);
 
         // Clean markdown code blocks if present
-        text = text.replace(/^```json\\s*/, '').replace(/\\s*```$/, '');
-        text = text.replace(/^```\\s*/, '').replace(/\\s*```$/, '');
+        text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        text = text.replace(/^```\s*/, '').replace(/\s*```$/, '');
         text = text.trim();
 
         const parsed = JSON.parse(text) as AuditResult;
