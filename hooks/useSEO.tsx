@@ -11,6 +11,9 @@ interface SEOProps {
 
 export const useSEO = ({ title, description, image, url, product }: SEOProps & { product?: any }) => {
     useEffect(() => {
+        // Ensure lang attribute is always es-MX for Mexico targeting
+        document.documentElement.lang = 'es-MX';
+
         // 1. Basic Meta Tags
         document.title = title;
 
@@ -25,9 +28,9 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
             element.setAttribute('content', content);
         };
 
-        const desc = description || 'DESCU - The best AI-powered local marketplace.';
+        const desc = description || 'DESCU - Marketplace de segunda mano con IA en México. Compra y vende artículos usados cerca de ti.';
         const currentUrl = url || window.location.href;
-        const img = image || 'https://www.descu.ai/og-image.png'; // Default OG Image
+        const img = image || 'https://descu.ai/og-image.png';
 
         updateMeta('description', desc);
 
@@ -38,6 +41,7 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
         updateMeta('og:url', currentUrl);
         updateMeta('og:type', product ? 'product' : 'website');
         updateMeta('og:site_name', 'DESCU');
+        updateMeta('og:locale', 'es_MX');
 
         // Twitter Card
         updateMeta('twitter:card', 'summary_large_image');
@@ -54,8 +58,8 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
         }
         canonical.setAttribute('href', currentUrl);
 
-        // 2. Structured Data (JSON-LD)
-        let script = document.querySelector('script[type="application/ld+json"]');
+        // 2. Structured Data (JSON-LD) — Dynamic per page
+        let script = document.querySelector('script[id="dynamic-seo-schema"]');
 
         let formattedSchema = null;
 
@@ -69,13 +73,13 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
                             {
                                 "@type": "ListItem",
                                 "position": 1,
-                                "name": "Home",
+                                "name": "Inicio",
                                 "item": "https://descu.ai/"
                             },
                             {
                                 "@type": "ListItem",
                                 "position": 2,
-                                "name": product.category || "Products",
+                                "name": product.category || "Productos",
                                 "item": `https://descu.ai/?category=${product.category || 'all'}`
                             },
                             {
@@ -96,7 +100,7 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
                         "sku": product.id,
                         "brand": {
                             "@type": "Brand",
-                            "name": product.seller?.name || "DESCU Seller"
+                            "name": product.seller?.name || "Vendedor DESCU"
                         },
                         "category": product.category,
                         "offers": {
@@ -108,33 +112,41 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
                             "itemCondition": "https://schema.org/UsedCondition",
                             "seller": {
                                 "@type": "Person",
-                                "name": product.seller?.name || "Verified Seller"
+                                "name": product.seller?.name || "Vendedor Verificado"
+                            }
+                        },
+                        "availableAtOrFrom": {
+                            "@type": "Place",
+                            "address": {
+                                "@type": "PostalAddress",
+                                "addressCountry": "MX"
                             }
                         }
                     }
                 ]
             };
         } else {
-            // Detailed WebSite schema for Homepage + Breadcrumbs
             formattedSchema = {
                 "@context": "https://schema.org",
                 "@graph": [
                     {
                         "@type": "WebSite",
                         "name": "DESCU Marketplace",
-                        "url": "https://www.descu.ai/",
+                        "url": "https://descu.ai/",
+                        "inLanguage": "es-MX",
                         "potentialAction": {
                             "@type": "SearchAction",
-                            "target": "https://www.descu.ai/?q={search_term_string}",
+                            "target": "https://descu.ai/?search={search_term_string}",
                             "query-input": "required name=search_term_string"
                         },
-                        "description": "Your trusted local marketplace for buying and selling safely."
+                        "description": "Marketplace de segunda mano con IA en México. Compra y vende artículos usados de forma segura."
                     },
                     {
                         "@type": "CollectionPage",
                         "name": title,
                         "description": desc,
-                        "url": currentUrl
+                        "url": currentUrl,
+                        "inLanguage": "es-MX"
                     }
                 ]
             };
@@ -143,6 +155,7 @@ export const useSEO = ({ title, description, image, url, product }: SEOProps & {
         if (formattedSchema) {
             if (!script) {
                 script = document.createElement('script');
+                script.id = 'dynamic-seo-schema';
                 script.setAttribute('type', 'application/ld+json');
                 document.head.appendChild(script);
             }

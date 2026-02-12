@@ -1,6 +1,14 @@
+# DESCU Marketplace - robots.txt
 User-agent: *
 Allow: /
-Disallow: /admin/
+Allow: /product/
 
-# 动态 Sitemap
+# Block non-SEO pages (require login)
+Disallow: /admin/
+Disallow: /chat
+Disallow: /favorites
+Disallow: /orders
+Disallow: /profile
+
+# Sitemap
 Sitemap: https://descu.ai/sitemap.xml

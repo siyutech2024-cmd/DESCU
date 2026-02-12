@@ -46,8 +46,8 @@ export const HomePage: React.FC<HomePageProps> = ({
     const navigate = useNavigate();
 
     useSEO({
-        title: 'DESCU - Buy & Sell Local Secondhand',
-        description: 'The best AI-powered marketplace for buying and selling used items, cars, and real estate nearby.',
+        title: 'DESCU - Compra y Vende Segunda Mano en México | IA Inteligente',
+        description: 'Marketplace de segunda mano con inteligencia artificial. Compra y vende artículos usados cerca de ti en México. Electrónicos, autos, muebles, ropa y más. ¡Publica con IA en un clic!',
     });
 
     const CATEGORIES = [
