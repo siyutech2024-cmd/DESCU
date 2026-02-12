@@ -941,7 +941,13 @@ const AppContent: React.FC = () => {
       filtered = products.filter(p =>
         p.title.toLowerCase().includes(lowerQ) ||
         p.description.toLowerCase().includes(lowerQ) ||
-        p.category.toLowerCase().includes(lowerQ)
+        p.category.toLowerCase().includes(lowerQ) ||
+        (p.title_zh || '').toLowerCase().includes(lowerQ) ||
+        (p.title_en || '').toLowerCase().includes(lowerQ) ||
+        (p.title_es || '').toLowerCase().includes(lowerQ) ||
+        (p.description_zh || '').toLowerCase().includes(lowerQ) ||
+        (p.description_en || '').toLowerCase().includes(lowerQ) ||
+        (p.description_es || '').toLowerCase().includes(lowerQ)
       );
     }
 

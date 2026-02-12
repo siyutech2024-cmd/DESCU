@@ -214,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={handleLogout}
                   className="p-2 hover:bg-red-50 hover:text-red-500 rounded-full text-gray-400 transition-colors"
-                  title="退出登录"
+                  title={t('nav.logout')}
                 >
                   <LogOut size={20} />
                 </button>

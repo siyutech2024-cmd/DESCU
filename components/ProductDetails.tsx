@@ -300,7 +300,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
               {/* Share Buttons */}
               <div className="flex gap-4 items-center justify-center border-t border-gray-200/50 pt-6">
-                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mr-2">Share</span>
+                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mr-2">{t('product.share')}</span>
                 <button onClick={handleShareWhatsApp} className="p-3 bg-[#25D366] text-white rounded-full hover:scale-110 transition-all shadow-md hover:shadow-lg" title="Share on WhatsApp">
                   <MessageCircle size={20} fill="currentColor" />
                 </button>
@@ -337,7 +337,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               </div>
               <div className="text-sm text-gray-500 font-medium">{product.seller.email}</div>
               <button onClick={() => setIsRatingOpen(true)} className="mt-2 text-xs font-bold text-brand-600 border border-brand-200 px-3 py-1 rounded-full hover:bg-brand-50 transition-colors">
-                Rate Seller
+                {t('product.rate_seller')}
               </button>
             </div>
           </div>

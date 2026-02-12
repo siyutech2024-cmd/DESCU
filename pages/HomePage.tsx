@@ -166,7 +166,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                         {searchQuery ? t('list.no_results') : t('list.empty')}
                     </h3>
                     <p className="text-gray-400 max-w-xs mx-auto mb-6 leading-relaxed">
-                        {searchQuery ? 'Suggestions: check spelling or try broader terms.' : 'Be the first to list an item in this category!'}
+                        {searchQuery ? t('list.search_hint') : t('list.empty_hint')}
                     </p>
                     {!searchQuery && (
                         <button onClick={onSellClick} className="px-8 py-3 bg-brand-600 text-white font-bold rounded-full shadow-lg shadow-brand-200 hover:scale-105 active:scale-95 transition-all">

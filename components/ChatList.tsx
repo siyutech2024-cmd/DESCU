@@ -30,7 +30,12 @@ export const ChatList: React.FC<ChatListProps> = ({
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
-  const [hiddenConversations, setHiddenConversations] = useState<Set<string>>(new Set());
+  const [hiddenConversations, setHiddenConversations] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('descu_hidden_chats');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
   const [contextMenu, setContextMenu] = useState<{ convId: string; x: number; y: number } | null>(null);
 
   // iOS 滑动删除状态
@@ -87,7 +92,7 @@ export const ChatList: React.FC<ChatListProps> = ({
       } else {
         groups.set(productId, {
           productId,
-          productTitle: conv.productTitle || '商品',
+          productTitle: conv.productTitle || t('chat.unknown_product'),
           productImage: conv.productImage || 'https://via.placeholder.com/40',
           conversations: [conv],
           totalUnread: unreadCount,
@@ -109,10 +114,10 @@ export const ChatList: React.FC<ChatListProps> = ({
   }), [conversations, categorizedConversations]);
 
   const tabs: { key: TabType; label: string; icon: React.ReactNode; color: string }[] = [
-    { key: 'all', label: '全部', icon: <MessageCircle size={14} />, color: 'brand' },
-    { key: 'active', label: '进行中', icon: <ShoppingBag size={14} />, color: 'blue' },
-    { key: 'inquiry', label: '咨询中', icon: <MessageSquare size={14} />, color: 'orange' },
-    { key: 'completed', label: '已完成', icon: <CheckCircle size={14} />, color: 'green' },
+    { key: 'all', label: t('chat.tab.all'), icon: <MessageCircle size={14} />, color: 'brand' },
+    { key: 'active', label: t('chat.tab.active'), icon: <ShoppingBag size={14} />, color: 'blue' },
+    { key: 'inquiry', label: t('chat.tab.inquiring'), icon: <MessageSquare size={14} />, color: 'orange' },
+    { key: 'completed', label: t('chat.tab.completed'), icon: <CheckCircle size={14} />, color: 'green' },
   ];
 
   const toggleProductExpand = (productId: string) => {
@@ -129,7 +134,11 @@ export const ChatList: React.FC<ChatListProps> = ({
 
   // 隐藏对话
   const handleHideConversation = (convId: string) => {
-    setHiddenConversations(prev => new Set(prev).add(convId));
+    setHiddenConversations(prev => {
+      const next = new Set(prev).add(convId);
+      localStorage.setItem('descu_hidden_chats', JSON.stringify([...next]));
+      return next;
+    });
     setContextMenu(null);
   };
 
@@ -174,7 +183,7 @@ export const ChatList: React.FC<ChatListProps> = ({
           <MessageCircle size={40} className="opacity-20 text-gray-600" />
         </div>
         <p className="font-bold text-lg text-gray-500">{t('chat.empty_inbox')}</p>
-        <p className="text-sm text-gray-400 mt-2">Start a conversation from a product page</p>
+        <p className="text-sm text-gray-400 mt-2">{t('chat.empty_inbox_hint')}</p>
       </div>
     );
   }
@@ -185,7 +194,7 @@ export const ChatList: React.FC<ChatListProps> = ({
       <div className="flex items-center justify-between mb-4 px-2">
         <h1 className="text-2xl font-black text-gray-900 tracking-tight">{t('chat.inbox')}</h1>
         <div className="bg-brand-50 text-brand-700 px-3 py-1 rounded-full text-xs font-bold">
-          {conversations.length} {t('chat.conversations') || '对话'}
+          {conversations.length} {t('chat.conversations')}
         </div>
       </div>
 
@@ -231,7 +240,7 @@ export const ChatList: React.FC<ChatListProps> = ({
         {productGroups.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <Package size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">此分类暂无对话</p>
+            <p className="text-sm">{t('chat.no_chats_in_tab')}</p>
           </div>
         ) : (
           productGroups.map((group, groupIdx) => {
@@ -267,7 +276,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-1 text-xs text-gray-500">
                         <Users size={12} />
-                        <span>{buyerCount} {buyerCount > 1 ? '位买家' : '位买家'}</span>
+                        <span>{buyerCount} {t('chat.buyers')}</span>
                       </div>
                       <span className="text-gray-300">•</span>
                       <span className="text-[10px] text-gray-400">
@@ -301,19 +310,19 @@ export const ChatList: React.FC<ChatListProps> = ({
                               className="w-14 bg-gray-500 text-white flex flex-col items-center justify-center gap-0.5"
                             >
                               <EyeOff size={16} />
-                              <span className="text-[9px] font-bold">隐藏</span>
+                              <span className="text-[9px] font-bold">{t('chat.hide')}</span>
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (window.confirm('确定删除此对话？')) {
+                                if (window.confirm(t('chat.delete_confirm'))) {
                                   handleHideConversation(conv.id);
                                 }
                               }}
                               className="w-14 bg-red-500 text-white flex flex-col items-center justify-center gap-0.5"
                             >
                               <Trash2 size={16} />
-                              <span className="text-[9px] font-bold">删除</span>
+                              <span className="text-[9px] font-bold">{t('chat.delete')}</span>
                             </button>
                           </div>
 
@@ -372,7 +381,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                             {/* 状态标签 */}
                             {conv.category === 'active' && (
                               <span className="text-[9px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">
-                                交易中
+                                {t('chat.trading')}
                               </span>
                             )}
 
@@ -402,18 +411,18 @@ export const ChatList: React.FC<ChatListProps> = ({
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-3"
             >
               <EyeOff size={16} className="text-gray-400" />
-              隐藏对话 / Hide
+              {t('chat.hide_conversation')}
             </button>
             <button
               onClick={() => {
-                if (window.confirm('确定删除此对话？此操作不可撤销。\nDelete this chat? This cannot be undone.')) {
+                if (window.confirm(t('chat.delete_confirm'))) {
                   handleHideConversation(contextMenu.convId);
                 }
               }}
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3"
             >
               <Trash2 size={16} />
-              删除对话 / Delete
+              {t('chat.delete_conversation')}
             </button>
           </div>
         </>
@@ -423,11 +432,11 @@ export const ChatList: React.FC<ChatListProps> = ({
       {hiddenConversations.size > 0 && (
         <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 animate-fade-in-up">
           <button
-            onClick={() => setHiddenConversations(new Set())}
+            onClick={() => { setHiddenConversations(new Set()); localStorage.removeItem('descu_hidden_chats'); }}
             className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium hover:bg-gray-700 transition-colors"
           >
             <EyeOff size={14} />
-            {hiddenConversations.size} 个对话已隐藏
+            {hiddenConversations.size} {t('chat.hidden_count')}
             <X size={14} className="opacity-60" />
           </button>
         </div>

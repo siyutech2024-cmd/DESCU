@@ -300,7 +300,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                 <CreditBadge score={creditScore} showLabel />
               </div>
               <span className="text-xs font-bold text-orange-600 bg-white px-2 py-1 rounded-full shadow-sm">
-                {ratingStats.total_reviews} Reviews
+                {ratingStats.total_reviews} {t('profile.reviews')}
               </span>
             </div>
 
