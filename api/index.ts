@@ -1182,7 +1182,8 @@ app.post('/api/orders/create', requireAuth, async (req: any, res) => {
 
         const productAmount = product.price;
         const shippingFee = orderType === 'shipping' ? 50 : 0;
-        const platformFee = paymentMethod === 'online' ? (productAmount * 0.03) : 0;
+        // 统一平台费率为5%，与 v2/checkout-session 和 confirmOrder 保持一致
+        const platformFee = paymentMethod === 'online' ? (productAmount * 0.05) : 0;
         const totalAmount = productAmount + shippingFee + platformFee;
 
         const orderData: any = {
@@ -1814,16 +1815,20 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
             return res.status(404).json({ error: 'Order not found' });
         }
 
-        // Get seller's Stripe account - still required for eventual transfer
+        // Get seller info - Stripe Connect is optional, bank info (CLABE) is also valid
         const { data: seller } = await supabase
             .from('sellers')
-            .select('stripe_connect_id, onboarding_complete')
+            .select('stripe_connect_id, onboarding_complete, bank_clabe, bank_name, bank_holder_name')
             .eq('user_id', order.seller_id)
             .single();
 
-        if (!seller?.stripe_connect_id || !seller.onboarding_complete) {
+        // 卖家必须至少完成一种收款方式：Stripe Connect 或 银行卡(CLABE)
+        const hasStripeConnect = seller?.stripe_connect_id && seller?.onboarding_complete;
+        const hasBankInfo = seller?.bank_clabe && seller?.bank_name && seller?.bank_holder_name;
+
+        if (!hasStripeConnect && !hasBankInfo) {
             return res.status(400).json({
-                error: 'Seller has not completed payment setup',
+                error: 'Seller has not completed payment setup. Please provide bank info (CLABE) or Stripe account.',
                 code: 'SELLER_NOT_READY'
             });
         }
@@ -1840,6 +1845,10 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
 
         // Create Checkout Session - Escrow Pattern (Separate Charges and Transfers)
         // Funds stay in platform account, NOT immediately transferred to seller
+        // 卖家可能有Stripe Connect或只有银行卡(CLABE)，两种情况都支持
+        const sellerStripeId = seller?.stripe_connect_id || '';
+        const sellerPayoutMethod = hasStripeConnect ? 'stripe_connect' : 'manual_spei';
+
         const session = await stripe.checkout.sessions.create({
             line_items: [
                 {
@@ -1863,7 +1872,8 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
                     order_id: orderId,
                     buyer_id: userId,
                     seller_id: order.seller_id,
-                    seller_stripe_id: seller.stripe_connect_id,
+                    seller_stripe_id: sellerStripeId,
+                    seller_payout_method: sellerPayoutMethod,
                     product_id: order.product_id,
                     platform_fee: platformFeeAmount,
                     escrow: 'true'  // Mark as escrow transaction
@@ -1874,7 +1884,8 @@ app.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) =
             cancel_url: `${baseUrl}/order/cancel?order_id=${orderId}`,
             metadata: {
                 order_id: orderId,
-                seller_stripe_id: seller.stripe_connect_id,
+                seller_stripe_id: sellerStripeId,
+                seller_payout_method: sellerPayoutMethod,
                 platform_fee: platformFeeAmount.toString(),
                 platform: 'DESCU',
                 escrow: 'true'
