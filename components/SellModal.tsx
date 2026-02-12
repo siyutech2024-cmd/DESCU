@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Sparkles, MapPin, Loader2, Camera, DollarSign, Truck, Handshake, Info, AlertCircle } from 'lucide-react';
+import { X, Upload, Sparkles, MapPin, Loader2, Camera, DollarSign, Truck, Handshake, Info, AlertCircle, Plus, Star, Trash2, GripVertical } from 'lucide-react';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
 import { analyzeImageWithGemini } from '../services/geminiService';
@@ -9,6 +9,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
 import { GlassToast, ToastType } from './GlassToast';
 import { uploadProductImage } from '../services/supabase';
+
+const MAX_IMAGES = 5;
 
 // Smart category mapping from AI response to Category enum
 const mapCategoryFromAI = (aiCategory: string): Category => {
@@ -50,14 +52,24 @@ interface SellModalProps {
   userLocation: Coordinates | null;
 }
 
+interface ImageItem {
+  file: File;
+  preview: string;
+  id: string; // unique key for React list
+}
+
 export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit, user, userLocation }) => {
   const { t, language } = useLanguage();
   const { currency: regionCurrency } = useRegion();
-  const [image, setImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageItem[]>([]);
   // AI Status State: 'idle' | 'analyzing' | 'success' | 'error'
   const [aiStatus, setAiStatus] = useState<'idle' | 'analyzing' | 'success' | 'error'>('idle');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Drag state for reordering
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   // Toast State
   const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
@@ -84,8 +96,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
 
   useEffect(() => {
     if (!isOpen) {
-      setImage(null);
-      setImagePreview(null);
+      setImages([]);
       setFormData({
         title: '',
         description: '',
@@ -95,97 +106,164 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         currency: regionCurrency,
         deliveryType: null
       });
-      setAiStatus('idle'); // Reset AI status
+      setAiStatus('idle');
       setIsUploading(false);
+      setUploadProgress(0);
       setToast(prev => ({ ...prev, show: false }));
     }
   }, [isOpen]);
 
-  const processFile = async (file: File) => {
+  const addImageFile = async (file: File, triggerAI: boolean) => {
     try {
-      // 1. Compress immediately for preview & AI
       const compressedFile = await compressImage(file, 1024, 0.8);
-      setImage(compressedFile);
-
       const previewUrl = await getFullDataUrl(compressedFile);
-      setImagePreview(previewUrl);
+      const newItem: ImageItem = {
+        file: compressedFile,
+        preview: previewUrl,
+        id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      };
 
-      setAiStatus('analyzing');
-      const base64 = await fileToBase64(compressedFile);
-      const result = await analyzeImageWithGemini(base64);
+      setImages(prev => [...prev, newItem]);
 
-      if (result) {
-        setFormData(prev => ({
-          ...prev,
-          title: result.title,
-          description: result.description,
-          category: mapCategoryFromAI(result.category),
-          subcategory: result.subcategory || undefined,
-          price: result.price.toString(),
-          deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
-        }));
-        setAiStatus('success');
-      } else {
-        throw new Error("No result from AI");
+      // Only trigger AI analysis for the first image
+      if (triggerAI) {
+        setAiStatus('analyzing');
+        try {
+          const base64 = await fileToBase64(compressedFile);
+          const result = await analyzeImageWithGemini(base64);
+
+          if (result) {
+            setFormData(prev => ({
+              ...prev,
+              title: result.title,
+              description: result.description,
+              category: mapCategoryFromAI(result.category),
+              subcategory: result.subcategory || undefined,
+              price: result.price.toString(),
+              deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
+            }));
+            setAiStatus('success');
+          } else {
+            throw new Error("No result from AI");
+          }
+        } catch (error: any) {
+          console.error("AI Analysis failed", error);
+          setAiStatus('error');
+          showToast(t('modal.ai_error') || `Error: ${error.message}`, 'error');
+        }
       }
-    } catch (error: any) {
-      console.error("AI Analysis failed", error);
-      setAiStatus('error');
-      showToast(t('modal.ai_error') || `Error: ${error.message}`, 'error');
+    } catch (error) {
+      console.error("Failed to process image", error);
+      showToast(t('toast.upload_failed') || 'Failed to process image', 'error');
     }
   };
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      await processFile(e.target.files[0]);
+    if (e.target.files) {
+      const remaining = MAX_IMAGES - images.length;
+      const files = Array.from(e.target.files).slice(0, remaining);
+      for (let i = 0; i < files.length; i++) {
+        const isFirstEver = images.length === 0 && i === 0;
+        await addImageFile(files[i], isFirstEver);
+      }
     }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const triggerImageSelection = async () => {
-    // 更严格的Capacitor检测：只依赖protocol，不依赖User-Agent
-    // 避免移动端Web浏览器被错误识别为Capacitor环境
+    if (images.length >= MAX_IMAGES) {
+      showToast(t('modal.max_images') || `Maximum ${MAX_IMAGES} images`, 'warning');
+      return;
+    }
+
     const isCapacitor = window.location.protocol === 'capacitor:' ||
       window.location.protocol === 'ionic:';
 
     if (isCapacitor) {
       try {
-        const image = await CapacitorCamera.getPhoto({
+        const photo = await CapacitorCamera.getPhoto({
           quality: 90,
           allowEditing: false,
           resultType: CameraResultType.Uri,
-          source: CameraSource.Prompt, // Prompts user: Photo or Gallery
+          source: CameraSource.Prompt,
           width: 1200
         });
 
-        if (image.webPath) {
-          const response = await fetch(image.webPath);
+        if (photo.webPath) {
+          const response = await fetch(photo.webPath);
           const blob = await response.blob();
           const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-          await processFile(file);
+          const isFirstEver = images.length === 0;
+          await addImageFile(file, isFirstEver);
         }
       } catch (e) {
         console.log('Camera API failed, falling back to file input', e);
-        // 回退到file input（可能是权限被拒绝或API不可用）
         fileInputRef.current?.click();
       }
     } else {
-      // Web环境：直接使用file input
       fileInputRef.current?.click();
     }
   };
 
+  const removeImage = (id: string) => {
+    setImages(prev => {
+      const filtered = prev.filter(img => img.id !== id);
+      // If we removed the first image and AI was done, keep form data
+      // If we removed all images, reset AI status
+      if (filtered.length === 0) {
+        setAiStatus('idle');
+      }
+      return filtered;
+    });
+  };
+
+  // Drag-and-drop reordering
+  const handleDragStart = (idx: number) => {
+    setDragIdx(idx);
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setDragOverIdx(idx);
+  };
+
+  const handleDrop = (idx: number) => {
+    if (dragIdx === null || dragIdx === idx) {
+      setDragIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+    setImages(prev => {
+      const items = [...prev];
+      const [moved] = items.splice(dragIdx, 1);
+      items.splice(idx, 0, moved);
+      return items;
+    });
+    setDragIdx(null);
+    setDragOverIdx(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!image || !userLocation) return;
+    if (images.length === 0 || !userLocation) return;
 
     try {
       setIsUploading(true);
+      setUploadProgress(0);
 
-      // 2. Upload to Supabase Storage
-      const publicUrl = await uploadProductImage(image);
+      // Upload all images in parallel
+      const uploadPromises = images.map((img, idx) =>
+        uploadProductImage(img.file).then(url => {
+          setUploadProgress(prev => prev + 1);
+          return url;
+        })
+      );
+      const urls = await Promise.all(uploadPromises);
+      const validUrls = urls.filter(Boolean) as string[];
 
-      if (!publicUrl) {
-        throw new Error('Image upload failed');
+      if (validUrls.length === 0) {
+        throw new Error('All image uploads failed');
       }
 
       onSubmit({
@@ -194,7 +272,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         description: formData.description || '',
         price: Number(formData.price) || 0,
         currency: formData.currency || 'MXN',
-        images: [publicUrl], // Send URL, not Base64!
+        images: validUrls,
         category: formData.category as Category,
         subcategory: formData.subcategory || undefined,
         deliveryType: formData.deliveryType!,
@@ -207,6 +285,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
       showToast(t('toast.upload_failed'), 'error');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -234,22 +313,14 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {/* Image Upload */}
+          {/* Image Upload Area */}
           <div className="space-y-3">
-            <div
-              onClick={triggerImageSelection}
-              className={`relative w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:bg-brand-50/50 transition-all overflow-hidden ${imagePreview ? 'border-none ring-1 ring-gray-100' : ''}`}
-            >
-              {imagePreview ? (
-                <>
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                    <div className="bg-white/90 backdrop-blur text-gray-900 px-4 py-2 rounded-full font-medium text-sm flex items-center gap-2">
-                      <Camera size={16} /> {t('modal.change_img')}
-                    </div>
-                  </div>
-                </>
-              ) : (
+            {images.length === 0 ? (
+              /* Empty state — full upload zone */
+              <div
+                onClick={triggerImageSelection}
+                className="relative w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:bg-brand-50/50 transition-all overflow-hidden"
+              >
                 <div className="text-center p-6 space-y-3">
                   <div className="w-16 h-16 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
                     <Upload size={28} />
@@ -259,15 +330,69 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
                     <p className="text-sm text-gray-400 mt-1">{t('modal.upload_hint')}</p>
                   </div>
                 </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageSelect}
-              />
-            </div>
+              </div>
+            ) : (
+              /* Image grid — thumbnails with add button */
+              <div className="grid grid-cols-3 gap-2">
+                {images.map((img, idx) => (
+                  <div
+                    key={img.id}
+                    draggable
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={() => handleDrop(idx)}
+                    onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                    className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all group cursor-grab active:cursor-grabbing ${dragOverIdx === idx ? 'border-brand-500 scale-105' :
+                        idx === 0 ? 'border-brand-400' : 'border-gray-100'
+                      }`}
+                  >
+                    <img src={img.preview} alt="" className="w-full h-full object-cover" />
+
+                    {/* Cover badge for first image */}
+                    {idx === 0 && (
+                      <div className="absolute top-1.5 left-1.5 bg-brand-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                        <Star size={8} fill="currentColor" />
+                        {t('modal.cover') || '封面'}
+                      </div>
+                    )}
+
+                    {/* Delete button — visible on hover */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeImage(img.id); }}
+                      className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                    >
+                      <X size={12} />
+                    </button>
+
+                    {/* Drag handle */}
+                    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/40 text-white px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-all">
+                      <GripVertical size={10} />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add more button */}
+                {images.length < MAX_IMAGES && (
+                  <div
+                    onClick={triggerImageSelection}
+                    className="aspect-square rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:bg-brand-50/50 transition-all"
+                  >
+                    <Plus size={24} className="text-gray-400" />
+                    <span className="text-[10px] font-bold text-gray-400 mt-1">{images.length}/{MAX_IMAGES}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleImageSelect}
+            />
 
             {/* AI Status Bar */}
             <div className="h-6">
@@ -425,7 +550,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white">
           <button
             onClick={handleSubmit}
-            disabled={!imagePreview || !userLocation || !formData.deliveryType || aiStatus === 'analyzing' || isUploading}
+            disabled={images.length === 0 || !userLocation || !formData.deliveryType || aiStatus === 'analyzing' || isUploading}
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-200 hover:shadow-brand-300 transition-all active:scale-[0.98] text-lg flex items-center justify-center gap-2"
           >
             {aiStatus === 'analyzing' ? (
@@ -436,9 +561,18 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
             ) : isUploading ? (
               <>
                 <Loader2 size={20} className="animate-spin" />
-                Processing...
+                {t('modal.uploading') || `Uploading ${uploadProgress}/${images.length}...`}
               </>
-            ) : t('modal.submit')}
+            ) : (
+              <>
+                {t('modal.submit')}
+                {images.length > 0 && (
+                  <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1">
+                    {images.length} {images.length === 1 ? 'foto' : 'fotos'}
+                  </span>
+                )}
+              </>
+            )}
           </button>
         </div>
       </div>
