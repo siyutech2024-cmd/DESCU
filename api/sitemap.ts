@@ -1,5 +1,5 @@
 
-import { generateSitemap } from '../server/src/controllers/seoController';
+import { generateSitemap } from './_lib/controllers/seoController';
 
 export default async function handler(req, res) {
     // Vercel Serverless Function wrapper
