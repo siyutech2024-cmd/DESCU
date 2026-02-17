@@ -38,6 +38,7 @@ export const ChatList: React.FC<ChatListProps> = ({
     } catch { return new Set(); }
   });
   const [contextMenu, setContextMenu] = useState<{ convId: string; x: number; y: number } | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // iOS 滑动删除状态
   const [swipedConvId, setSwipedConvId] = useState<string | null>(null);
@@ -329,9 +330,8 @@ export const ChatList: React.FC<ChatListProps> = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (window.confirm(t('chat.delete_confirm'))) {
-                                  handleDeleteConversation(conv.id);
-                                }
+                                setConfirmDeleteId(conv.id);
+                                setSwipedConvId(null);
                               }}
                               className="w-14 bg-red-500 text-white flex flex-col items-center justify-center gap-0.5"
                             >
@@ -429,9 +429,8 @@ export const ChatList: React.FC<ChatListProps> = ({
             </button>
             <button
               onClick={() => {
-                if (window.confirm(t('chat.delete_confirm'))) {
-                  handleDeleteConversation(contextMenu.convId);
-                }
+                setConfirmDeleteId(contextMenu.convId);
+                setContextMenu(null);
               }}
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3"
             >
@@ -440,6 +439,38 @@ export const ChatList: React.FC<ChatListProps> = ({
             </button>
           </div>
         </>
+      )}
+
+      {/* 自定义删除确认对话框 */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 animate-fade-in" onClick={() => setConfirmDeleteId(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 mx-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 size={20} className="text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">{t('chat.delete_conversation')}</h3>
+            </div>
+            <p className="text-gray-500 text-sm mb-5">{t('chat.delete_confirm')}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                {t('chat.cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteConversation(confirmDeleteId);
+                  setConfirmDeleteId(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+              >
+                {t('chat.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 隐藏的对话恢复提示 */}
