@@ -89,7 +89,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     subcategory: undefined,
     price: '',
     currency: 'MXN',
-    deliveryType: null, // Force user selection
+    deliveryType: DeliveryType.Meetup, // Default to in-person meetup
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,7 +104,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         subcategory: undefined,
         price: '',
         currency: regionCurrency,
-        deliveryType: null
+        deliveryType: DeliveryType.Meetup
       });
       setAiStatus('idle');
       setIsUploading(false);
@@ -343,7 +343,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
                     onDrop={() => handleDrop(idx)}
                     onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
                     className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all group cursor-grab active:cursor-grabbing ${dragOverIdx === idx ? 'border-brand-500 scale-105' :
-                        idx === 0 ? 'border-brand-400' : 'border-gray-100'
+                      idx === 0 ? 'border-brand-400' : 'border-gray-100'
                       }`}
                   >
                     <img src={img.preview} alt="" className="w-full h-full object-cover" />
