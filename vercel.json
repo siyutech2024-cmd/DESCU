@@ -10,6 +10,13 @@
         },
         {
             "source": "/product/:id",
+            "has": [
+                {
+                    "type": "header",
+                    "key": "user-agent",
+                    "value": "(?i).*(googlebot|bingbot|yandexbot|duckduckbot|slurp|baiduspider|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot).*"
+                }
+            ],
             "destination": "/api/prerender?path=/product/:id"
         },
         {

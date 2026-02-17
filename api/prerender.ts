@@ -1,42 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Bot User-Agent patterns
-const BOT_PATTERNS = [
-    'googlebot', 'bingbot', 'yandexbot', 'duckduckbot', 'slurp',
-    'baiduspider', 'facebookexternalhit', 'twitterbot', 'linkedinbot',
-    'whatsapp', 'telegrambot', 'applebot', 'pinterest', 'semrushbot',
-    'ahrefsbot', 'mj12bot', 'dotbot', 'petalbot',
-];
-
-function isBot(userAgent: string): boolean {
-    const ua = userAgent.toLowerCase();
-    return BOT_PATTERNS.some(bot => ua.includes(bot));
-}
-
-// Detect language from Accept-Language header or query param
+// Detect language from query param only (?lang=zh|en|es)
+// Since this endpoint only serves bots/crawlers (filtered by vercel.json UA condition),
+// we default to Spanish (Mexico market). Accept-Language is unreliable for crawlers.
 function detectLanguage(req: any): 'zh' | 'en' | 'es' {
-    // Query param takes priority (?lang=zh)
     const queryLang = req.query?.lang;
     if (queryLang === 'zh' || queryLang === 'en' || queryLang === 'es') return queryLang;
-
-    // Check Accept-Language header
-    const acceptLang = (req.headers?.['accept-language'] || '').toLowerCase();
-    if (acceptLang.includes('zh')) return 'zh';
-    if (acceptLang.includes('en')) return 'en';
-    // Default to Spanish (primary market: Mexico)
     return 'es';
 }
 
 function getLocalizedText(product: any, field: string, lang: 'zh' | 'en' | 'es'): string {
-    // Try language-specific field first, then fallback chain
     const langField = `${field}_${lang}`;
     if (product[langField]) return product[langField];
-    // Fallback: es → base → en → zh
     if (product[`${field}_es`]) return product[`${field}_es`];
     if (product[field]) return product[field];
     if (product[`${field}_en`]) return product[`${field}_en`];
@@ -59,111 +37,17 @@ function formatPrice(price: number, currency: string = 'MXN'): string {
     return `$${price.toLocaleString('en-US')} ${currency}`;
 }
 
-// Try to read the SPA index.html for non-bot requests
-function getSpaHtml(): string | null {
-    try {
-        // In Vercel, the built files are in the output directory
-        const possiblePaths = [
-            path.join(process.cwd(), 'dist', 'index.html'),
-            path.join(process.cwd(), 'index.html'),
-            path.join(__dirname, '..', 'dist', 'index.html'),
-            path.join(__dirname, '..', 'index.html'),
-        ];
-        for (const p of possiblePaths) {
-            if (fs.existsSync(p)) {
-                return fs.readFileSync(p, 'utf-8');
-            }
-        }
-    } catch (e) {
-        // Ignore
-    }
-    return null;
-}
-
 export default async function handler(req: any, res: any) {
     const pathParam = req.query?.path || '';
     const productMatch = pathParam.match(/^\/product\/([a-zA-Z0-9_-]+)$/);
 
     if (!productMatch) {
-        // Not a product page, return SPA
-        const spaHtml = getSpaHtml();
-        if (spaHtml) {
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.status(200).send(spaHtml);
-        }
         return res.status(404).send('Not found');
     }
 
     const productId = productMatch[1];
-    const userAgent = req.headers?.['user-agent'] || '';
-    const isBotRequest = isBot(userAgent);
     const lang = detectLanguage(req);
 
-    // For non-bot requests, serve the SPA shell with injected meta tags
-    if (!isBotRequest) {
-        const spaHtml = getSpaHtml();
-        if (spaHtml) {
-            // Inject minimal product meta tags into the SPA HTML head
-            // The React app will handle full rendering
-            try {
-                if (supabaseUrl && supabaseKey) {
-                    const supabase = createClient(supabaseUrl, supabaseKey);
-                    const { data: product } = await supabase
-                        .from('products')
-                        .select('title, title_es, description, description_es, images, price, currency')
-                        .eq('id', productId)
-                        .single();
-
-                    if (product) {
-                        const title = getLocalizedText(product, 'title', lang) || 'Producto en DESCU';
-                        const desc = getLocalizedText(product, 'description', lang) || '';
-                        const img = product.images?.[0] || 'https://descu.ai/og-image.png';
-                        const productUrl = `https://descu.ai/product/${productId}`;
-
-                        // Replace the generic meta tags with product-specific ones
-                        let modifiedHtml = spaHtml
-                            .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)} - DESCU</title>`)
-                            .replace(
-                                /<meta name="description"[^>]*\/>/,
-                                `<meta name="description" content="${escapeHtml(desc.substring(0, 160))}" />`
-                            )
-                            .replace(
-                                /<meta property="og:title"[^>]*\/>/,
-                                `<meta property="og:title" content="${escapeHtml(title)} - DESCU" />`
-                            )
-                            .replace(
-                                /<meta property="og:description"[^>]*\/>/,
-                                `<meta property="og:description" content="${escapeHtml(desc.substring(0, 200))}" />`
-                            )
-                            .replace(
-                                /<meta property="og:image" content="[^"]*"[^>]*\/>/,
-                                `<meta property="og:image" content="${escapeHtml(img)}" />`
-                            )
-                            .replace(
-                                /<meta property="og:url"[^>]*\/>/,
-                                `<meta property="og:url" content="${productUrl}" />`
-                            )
-                            .replace(
-                                /<link rel="canonical"[^>]*\/>/,
-                                `<link rel="canonical" href="${productUrl}" />`
-                            );
-
-                        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-                        res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
-                        return res.status(200).send(modifiedHtml);
-                    }
-                }
-            } catch (e) {
-                // Fallback to original SPA
-            }
-
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.status(200).send(spaHtml);
-        }
-        return res.status(404).send('Not found');
-    }
-
-    // === BOT REQUEST: Full prerendered HTML ===
     try {
         if (!supabaseUrl || !supabaseKey) {
             throw new Error('Supabase not configured');
@@ -189,13 +73,24 @@ export default async function handler(req: any, res: any) {
         res.status(200).send(html);
     } catch (err) {
         console.error('[Prerender] Error:', err);
-        const spaHtml = getSpaHtml();
-        if (spaHtml) {
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.status(200).send(spaHtml);
-        }
         res.status(500).send('Internal Server Error');
     }
+}
+
+function generateNotFoundHtml(): string {
+    return `<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+    <meta charset="UTF-8" />
+    <title>Producto no encontrado - DESCU</title>
+    <meta name="robots" content="noindex" />
+</head>
+<body>
+    <h1>Producto no encontrado</h1>
+    <p>El producto que buscas no está disponible.</p>
+    <a href="https://descu.ai/">Volver a DESCU</a>
+</body>
+</html>`;
 }
 
 function generateProductHtml(product: any, lang: 'zh' | 'en' | 'es' = 'es'): string {
@@ -233,7 +128,7 @@ function generateProductHtml(product: any, lang: 'zh' | 'en' | 'es' = 'es'): str
             {
                 "@type": "BreadcrumbList",
                 "itemListElement": [
-                    { "@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://descu.ai/" },
+                    { "@type": "ListItem", "position": 1, "name": l.home, "item": "https://descu.ai/" },
                     { "@type": "ListItem", "position": 2, "name": category, "item": `https://descu.ai/?category=${category}` },
                     { "@type": "ListItem", "position": 3, "name": title, "item": productUrl }
                 ]
@@ -296,9 +191,6 @@ function generateProductHtml(product: any, lang: 'zh' | 'en' | 'es' = 'es'): str
     <meta name="twitter:image" content="${escapeHtml(mainImage)}" />
 
     <script type="application/ld+json">${jsonLd}</script>
-
-    <meta name="theme-color" content="#ec4899" />
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
 </head>
 <body>
     <div id="root">
@@ -322,29 +214,10 @@ function generateProductHtml(product: any, lang: 'zh' | 'en' | 'es' = 'es'): str
                 <h2 style="font-size:18px;margin-bottom:8px;">${escapeHtml(l.desc)}</h2>
                 <p>${escapeHtml(description)}</p>
             </div>
-            <a href="${productUrl}" style="display:inline-block;background:#ec4899;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:16px;">${escapeHtml(l.viewBtn)}</a>
         </main>
         <footer style="text-align:center;padding:20px;color:#999;font-size:12px;">
             <p>&copy; 2024 DESCU. ${escapeHtml(l.marketplace)}</p>
         </footer>
-    </div>
-</body>
-</html>`;
-}
-
-function generateNotFoundHtml(): string {
-    return `<!DOCTYPE html>
-<html lang="es-MX">
-<head>
-    <meta charset="UTF-8" />
-    <title>Producto no encontrado - DESCU</title>
-    <meta name="robots" content="noindex" />
-    <meta name="description" content="Este producto ya no está disponible en DESCU." />
-</head>
-<body>
-    <div id="root">
-        <h1>Producto no encontrado</h1>
-        <p>Este producto ya no está disponible. <a href="https://descu.ai/">Volver a DESCU</a></p>
     </div>
 </body>
 </html>`;
