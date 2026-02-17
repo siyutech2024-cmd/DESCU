@@ -43,6 +43,7 @@ export const ChatList: React.FC<ChatListProps> = ({
   const [swipedConvId, setSwipedConvId] = useState<string | null>(null);
   const touchStartX = useRef<number>(0);
   const touchCurrentX = useRef<number>(0);
+  const [deletedConversations, setDeletedConversations] = useState<Set<string>>(new Set());
 
   // 分类对话
   const categorizedConversations = useMemo(() => {
@@ -73,7 +74,7 @@ export const ChatList: React.FC<ChatListProps> = ({
     }
 
     return filtered.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-  }, [categorizedConversations, activeTab, hiddenConversations]);
+  }, [categorizedConversations, activeTab, hiddenConversations, deletedConversations]);
 
   // 按产品分组
   const productGroups = useMemo(() => {
@@ -144,7 +145,6 @@ export const ChatList: React.FC<ChatListProps> = ({
   };
 
   // 真正删除对话（后端软删除）
-  const [deletedConversations, setDeletedConversations] = useState<Set<string>>(new Set());
   const handleDeleteConversation = async (convId: string) => {
     try {
       await deleteConversation(convId, currentUser.id);
