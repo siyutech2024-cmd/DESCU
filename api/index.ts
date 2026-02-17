@@ -15,7 +15,8 @@ import {
     getUserConversations,
     sendMessage,
     getMessages,
-    markMessagesAsRead
+    markMessagesAsRead,
+    deleteConversation
 } from './_lib/controllers/chatController.js';
 
 import {
@@ -114,6 +115,7 @@ app.post('/api/messages', sendMessage);
 app.get('/api/conversations/:conversationId/messages', getMessages); // Old route
 app.get('/api/messages/:conversationId', getMessages); // New route - matches frontend
 app.put('/api/messages/:conversationId/read', markMessagesAsRead);
+app.delete('/api/conversations/:conversationId', deleteConversation);
 
 
 // Payment Endpoints

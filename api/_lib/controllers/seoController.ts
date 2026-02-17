@@ -18,16 +18,17 @@ export const generateSitemap = async (req: any, res: any) => {
         const protocol = forwardedProto ? (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto) : 'https';
         const baseUrl = `${protocol}://${host}`;
 
-        const staticRoutes = [
-            '',
-            '/chat',
-            '/profile'
+        const today = new Date().toISOString().split('T')[0];
+
+        const categories = [
+            'Electronics', 'Vehicles', 'RealEstate', 'Furniture',
+            'Clothing', 'Sports', 'Books', 'Services', 'Other'
         ];
 
         // 2. Fetch Products
         const { data: products } = await supabase
             .from('products')
-            .select('id, updated_at')
+            .select('id, updated_at, title, title_es, title_en')
             .eq('status', 'active')
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
@@ -35,27 +36,49 @@ export const generateSitemap = async (req: any, res: any) => {
 
         // 3. Generate XML
         let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">`;
 
-        // Add Static
-        staticRoutes.forEach(route => {
+        // Homepage
+        xml += `
+   <url>
+      <loc>${baseUrl}/</loc>
+      <lastmod>${today}</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1.0</priority>
+      <xhtml:link rel="alternate" hreflang="es-MX" href="${baseUrl}/" />
+      <xhtml:link rel="alternate" hreflang="x-default" href="${baseUrl}/" />
+   </url>`;
+
+        // Privacy Policy
+        xml += `
+   <url>
+      <loc>${baseUrl}/privacy-policy</loc>
+      <lastmod>${today}</lastmod>
+      <changefreq>monthly</changefreq>
+      <priority>0.3</priority>
+   </url>`;
+
+        // Category Pages
+        categories.forEach(cat => {
             xml += `
    <url>
-      <loc>${baseUrl}${route}</loc>
+      <loc>${baseUrl}/?category=${cat}</loc>
+      <lastmod>${today}</lastmod>
       <changefreq>daily</changefreq>
-      <priority>0.8</priority>
+      <priority>0.7</priority>
    </url>`;
         });
 
-        // Add Products
+        // Product Pages
         if (products) {
             products.forEach(p => {
                 xml += `
    <url>
       <loc>${baseUrl}/product/${p.id}</loc>
-      <lastmod>${new Date(p.updated_at).toISOString()}</lastmod>
+      <lastmod>${new Date(p.updated_at).toISOString().split('T')[0]}</lastmod>
       <changefreq>weekly</changefreq>
-      <priority>1.0</priority>
+      <priority>0.9</priority>
    </url>`;
             });
         }

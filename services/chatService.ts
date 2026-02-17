@@ -153,3 +153,23 @@ export const subscribeToConversations = (
         supabase.removeChannel(channel);
     };
 };
+
+// 用户软删除对话（后端保留记录）
+export const deleteConversation = async (
+    conversationId: string,
+    userId: string
+): Promise<{ success: boolean }> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+        });
+
+        if (!response.ok) throw new Error('Failed to delete conversation');
+        return await response.json();
+    } catch (error) {
+        console.error('Error deleting conversation:', error);
+        throw error;
+    }
+};

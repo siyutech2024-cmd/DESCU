@@ -82,25 +82,31 @@ export const getUserConversations = async (req: Request, res: Response) => {
         }
 
         const conversationsWithDetails = await Promise.all(
-            (data || []).map(async (conversation) => {
-                // Public info read (Products) works with anon client too, but scoped is safer/consistent
-                const { data: product } = await supabaseClient
-                    .from('products')
-                    .select('title, images, seller_id, seller_name, seller_avatar')
-                    .eq('id', conversation.product_id)
-                    .single();
+            (data || [])
+                .filter((conversation: any) => {
+                    // 过滤用户已软删除的对话
+                    const deletedBy: string[] = conversation.deleted_by || [];
+                    return !deletedBy.includes(userId as string);
+                })
+                .map(async (conversation: any) => {
+                    // Public info read (Products) works with anon client too, but scoped is safer/consistent
+                    const { data: product } = await supabaseClient
+                        .from('products')
+                        .select('title, images, seller_id, seller_name, seller_avatar')
+                        .eq('id', conversation.product_id)
+                        .single();
 
-                return {
-                    ...conversation,
-                    productTitle: product?.title || '未知商品',
-                    productImage: product?.images?.[0] || '',
-                    sellerInfo: product ? {
-                        id: product.seller_id,
-                        name: product.seller_name,
-                        avatar: product.seller_avatar
-                    } : null
-                };
-            })
+                    return {
+                        ...conversation,
+                        productTitle: product?.title || '未知商品',
+                        productImage: product?.images?.[0] || '',
+                        sellerInfo: product ? {
+                            id: product.seller_id,
+                            name: product.seller_name,
+                            avatar: product.seller_avatar
+                        } : null
+                    };
+                })
         );
 
         console.log(`[Chat] Found ${data?.length || 0} conversations for user: ${userId}`);
@@ -187,5 +193,45 @@ export const markMessagesAsRead = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error marking messages as read:', error);
         res.status(500).json({ error: 'Failed to mark messages as read' });
+    }
+};
+
+// 用户软删除对话（后台保留记录）
+export const deleteConversation = async (req: Request, res: Response) => {
+    try {
+        const { conversationId } = req.params;
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
+        }
+
+        // 先获取当前 deleted_by 数组
+        const { data: conv, error: fetchError } = await supabase
+            .from('conversations')
+            .select('deleted_by')
+            .eq('id', conversationId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        // 追加用户ID到 deleted_by（避免重复）
+        const currentDeleted: string[] = conv?.deleted_by || [];
+        if (!currentDeleted.includes(userId)) {
+            currentDeleted.push(userId);
+        }
+
+        const { error: updateError } = await supabase
+            .from('conversations')
+            .update({ deleted_by: currentDeleted })
+            .eq('id', conversationId);
+
+        if (updateError) throw updateError;
+
+        console.log(`[Chat] Conversation ${conversationId} soft-deleted by user ${userId}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting conversation:', error);
+        res.status(500).json({ error: 'Failed to delete conversation' });
     }
 };

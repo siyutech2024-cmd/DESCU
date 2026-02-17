@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { deleteConversation } from '../services/chatService';
 import { MessageCircle, Clock, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
 
 interface ChatListProps {
@@ -65,7 +66,7 @@ export const ChatList: React.FC<ChatListProps> = ({
 
   // 根据标签筛选（排除隐藏的对话）
   const filteredConversations = useMemo(() => {
-    let filtered = categorizedConversations.filter(conv => !hiddenConversations.has(conv.id));
+    let filtered = categorizedConversations.filter(conv => !hiddenConversations.has(conv.id) && !deletedConversations.has(conv.id));
 
     if (activeTab !== 'all') {
       filtered = filtered.filter(conv => conv.category === activeTab);
@@ -140,6 +141,19 @@ export const ChatList: React.FC<ChatListProps> = ({
       return next;
     });
     setContextMenu(null);
+  };
+
+  // 真正删除对话（后端软删除）
+  const [deletedConversations, setDeletedConversations] = useState<Set<string>>(new Set());
+  const handleDeleteConversation = async (convId: string) => {
+    try {
+      await deleteConversation(convId, currentUser.id);
+      setDeletedConversations(prev => new Set(prev).add(convId));
+      setContextMenu(null);
+      setSwipedConvId(null);
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
   };
 
   // 显示右键/长按菜单
@@ -316,7 +330,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (window.confirm(t('chat.delete_confirm'))) {
-                                  handleHideConversation(conv.id);
+                                  handleDeleteConversation(conv.id);
                                 }
                               }}
                               className="w-14 bg-red-500 text-white flex flex-col items-center justify-center gap-0.5"
@@ -416,7 +430,7 @@ export const ChatList: React.FC<ChatListProps> = ({
             <button
               onClick={() => {
                 if (window.confirm(t('chat.delete_confirm'))) {
-                  handleHideConversation(contextMenu.convId);
+                  handleDeleteConversation(contextMenu.convId);
                 }
               }}
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-3"

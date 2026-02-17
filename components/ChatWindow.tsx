@@ -183,7 +183,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         console.error('Failed to send message:', error);
         pendingMessageIds.current.delete(tempId);
         setMessages(prev => prev.filter(m => m.id !== tempId));
-        alert('Send failed, please retry');
+        alert(t('chat.send_failed'));
       } finally {
         setIsSending(false);
       }
@@ -266,7 +266,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           <h2 className="font-bold text-gray-900 truncate leading-tight">{conversation.otherUser.name}</h2>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-            <p className="text-xs text-brand-600 font-medium truncate">活跃中 / En línea</p>
+            <p className="text-xs text-brand-600 font-medium truncate">{t('chat.online')}</p>
           </div>
         </div>
 
@@ -276,7 +276,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <button
               onClick={() => setIsMeetupModalOpen(true)}
               className="p-2 text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors mr-1"
-              title="Arrange Meetup"
+              title={t('chat.arrange_meetup_btn')}
             >
               <MapPin size={20} />
             </button>
@@ -297,16 +297,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
               <div className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 z-40 overflow-hidden animate-fade-in-up origin-top-right">
                 <button
-                  onClick={() => { setShowMenu(false); alert('User reported'); }}
+                  onClick={() => { setShowMenu(false); alert(t('chat.user_reported')); }}
                   className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-500 text-sm font-medium transition-colors border-b border-gray-100"
                 >
-                  举报用户 / Reportar
+                  {t('chat.report_user')}
                 </button>
                 <button
-                  onClick={() => { setShowMenu(false); alert('User blocked'); }}
+                  onClick={() => { setShowMenu(false); alert(t('chat.user_blocked')); }}
                   className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
                 >
-                  屏蔽用户 / Bloquear
+                  {t('chat.block_user')}
                 </button>
               </div>
             </>
@@ -327,7 +327,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-900 truncate">{conversation.productTitle}</p>
-            <p className="text-xs text-brand-600 font-medium">点击查看详情 / Ver detalles</p>
+            <p className="text-xs text-brand-600 font-medium">{t('chat.view_product')}</p>
           </div>
 
           {/* 议价按钮 */}
@@ -339,7 +339,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               }}
               className="text-xs bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md"
             >
-              Ofertar
+              {t('chat.make_offer')}
             </button>
           )}
 
@@ -396,10 +396,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               {isLoadingMore ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>加载中...</span>
+                  <span>{t('chat.loading')}</span>
                 </>
               ) : (
-                <span>加载更早的消息 / Cargar más</span>
+                <span>{t('chat.load_earlier')}</span>
               )}
             </button>
           </div>
@@ -630,7 +630,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   setShowLocation(false);
                 }}
                 className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full ${showNegotiation ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
-                title="议价"
+                title={t('chat.ask_price')}
               >
                 <DollarSign size={18} className="sm:w-[22px] sm:h-[22px]" />
               </button>
@@ -645,7 +645,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 setShowNegotiation(false);
               }}
               className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full ${showLocation ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
-              title="分享位置"
+              title={t('chat.share_location')}
             >
               <MapPin size={18} className="sm:w-[22px] sm:h-[22px]" />
             </button>
@@ -661,7 +661,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 setShowImages(false);
               }}
               className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full ${showMeetupTime ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
-              title="约定时间"
+              title={t('chat.arrange_meetup')}
             >
               <Clock size={18} className="sm:w-[22px] sm:h-[22px]" />
             </button>

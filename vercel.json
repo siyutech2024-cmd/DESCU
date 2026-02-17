@@ -9,6 +9,10 @@
             "destination": "/api/sitemap"
         },
         {
+            "source": "/product/:id",
+            "destination": "/api/prerender?path=/product/:id"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/index"
         },
