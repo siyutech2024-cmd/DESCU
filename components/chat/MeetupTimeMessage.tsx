@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, MapPin, CheckCircle, X, Edit2 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface MeetupTimeMessageProps {
     content: {
@@ -26,6 +27,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
     currentUserId,
     onUpdate
 }) => {
+    const { t, language } = useLanguage();
     const {
         datetime,
         date,
@@ -41,8 +43,9 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
     const isProposer = proposed_by === currentUserId;
     const canRespond = !isProposer && status === 'proposed';
 
+    const locale = language === 'zh' ? 'zh-CN' : language === 'es' ? 'es-MX' : 'en-US';
     const meetupDate = new Date(datetime);
-    const dateFormatted = meetupDate.toLocaleDateString('zh-CN', {
+    const dateFormatted = meetupDate.toLocaleDateString(locale, {
         weekday: 'long',
         month: 'long',
         day: 'numeric'
@@ -51,8 +54,6 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
     const handleConfirm = async () => {
         setIsResponding(true);
         try {
-            // 这里可以更新消息状态或发送确认消息
-            // 简化版：发送新的确认消息
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
@@ -68,13 +69,13 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
                 sender_id: session.user.id,
                 message_type: 'meetup_time',
                 content: confirmContent,
-                text: `✅ 确认见面时间: ${date} ${time}`
+                text: `✅ ${t('meetup.confirmed')}: ${date} ${time}`
             });
 
             onUpdate?.();
         } catch (error) {
             console.error('Error confirming meetup:', error);
-            alert('确认失败，请重试');
+            alert(t('meetup.alert_confirm_failed'));
         } finally {
             setIsResponding(false);
         }
@@ -84,25 +85,25 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
         proposed: {
             bg: 'from-amber-50 to-orange-50',
             border: 'border-amber-200',
-            badge: '⏳ 待确认',
+            badge: t('meetup.status_pending'),
             badgeColor: 'bg-amber-100 text-amber-700'
         },
         confirmed: {
             bg: 'from-green-50 to-emerald-50',
             border: 'border-green-200',
-            badge: '✅ 已确认',
+            badge: t('meetup.status_confirmed'),
             badgeColor: 'bg-green-100 text-green-700'
         },
         rejected: {
             bg: 'from-red-50 to-pink-50',
             border: 'border-red-200',
-            badge: '❌ 已拒绝',
+            badge: t('meetup.status_rejected'),
             badgeColor: 'bg-red-100 text-red-700'
         },
         counter_proposed: {
             bg: 'from-blue-50 to-indigo-50',
             border: 'border-blue-200',
-            badge: '🔄 建议新时间',
+            badge: t('meetup.status_counter'),
             badgeColor: 'bg-blue-100 text-blue-700'
         }
     };
@@ -118,7 +119,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
                         <Calendar className="text-white" size={20} />
                     </div>
                     <div>
-                        <h4 className="font-bold text-gray-900 text-sm">见面时间</h4>
+                        <h4 className="font-bold text-gray-900 text-sm">{t('meetup.title')}</h4>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${config.badgeColor}`}>
                             {config.badge}
                         </span>
@@ -129,7 +130,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
             {/* Product Title */}
             {product_title && (
                 <div className="mb-3 pb-3 border-b border-gray-200/50">
-                    <p className="text-xs text-gray-500">关于商品</p>
+                    <p className="text-xs text-gray-500">{t('meetup.about_product')}</p>
                     <p className="text-sm font-medium text-gray-900 truncate">{product_title}</p>
                 </div>
             )}
@@ -139,7 +140,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
                 <div className="flex items-start gap-2">
                     <Calendar size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                        <p className="text-sm text-gray-600">日期</p>
+                        <p className="text-sm text-gray-600">{t('meetup.date_label')}</p>
                         <p className="font-bold text-gray-900">{dateFormatted}</p>
                     </div>
                 </div>
@@ -147,16 +148,16 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
                 <div className="flex items-start gap-2">
                     <Clock size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
-                        <p className="text-sm text-gray-600">时间</p>
+                        <p className="text-sm text-gray-600">{t('meetup.time_label')}</p>
                         <p className="font-bold text-gray-900">{time}</p>
                     </div>
                 </div>
 
-                {location && location !== '待确定' && (
+                {location && location !== t('meetup.location_tbd') && (
                     <div className="flex items-start gap-2">
                         <MapPin size={18} className="text-amber-600 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
-                            <p className="text-sm text-gray-600">地点</p>
+                            <p className="text-sm text-gray-600">{t('meetup.location_detail')}</p>
                             <p className="font-medium text-gray-900">{location}</p>
                         </div>
                     </div>
@@ -166,7 +167,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
             {/* Note */}
             {note && (
                 <div className="mb-4 p-3 bg-white/60 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">备注</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('meetup.note_detail')}</p>
                     <p className="text-sm text-gray-700">{note}</p>
                 </div>
             )}
@@ -180,14 +181,14 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
                         className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2.5 rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-md disabled:opacity-50"
                     >
                         <CheckCircle size={16} />
-                        <span className="text-sm">确认</span>
+                        <span className="text-sm">{t('meetup.confirm_btn')}</span>
                     </button>
 
                     <button
                         className="flex items-center justify-center gap-2 bg-white text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition-all border-2 border-gray-200"
                     >
                         <Edit2 size={16} />
-                        <span className="text-sm">建议新时间</span>
+                        <span className="text-sm">{t('meetup.suggest_new')}</span>
                     </button>
                 </div>
             )}
@@ -195,7 +196,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
             {/* Info for proposer */}
             {isProposer && status === 'proposed' && (
                 <div className="mt-3 text-center text-xs text-gray-500">
-                    等待对方确认...
+                    {t('meetup.waiting')}
                 </div>
             )}
 
@@ -203,7 +204,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
             {status === 'confirmed' && (
                 <div className="mt-3 p-3 bg-green-100/50 rounded-lg text-center">
                     <p className="text-sm text-green-700 font-medium">
-                        ✅ 见面时间已确定
+                        ✅ {t('meetup.confirmed')}
                     </p>
                 </div>
             )}

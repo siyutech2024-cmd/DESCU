@@ -125,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
             className="md:hidden flex-shrink-0 p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-            title="重新定位"
+            title={t('nav.relocate')}
           >
             <MapPin size={18} />
           </button>

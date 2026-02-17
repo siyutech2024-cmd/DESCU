@@ -58,7 +58,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
 
     const handlePropose = async () => {
         if (!proposedPrice || parseFloat(proposedPrice) <= 0) {
-            toast.error('请输入有效的价格 / Por favor ingresa un precio válido');
+            toast.error(t('negotiate.invalid_price'));
             return;
         }
 
@@ -66,7 +66,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                toast.error('请先登录 / Por favor inicia sesión');
+                toast.error(t('negotiate.login_first'));
                 return;
             }
 
@@ -108,11 +108,11 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
             console.log('[Negotiation] Success:', result);
 
             setProposedPrice('');
-            toast.success('议价已发送 / Oferta enviada ✓');
+            toast.success(t('negotiate.sent'));
             onSent?.();
         } catch (error: any) {
             console.error('[Negotiation] Error proposing price:', error);
-            toast.error(error.message || '发送议价失败，请重试 / Error al enviar oferta');
+            toast.error(error.message || t('negotiate.send_failed'));
         } finally {
             setIsSending(false);
         }
@@ -138,7 +138,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                     </div>
                     <div>
                         <h4 className="font-bold text-gray-900">{t('chat.offer_title')}</h4>
-                        <p className="text-xs text-gray-500">Negociar precio</p>
+                        <p className="text-xs text-gray-500">{t('negotiate.subtitle')}</p>
                     </div>
                 </div>
             </div>
@@ -169,7 +169,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
             <div className="space-y-3">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('chat.your_offer')} / Tu oferta:
+                        {t('negotiate.your_offer')}:
                     </label>
                     <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">$</span>
@@ -189,10 +189,10 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                         <div className="flex items-center gap-2 mt-2 animate-fade-in">
                             <div className="flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
                                 <TrendingDown size={14} />
-                                <span>-{discountPercent}% 优惠 / descuento</span>
+                                <span>-{discountPercent}% {t('negotiate.discount')}</span>
                             </div>
                             <span className="text-sm text-gray-500">
-                                省 ${(actualPrice - parseFloat(proposedPrice)).toLocaleString()}
+                                {t('negotiate.save_amount')} ${(actualPrice - parseFloat(proposedPrice)).toLocaleString()}
                             </span>
                         </div>
                     )}
@@ -200,7 +200,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                     {/* Warning if price too low */}
                     {proposedPrice && parseFloat(discountPercent) > 50 && (
                         <p className="text-xs text-orange-600 mt-2">
-                            ⚠️ 出价过低可能不被接受 / Oferta baja podría ser rechazada
+                            ⚠️ {t('negotiate.low_warning')}
                         </p>
                     )}
                 </div>
@@ -217,7 +217,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                         ) : (
                             <DollarSign size={18} />
                         )}
-                        {isSending ? '发送中...' : t('chat.send_offer')}
+                        {isSending ? t('negotiate.sending') : t('chat.send_offer')}
                     </button>
                     <button
                         onClick={() => onSent?.()}
@@ -226,7 +226,7 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                         {t('chat.cancel')}
                     </button>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };

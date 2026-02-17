@@ -83,7 +83,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
         {product.status === 'sold' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <div className="bg-red-600 text-white px-4 py-2 rounded-xl font-black text-sm transform -rotate-12 shadow-lg border-2 border-white">
-              已售出 / SOLD
+              {t('product.sold')}
             </div>
           </div>
         )}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, Loader2, ExternalLink, Check, AlertCircle, ChevronRight, ShieldCheck } from 'lucide-react';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface StripeExpressCardProps {
     userId: string;
@@ -18,6 +19,7 @@ interface AccountStatus {
 }
 
 export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) => {
+    const { t } = useLanguage();
     const [status, setStatus] = useState<AccountStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
@@ -135,18 +137,18 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                             <Check size={24} className="text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">收款已启用 / Pagos Activos</h2>
-                            <p className="text-emerald-100 text-sm">Tu cuenta está lista para recibir pagos</p>
+                            <h2 className="text-xl font-bold text-white">{t('stripe.payments_active')}</h2>
+                            <p className="text-emerald-100 text-sm">{t('stripe.ready_desc')}</p>
                         </div>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-emerald-100 text-sm">Estado de cuenta</p>
+                                <p className="text-emerald-100 text-sm">{t('stripe.account_status')}</p>
                                 <p className="text-white font-bold flex items-center gap-2">
                                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                                    Activa / 已激活
+                                    {t('stripe.active')}
                                 </p>
                             </div>
                             <ShieldCheck size={24} className="text-emerald-200" />
@@ -159,7 +161,7 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                         className="w-full bg-white text-emerald-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-50 transition-all shadow-lg"
                     >
                         {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <ExternalLink size={20} />}
-                        Ver Dashboard de Stripe / 查看 Stripe 面板
+                        {t('stripe.view_dashboard')}
                     </button>
                 </div>
             </div>
@@ -178,8 +180,8 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                             <AlertCircle size={24} className="text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">Completar registro / 完成注册</h2>
-                            <p className="text-amber-100 text-sm">Falta información requerida</p>
+                            <h2 className="text-xl font-bold text-white">{t('stripe.complete_setup')}</h2>
+                            <p className="text-amber-100 text-sm">{t('stripe.info_required')}</p>
                         </div>
                     </div>
 
@@ -195,7 +197,7 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                         className="w-full bg-white text-orange-600 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-orange-50 transition-all shadow-lg"
                     >
                         {actionLoading ? <Loader2 size={20} className="animate-spin" /> : <ChevronRight size={20} />}
-                        Continuar con Stripe / 继续注册
+                        {t('stripe.continue')}
                     </button>
                 </div>
             </div>
@@ -214,8 +216,8 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                         <CreditCard size={24} className="text-white" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-white">开始收款 / Recibe Pagos</h2>
-                        <p className="text-purple-100 text-sm">Configura tu cuenta bancaria</p>
+                        <h2 className="text-xl font-bold text-white">{t('stripe.start_title')}</h2>
+                        <p className="text-purple-100 text-sm">{t('stripe.start_desc')}</p>
                     </div>
                 </div>
 
@@ -223,15 +225,15 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                     <ul className="text-white/90 text-sm space-y-2">
                         <li className="flex items-center gap-2">
                             <Check size={14} className="text-purple-200" />
-                            Recibe pagos directamente / 直接接收付款
+                            {t('stripe.benefit_receive')}
                         </li>
                         <li className="flex items-center gap-2">
                             <Check size={14} className="text-purple-200" />
-                            Retiros a tu banco / 提现到银行
+                            {t('stripe.benefit_withdraw')}
                         </li>
                         <li className="flex items-center gap-2">
                             <Check size={14} className="text-purple-200" />
-                            Seguro y verificado / 安全可靠
+                            {t('stripe.benefit_secure')}
                         </li>
                     </ul>
                 </div>
@@ -252,12 +254,12 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
                     ) : (
                         <ExternalLink size={20} />
                     )}
-                    <span>Comenzar ahora / 立即开始</span>
+                    <span>{t('stripe.start_now')}</span>
                 </button>
 
                 <p className="text-center text-purple-100/80 text-xs mt-4 flex items-center justify-center gap-1">
                     <ShieldCheck size={12} />
-                    Powered by Stripe - 安全支付
+                    {t('stripe.powered_by')}
                 </p>
             </div>
         </div>

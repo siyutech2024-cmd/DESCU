@@ -2,23 +2,23 @@ import React from 'react';
 import { supabase } from '../services/supabase';
 import { Browser } from '@capacitor/browser';
 import { Mail, LogOut } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface AuthButtonProps {
     onAuthChange?: (user: any) => void;
 }
 
 export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
+    const { t } = useLanguage();
     const [user, setUser] = React.useState<any>(null);
     const [loading, setLoading] = React.useState(false);
 
     React.useEffect(() => {
-        // 检查当前登录状态
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
             onAuthChange?.(session?.user ?? null);
         });
 
-        // 监听认证状态变化
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -33,18 +33,15 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
         try {
             setLoading(true);
 
-            // 检测是否在Capacitor环境（移动应用）
             const isCapacitor = window.location.protocol === 'capacitor:' ||
                 window.location.protocol === 'ionic:' ||
                 (window as any).Capacitor?.isNativePlatform?.();
 
-            // 在移动端使用deep link，web端使用origin
             const redirectUrl = isCapacitor
                 ? 'com.venya.marketplace://'
                 : window.location.origin;
 
             if (isCapacitor) {
-                // 移动端：使用外部浏览器打开OAuth
                 const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
@@ -58,7 +55,6 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
                     await Browser.open({ url: data.url });
                 }
             } else {
-                // Web端：正常OAuth流程
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
@@ -68,8 +64,8 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
                 if (error) throw error;
             }
         } catch (error) {
-            console.error('登录失败:', error);
-            alert('登录失败，请重试');
+            console.error('Login failed:', error);
+            alert(t('auth.login_failed'));
         } finally {
             setLoading(false);
         }
@@ -80,7 +76,7 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
         } catch (error) {
-            console.error('退出失败:', error);
+            console.error('Logout failed:', error);
         }
     };
 
@@ -98,7 +94,7 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
                 <button
                     onClick={handleLogout}
                     className="p-2 hover:bg-gray-100 rounded-full text-gray-600"
-                    title="退出登录"
+                    title={t('auth.logout')}
                 >
                     <LogOut size={20} />
                 </button>
@@ -114,7 +110,7 @@ export const AuthButton: React.FC<AuthButtonProps> = ({ onAuthChange }) => {
         >
             <Mail size={20} className="text-gray-600" />
             <span className="text-sm font-medium text-gray-700">
-                {loading ? '登录中...' : '使用 Google 登录'}
+                {loading ? t('auth.logging_in') : t('auth.login_google')}
             </span>
         </button>
     );

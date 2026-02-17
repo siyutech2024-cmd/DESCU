@@ -129,7 +129,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 {product.status === 'sold' && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
                     <div className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-3xl transform -rotate-12 shadow-2xl border-4 border-white">
-                      已售出 / SOLD
+                      {t('product.sold')}
                     </div>
                   </div>
                 )}
@@ -215,10 +215,10 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   }`}>
                   <MapPin size={20} className={!purchaseEligibility.canPurchase ? 'text-orange-600' : 'text-blue-600'} />
                   <div className="flex-1">
-                    <h4 className="text-sm font-bold text-gray-900 mb-1">商品位置 / Ubicación</h4>
+                    <h4 className="text-sm font-bold text-gray-900 mb-1">{t('detail.location')}</h4>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm text-gray-700 font-medium">
-                        {product.location_display_name || product.town || product.district || product.city || '未知城市'}, {product.country || 'MX'}
+                        {product.location_display_name || product.town || product.district || product.city || 'N/A'}, {product.country || 'MX'}
                       </p>
                       {product.distance !== undefined && (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${product.distance <= 5
@@ -237,19 +237,19 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                       {product.deliveryType === 'meetup' && (
                         <span className="flex items-center gap-1">
                           <Handshake size={12} />
-                          仅限同城自提 / Solo recoger en persona
+                          {t('delivery.meetup')}
                         </span>
                       )}
                       {product.deliveryType === 'shipping' && (
                         <span className="flex items-center gap-1">
                           <Truck size={12} />
-                          支持快递配送 / Envío disponible
+                          {t('delivery.shipping')}
                         </span>
                       )}
                       {product.deliveryType === 'both' && (
                         <span className="flex items-center gap-1">
                           <Truck size={12} />
-                          支持自提和快递 / Recoger o envío
+                          {t('delivery.both')}
                         </span>
                       )}
                     </div>
@@ -281,7 +281,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                     }`}
                 >
                   <MessageCircle size={22} />
-                  {product.status === 'sold' ? '已售出 / Vendido' : t('detail.contact')}
+                  {product.status === 'sold' ? t('product.sold') : t('detail.contact')}
                 </button>
 
                 <button
@@ -294,7 +294,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   title={!purchaseEligibility.canPurchase ? purchaseEligibility.reason : ''}
                 >
                   <ShoppingBag size={22} />
-                  {product.status === 'sold' ? '已售出 / Vendido' : (!purchaseEligibility.canPurchase ? 'No disponible' : 'Lo quiero')}
+                  {product.status === 'sold' ? t('product.sold') : (!purchaseEligibility.canPurchase ? t('product.not_available') : t('product.want_it'))}
                 </button>
               </div>
 

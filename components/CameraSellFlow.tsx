@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, RefreshCw, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import { Product, Category, DeliveryType } from '../types';
 import { analyzeImageWithGemini } from '../services/geminiService';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CameraSellFlowProps {
     isOpen: boolean;
@@ -12,6 +13,7 @@ interface CameraSellFlowProps {
 }
 
 export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose, onPostProduct, userLocation }) => {
+    const { t } = useLanguage();
     const [step, setStep] = useState<'camera' | 'analyzing' | 'confirm'>('camera');
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -90,12 +92,12 @@ export const CameraSellFlow: React.FC<CameraSellFlowProps> = ({ isOpen, onClose,
             } else {
                 // API Key 可能缺失或 AI 无法识别
                 console.error('[CameraSellFlow] AI returned null - API Key may be missing');
-                setError("AI 无法识别，请手动填写 / AI could not identify. Please fill manually.");
+                setError(t('camera.ai_failed'));
                 setStep('camera'); // Go back
             }
         } catch (err: any) {
             console.error('[CameraSellFlow] AI Analysis error:', err?.message || err);
-            setError(`AI 分析失败 / AI Analysis failed: ${err?.message || 'Unknown error'}`);
+            setError(`${t('camera.ai_failed')}: ${err?.message || 'Unknown error'}`);
             setStep('camera'); // Go back
         }
     };

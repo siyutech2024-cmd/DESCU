@@ -72,7 +72,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [relistingId, setRelistingId] = useState<string | null>(null);
 
   const handleRelist = async (productId: string) => {
-    const confirmed = window.confirm('重新上架需要重新审核，确定继续吗？\nRelisting requires re-review. Continue?');
+    const confirmed = window.confirm(t('product.relist_confirm'));
     if (!confirmed) return;
 
     setRelistingId(productId);
@@ -156,7 +156,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
       });
 
       if (response.ok) {
-        alert("¡Cuenta bancaria guardada! / 银行账户已保存！");
+        alert(t('profile.bank_saved'));
       } else {
         const err = await response.json();
         alert("Error: " + (err.error || 'Unknown error'));
@@ -379,7 +379,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                     <div className="p-3">
                       <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
                       <div className="flex items-center justify-between mt-1">
-                        <p className="font-bold text-red-500">¥{product.price}</p>
+                        <p className="font-bold text-red-500">${product.price}</p>
                         {/* 标记已售出按钮 */}
                         {(product.status === 'active' && !soldProducts.has(product.id)) && (
                           <button
@@ -395,7 +395,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                             ) : (
                               <Check size={10} />
                             )}
-                            已售出
+                            {t('product.mark_sold')}
                           </button>
                         )}
                         {!product.isPromoted && onBoostProduct && product.status === 'active' && !soldProducts.has(product.id) && (
@@ -416,9 +416,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                                   (product.status === 'sold' || soldProducts.has(product.id)) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                               }`}>
                               <Check size={10} />
-                              {(product.status === 'pending_review' || relistedProducts.has(product.id)) ? '审核中' :
-                                product.status === 'rejected' ? '已拒绝' :
-                                  (product.status === 'sold' || soldProducts.has(product.id)) ? '已售出' : product.status}
+                              {(product.status === 'pending_review' || relistedProducts.has(product.id)) ? t('product.pending_review') :
+                                product.status === 'rejected' ? t('product.rejected') :
+                                  (product.status === 'sold' || soldProducts.has(product.id)) ? t('product.sold') : product.status}
                             </span>
                             {/* 重新上架按钮 - 仅已售出产品可见 */}
                             {((product.status === 'sold' || soldProducts.has(product.id)) && !relistedProducts.has(product.id)) && (
@@ -435,7 +435,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                                 ) : (
                                   <Upload size={10} />
                                 )}
-                                重新上架
+                                {t('product.relist')}
                               </button>
                             )}
                           </div>
@@ -460,7 +460,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                   onClick={() => setListingsLimit(6)}
                   className="w-full mt-4 py-2 text-gray-400 hover:text-gray-600 font-medium text-sm transition-colors"
                 >
-                  收起 / Collapse
+                  {t('profile.collapse')}
                 </button>
               )}
             </>
@@ -488,7 +488,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                   <div className="p-3">
                     <h3 className="font-medium text-sm text-gray-900 line-clamp-1">{product.title}</h3>
                     <div className="flex items-center justify-between mt-1">
-                      <p className="font-bold text-red-500">¥{product.price}</p>
+                      <p className="font-bold text-red-500">${product.price}</p>
                       <Heart size={16} className="text-red-500" fill="currentColor" />
                     </div>
                   </div>
@@ -509,7 +509,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         {activeTab === 'selling' && <div className="min-h-[200px]"><OrderList role="seller" currentUser={user} /></div>}
 
         <div className="mt-8 pt-8 border-t border-gray-200">
-          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Settings & Account</h3>
+          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">{t('profile.settings')}</h3>
 
           {/* Stripe Express Payout Section */}
           <SellerPayoutCard userId={user.id} />

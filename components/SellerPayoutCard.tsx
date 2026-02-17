@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface SellerPayoutCardProps {
     userId: string;
@@ -43,6 +44,7 @@ interface BankInfo {
 }
 
 export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) => {
+    const { t } = useLanguage();
     const [payouts, setPayouts] = useState<PayoutItem[]>([]);
     const [summary, setSummary] = useState<PayoutSummary>({ totalEarned: 0, pending: 0, completed: 0 });
     const [bankInfo, setBankInfo] = useState<BankInfo | null>(null);
@@ -99,7 +101,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
 
     const handleSaveBank = async () => {
         if (!bankForm.clabe || bankForm.clabe.length !== 18) {
-            alert('CLABE 必须是 18 位数字 / CLABE debe tener 18 dígitos');
+            alert(t('payout.clabe_error'));
             return;
         }
 
@@ -124,7 +126,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
             setEditingBank(false);
         } catch (err) {
             console.error('Save bank info error:', err);
-            alert('保存失败 / Error al guardar');
+            alert(t('payout.save_error'));
         } finally {
             setSaving(false);
         }
@@ -143,9 +145,9 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
 
     const getStatusLabel = (status: string) => {
         switch (status) {
-            case 'completed': return '已到账 / Recibido';
-            case 'processing': return '处理中 / Procesando';
-            default: return '待转账 / Pendiente';
+            case 'completed': return t('payout.status_received');
+            case 'processing': return t('payout.status_processing');
+            default: return t('payout.status_pending');
         }
     };
 
@@ -174,26 +176,26 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                             <Wallet size={24} className="text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">收款管理 / Ingresos</h2>
-                            <p className="text-emerald-100 text-sm">Gestiona tus pagos</p>
+                            <h2 className="text-xl font-bold text-white">{t('payout.title')}</h2>
+                            <p className="text-emerald-100 text-sm">{t('payout.subtitle')}</p>
                         </div>
                     </div>
 
                     {/* Stats */}
                     <div className="grid grid-cols-3 gap-3 mb-4">
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-emerald-100 text-xs">总收入 / Total</p>
+                            <p className="text-emerald-100 text-xs">{t('payout.total')}</p>
                             <p className="text-white font-bold text-lg">${summary.totalEarned.toLocaleString()}</p>
                         </div>
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
                             <p className="text-yellow-200 text-xs flex items-center gap-1">
-                                <Clock size={10} /> 待转账
+                                <Clock size={10} /> {t('payout.pending')}
                             </p>
                             <p className="text-white font-bold text-lg">${summary.pending.toLocaleString()}</p>
                         </div>
                         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
                             <p className="text-green-200 text-xs flex items-center gap-1">
-                                <Check size={10} /> 已到账
+                                <Check size={10} /> {t('payout.received')}
                             </p>
                             <p className="text-white font-bold text-lg">${summary.completed.toLocaleString()}</p>
                         </div>
@@ -206,7 +208,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <Building2 size={18} className="text-gray-600" />
-                        <span className="font-bold text-gray-800">银行账户 / Cuenta Bancaria</span>
+                        <span className="font-bold text-gray-800">{t('payout.bank_account')}</span>
                     </div>
                     {bankInfo && !editingBank && (
                         <button
@@ -214,7 +216,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                             className="text-emerald-600 text-sm font-medium flex items-center gap-1"
                         >
                             <Edit3 size={14} />
-                            编辑 / Editar
+                            {t('payout.edit')}
                         </button>
                     )}
                 </div>
@@ -223,7 +225,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                     <div className="space-y-3">
                         <div>
                             <div className="flex justify-between items-center mb-1">
-                                <label className="text-xs text-gray-500">CLABE (18 位数字 / dígitos)</label>
+                                <label className="text-xs text-gray-500">{t('payout.clabe_label')}</label>
                                 <span className={`text-xs font-mono ${bankForm.clabe.length === 18 ? 'text-green-500' : 'text-gray-400'}`}>
                                     {bankForm.clabe.length}/18
                                 </span>
@@ -232,13 +234,13 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                 type="text"
                                 value={bankForm.clabe}
                                 onChange={e => setBankForm({ ...bankForm, clabe: e.target.value.replace(/\D/g, '').slice(0, 18) })}
-                                placeholder="输入 18 位 CLABE 号码"
+                                placeholder={t('payout.clabe_placeholder')}
                                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono text-lg tracking-wider"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-xs text-gray-500 block mb-1">银行名称 / Banco</label>
+                                <label className="text-xs text-gray-500 block mb-1">{t('payout.bank_name')}</label>
                                 <input
                                     type="text"
                                     value={bankForm.bankName}
@@ -248,7 +250,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                 />
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500 block mb-1">持有人姓名 / Titular</label>
+                                <label className="text-xs text-gray-500 block mb-1">{t('payout.holder_name')}</label>
                                 <input
                                     type="text"
                                     value={bankForm.holderName}
@@ -262,12 +264,12 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                             onClick={handleSaveBank}
                             disabled={saving || bankForm.clabe.length !== 18}
                             className={`w-full font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 ${bankForm.clabe.length === 18
-                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                         >
                             {saving && <Loader2 size={16} className="animate-spin" />}
-                            {bankForm.clabe.length === 18 ? '保存 / Guardar' : `还需输入 ${18 - bankForm.clabe.length} 位`}
+                            {bankForm.clabe.length === 18 ? t('payout.save') : t('payout.digits_remaining').replace('{0}', String(18 - bankForm.clabe.length))}
                         </button>
                         {bankInfo && (
                             <button
@@ -281,7 +283,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                 }}
                                 className="w-full text-gray-500 text-sm py-2"
                             >
-                                取消 / Cancelar
+                                {t('payout.cancel')}
                             </button>
                         )}
                     </div>
@@ -306,7 +308,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                 <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-3">
                         <Banknote size={18} className="text-gray-600" />
-                        <span className="font-bold text-gray-800">收款记录 / Historial</span>
+                        <span className="font-bold text-gray-800">{t('payout.history')}</span>
                     </div>
 
                     <div className="space-y-2">
@@ -346,9 +348,9 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                             className="w-full mt-3 text-emerald-600 text-sm font-medium flex items-center justify-center gap-1"
                         >
                             {showAll ? (
-                                <>收起 / Ocultar <ChevronUp size={16} /></>
+                                <>{t('payout.collapse')} <ChevronUp size={16} /></>
                             ) : (
-                                <>查看全部 / Ver todo ({payouts.length}) <ChevronDown size={16} /></>
+                                <>{t('payout.view_all')} ({payouts.length}) <ChevronDown size={16} /></>
                             )}
                         </button>
                     )}

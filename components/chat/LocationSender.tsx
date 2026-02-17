@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, X, Loader2, Search } from 'lucide-react';
 import { supabase } from '../../services/supabase';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface LocationSenderProps {
     conversationId: string;
@@ -13,6 +14,7 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
     onSent,
     onClose
 }) => {
+    const { t } = useLanguage();
     const [isSending, setIsSending] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLocation, setSelectedLocation] = useState<{
@@ -22,10 +24,9 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
         lng: number;
     } | null>(null);
 
-    // 获取当前位置
     const handleGetCurrentLocation = () => {
         if (!navigator.geolocation) {
-            alert('您的浏览器不支持地理定位');
+            alert(t('location.geo_unsupported'));
             return;
         }
 
@@ -34,7 +35,6 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
             async (position) => {
                 const { latitude, longitude } = position.coords;
 
-                // 使用反向地理编码获取地址
                 try {
                     const response = await fetch(
                         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
@@ -42,7 +42,7 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
                     const data = await response.json();
 
                     setSelectedLocation({
-                        name: '当前位置',
+                        name: t('location.current_name'),
                         address: data.display_name || `${latitude}, ${longitude}`,
                         lat: latitude,
                         lng: longitude
@@ -50,8 +50,8 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
                 } catch (error) {
                     console.error('Failed to get address:', error);
                     setSelectedLocation({
-                        name: '当前位置',
-                        address: `纬度: ${latitude}, 经度: ${longitude}`,
+                        name: t('location.current_name'),
+                        address: t('location.lat_lng').replace('{0}', String(latitude)).replace('{1}', String(longitude)),
                         lat: latitude,
                         lng: longitude
                     });
@@ -60,21 +60,19 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
             },
             (error) => {
                 console.error('Error getting location:', error);
-                alert('无法获取您的位置，请检查权限设置');
+                alert(t('location.geo_denied'));
                 setIsSending(false);
             }
         );
     };
 
-    // 搜索地点（简化版 - 使用预设位置）
     const handleSearch = () => {
         if (!searchQuery.trim()) return;
 
-        // 墨西哥城常见地点示例
         const popularPlaces = [
-            { name: '改革大道', address: 'Paseo de la Reforma, Ciudad de México', lat: 19.4326, lng: -99.1332 },
-            { name: '宪法广场', address: 'Plaza de la Constitución, Centro Histórico', lat: 19.4326, lng: -99.1332 },
-            { name: '查普尔特佩克公园', address: 'Bosque de Chapultepec', lat: 19.4204, lng: -99.2024 },
+            { name: 'Paseo de la Reforma', address: 'Paseo de la Reforma, Ciudad de México', lat: 19.4326, lng: -99.1332 },
+            { name: 'Plaza de la Constitución', address: 'Plaza de la Constitución, Centro Histórico', lat: 19.4326, lng: -99.1332 },
+            { name: 'Bosque de Chapultepec', address: 'Bosque de Chapultepec', lat: 19.4204, lng: -99.2024 },
         ];
 
         const found = popularPlaces.find(p =>
@@ -84,7 +82,7 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
         if (found) {
             setSelectedLocation(found);
         } else {
-            alert('未找到该地点。请尝试"改革大道"、"宪法广场"或"查普尔特佩克公园"');
+            alert(t('location.not_found'));
         }
     };
 
@@ -110,7 +108,7 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
                 sender_id: session.user.id,
                 message_type: 'location',
                 content: locationContent,
-                text: `📍 分享了位置: ${selectedLocation.name}` // 备用文本
+                text: `📍 ${t('location.shared')}: ${selectedLocation.name}`
             });
 
             if (error) throw error;
@@ -120,7 +118,7 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
             setSearchQuery('');
         } catch (error) {
             console.error('Error sending location:', error);
-            alert('发送位置失败，请重试');
+            alert(t('location.send_failed'));
         } finally {
             setIsSending(false);
         }
@@ -134,7 +132,7 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
                     <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
                         <MapPin className="text-white" size={20} />
                     </div>
-                    <h4 className="font-bold text-gray-900">分享位置</h4>
+                    <h4 className="font-bold text-gray-900">{t('location.title')}</h4>
                 </div>
                 {onClose && (
                     <button
@@ -157,13 +155,13 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
                 ) : (
                     <MapPin size={20} />
                 )}
-                <span>使用当前位置</span>
+                <span>{t('location.current')}</span>
             </button>
 
             {/* Divider */}
             <div className="flex items-center gap-3 mb-4">
                 <div className="flex-1 h-px bg-gray-300"></div>
-                <span className="text-sm text-gray-500">或搜索地点</span>
+                <span className="text-sm text-gray-500">{t('location.or_search')}</span>
                 <div className="flex-1 h-px bg-gray-300"></div>
             </div>
 
@@ -174,7 +172,7 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder="搜索地点..."
+                    placeholder={t('location.search_placeholder')}
                     className="flex-1 px-4 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:border-blue-500"
                 />
                 <button
@@ -211,17 +209,17 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
                     {isSending ? (
                         <>
                             <Loader2 size={20} className="animate-spin" />
-                            <span>发送中...</span>
+                            <span>{t('location.sending')}</span>
                         </>
                     ) : (
-                        <span>发送位置</span>
+                        <span>{t('location.send')}</span>
                     )}
                 </button>
             )}
 
             {/* Tips */}
             <p className="text-xs text-gray-500 text-center mt-3">
-                💡 提示：可尝试搜索"改革大道"、"宪法广场"等
+                💡 {t('location.tip')}
             </p>
         </div>
     );
