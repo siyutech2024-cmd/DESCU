@@ -82,19 +82,19 @@ export const canPurchaseProduct = (
     productCity: string,
     deliveryType: 'shipping' | 'meetup' | 'both',
     language: string = 'zh'
-): { canPurchase: boolean; reason?: string } => {
+): { canPurchase: boolean; reason?: string; warning?: string } => {
     const restrictionMessages: Record<string, { country: (c: string) => string; city: (c: string) => string }> = {
         zh: {
             country: (c) => `此产品仅限${c}地区购买`,
-            city: (c) => `此产品仅限${c}同城交易`,
+            city: (c) => `需前往${c}当面取货`,
         },
         en: {
             country: (c) => `Only available in ${c}`,
-            city: (c) => `Local pickup in ${c} only`,
+            city: (c) => `Pickup required in ${c}`,
         },
         es: {
             country: (c) => `Solo disponible en ${c}`,
-            city: (c) => `Solo recogida local en ${c}`,
+            city: (c) => `Recogida en ${c}`,
         },
     };
 
@@ -108,11 +108,12 @@ export const canPurchaseProduct = (
         };
     }
 
-    // Rule 2: If product is local-only (meetup), must be same city
-    if (deliveryType === 'meetup' && userCity !== productCity) {
+    // Rule 2: If product is local-only (meetup) and different city,
+    // allow purchase but show a warning hint
+    if (deliveryType === 'meetup' && userCity && productCity && userCity !== productCity) {
         return {
-            canPurchase: false,
-            reason: msgs.city(productCity)
+            canPurchase: true,
+            warning: msgs.city(productCity)
         };
     }
 

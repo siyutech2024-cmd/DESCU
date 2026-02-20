@@ -3,6 +3,7 @@ import { Product, DeliveryType } from '../types';
 import { MapPin, ShoppingBag, Truck, Zap } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
+import { getOptimizedImageUrl } from '../services/imageOptimizer';
 
 interface ProductCardProps {
   product: Product;
@@ -72,7 +73,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
       {/* Image Container - Aspect Square (1:1) */}
       <div className="relative aspect-square w-full overflow-hidden bg-gray-100">
         <img
-          src={product.images[0]}
+          src={getOptimizedImageUrl(product.images[0], 'thumbnail')}
           alt={localizedTitle}
           loading="lazy"
           className={`object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out ${product.status === 'sold' ? 'grayscale opacity-70' : ''}`}

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Share2, Facebook, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getOptimizedImageUrl } from '../services/imageOptimizer';
 import { useRegion } from '../contexts/RegionContext';
 import { ReportModal } from './ReportModal';
 import { CheckoutModal } from './CheckoutModal';
@@ -37,9 +38,10 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Check if user can purchase this product based on location
-  const [purchaseEligibility, setPurchaseEligibility] = useState<{ canPurchase: boolean; reason?: string }>({ canPurchase: true });
+  const [purchaseEligibility, setPurchaseEligibility] = useState<{ canPurchase: boolean; reason?: string; warning?: string }>({ canPurchase: true });
   const [sellerScore, setSellerScore] = useState(0);
 
   useEffect(() => {
@@ -121,11 +123,13 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-10">
             {/* Image Section - Framed Glass */}
             <div className="relative group">
-              <div className="aspect-square rounded-[2rem] overflow-hidden bg-white/20 shadow-inner border border-white/30 relative z-10 mb-4">
+              <div className={`aspect-square rounded-[2rem] overflow-hidden bg-gray-100 shadow-inner border border-white/30 relative z-10 mb-4 ${!imageLoaded ? 'animate-pulse' : ''}`}>
                 <img
-                  src={product.images[selectedImageIndex] || product.images[0]}
+                  src={getOptimizedImageUrl(product.images[selectedImageIndex] || product.images[0], 'medium')}
                   alt={product.title}
-                  className={`w-full h-full object-cover transform transition-transform duration-700 hover:scale-105 ${product.status === 'sold' ? 'grayscale' : ''}`}
+                  loading="lazy"
+                  onLoad={() => setImageLoaded(true)}
+                  className={`w-full h-full object-cover transform transition-all duration-700 hover:scale-105 ${product.status === 'sold' ? 'grayscale' : ''} ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                 />
                 {/* SOLD Overlay */}
                 {product.status === 'sold' && (
@@ -141,8 +145,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               {product.images.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                   {product.images.map((img, idx) => (
-                    <button key={idx} onClick={() => setSelectedImageIndex(idx)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${selectedImageIndex === idx ? 'border-brand-500 ring-2 ring-brand-300' : 'border-transparent hover:border-brand-500'}`}>
-                      <img src={img} className={`w-full h-full object-cover ${product.status === 'sold' ? 'grayscale' : ''}`} alt="" />
+                    <button key={idx} onClick={() => { setSelectedImageIndex(idx); setImageLoaded(false); }} className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${selectedImageIndex === idx ? 'border-brand-500 ring-2 ring-brand-300' : 'border-transparent hover:border-brand-500'}`}>
+                      <img src={getOptimizedImageUrl(img, 'thumbnail')} className={`w-full h-full object-cover ${product.status === 'sold' ? 'grayscale' : ''}`} alt="" loading="lazy" />
                     </button>
                   ))}
                   {/* Mock extra images if only 1 exists, just to show UI? No, stick to real data */}
@@ -257,10 +261,18 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                     </div>
 
                     {/* 不可购买提示 */}
-                    {!purchaseEligibility.canPurchase && (
+                    {!purchaseEligibility.canPurchase && purchaseEligibility.reason && (
                       <div className="mt-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-2">
                         <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
                         <p className="text-xs text-red-800 font-bold">{purchaseEligibility.reason}</p>
+                      </div>
+                    )}
+
+                    {/* Meetup 不同城市温馨提示 */}
+                    {purchaseEligibility.canPurchase && purchaseEligibility.warning && (
+                      <div className="mt-2 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg p-2">
+                        <MapPin size={16} className="text-orange-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-orange-800 font-bold">{purchaseEligibility.warning}</p>
                       </div>
                     )}
                   </div>
@@ -293,10 +305,10 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
                     }`}
-                  title={!purchaseEligibility.canPurchase ? purchaseEligibility.reason : ''}
+                  title={!purchaseEligibility.canPurchase ? purchaseEligibility.reason : (purchaseEligibility.warning || '')}
                 >
                   <ShoppingBag size={22} />
-                  {product.status === 'sold' ? t('product.sold') : (!purchaseEligibility.canPurchase ? t('product.not_available') : t('product.want_it'))}
+                  {product.status === 'sold' ? t('product.sold') : (!purchaseEligibility.canPurchase ? t('product.not_available') : (product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it')))}
                 </button>
               </div>
 

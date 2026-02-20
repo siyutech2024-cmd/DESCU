@@ -52,7 +52,7 @@ export const getFullDataUrl = (file: File): Promise<string> => {
   });
 }
 
-export const compressImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<File> => {
+export const compressImage = (file: File, maxWidth = 800, quality = 0.7, targetSizeKB = 150): Promise<File> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -64,6 +64,7 @@ export const compressImage = (file: File, maxWidth = 1024, quality = 0.8): Promi
         let width = img.width;
         let height = img.height;
 
+        // Scale down to maxWidth
         if (width > maxWidth) {
           height = Math.round((height * maxWidth) / width);
           width = maxWidth;
@@ -75,16 +76,35 @@ export const compressImage = (file: File, maxWidth = 1024, quality = 0.8): Promi
         if (!ctx) return reject('Canvas context unsupported');
 
         ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(new File([blob], file.name, {
+
+        // Progressive quality reduction to hit target size
+        const tryCompress = (q: number) => {
+          canvas.toBlob((blob) => {
+            if (!blob) return reject('Compression failed');
+
+            const sizeKB = blob.size / 1024;
+            // If still too large and quality can be reduced further, try again
+            if (sizeKB > targetSizeKB && q > 0.3) {
+              tryCompress(q - 0.1);
+              return;
+            }
+
+            const ext = q > 0.5 ? 'jpg' : 'jpg';
+            const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
               type: 'image/jpeg',
               lastModified: Date.now(),
-            }));
-          } else {
-            reject('Compression failed');
-          }
-        }, 'image/jpeg', quality);
+            });
+
+            const reduction = ((1 - compressedFile.size / file.size) * 100).toFixed(0);
+            console.log(
+              `[Compress] ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB (${reduction}% reduction, q=${q.toFixed(1)}, ${width}x${height})`
+            );
+
+            resolve(compressedFile);
+          }, 'image/jpeg', q);
+        };
+
+        tryCompress(quality);
       };
       img.onerror = (err) => reject(err);
     };

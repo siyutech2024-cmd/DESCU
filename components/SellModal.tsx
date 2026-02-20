@@ -115,7 +115,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
 
   const addImageFile = async (file: File, triggerAI: boolean) => {
     try {
-      const compressedFile = await compressImage(file, 1024, 0.8);
+      const compressedFile = await compressImage(file, 800, 0.7, 150);
       const previewUrl = await getFullDataUrl(compressedFile);
       const newItem: ImageItem = {
         file: compressedFile,
