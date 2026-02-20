@@ -80,13 +80,31 @@ export const canPurchaseProduct = (
     userCity: string,
     productCountry: string,
     productCity: string,
-    deliveryType: 'shipping' | 'meetup' | 'both'
+    deliveryType: 'shipping' | 'meetup' | 'both',
+    language: string = 'zh'
 ): { canPurchase: boolean; reason?: string } => {
+    const restrictionMessages: Record<string, { country: (c: string) => string; city: (c: string) => string }> = {
+        zh: {
+            country: (c) => `此产品仅限${c}地区购买`,
+            city: (c) => `此产品仅限${c}同城交易`,
+        },
+        en: {
+            country: (c) => `Only available in ${c}`,
+            city: (c) => `Local pickup in ${c} only`,
+        },
+        es: {
+            country: (c) => `Solo disponible en ${c}`,
+            city: (c) => `Solo recogida local en ${c}`,
+        },
+    };
+
+    const msgs = restrictionMessages[language] || restrictionMessages['en'];
+
     // Rule 1: Must be same country
     if (userCountry !== productCountry) {
         return {
             canPurchase: false,
-            reason: `此产品仅限${productCountry}地区购买 / Only available in ${productCountry}`
+            reason: msgs.country(productCountry)
         };
     }
 
@@ -94,7 +112,7 @@ export const canPurchaseProduct = (
     if (deliveryType === 'meetup' && userCity !== productCity) {
         return {
             canPurchase: false,
-            reason: `此产品仅限${productCity}同城交易 / Local pickup in ${productCity} only`
+            reason: msgs.city(productCity)
         };
     }
 

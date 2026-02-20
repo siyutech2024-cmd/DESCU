@@ -36,6 +36,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Check if user can purchase this product based on location
   const [purchaseEligibility, setPurchaseEligibility] = useState<{ canPurchase: boolean; reason?: string }>({ canPurchase: true });
@@ -48,7 +49,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
         user.city || '',
         product.country,
         product.city || '',
-        product.deliveryType
+        product.deliveryType,
+        language
       );
       setPurchaseEligibility(eligibility);
     }
@@ -62,7 +64,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           .catch(err => console.error("Failed to fetch seller credit", err));
       });
     }
-  }, [user, product]);
+  }, [user, product, language]);
 
   const getRelativeTime = (timestamp: number) => {
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
@@ -121,7 +123,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
             <div className="relative group">
               <div className="aspect-square rounded-[2rem] overflow-hidden bg-white/20 shadow-inner border border-white/30 relative z-10 mb-4">
                 <img
-                  src={product.images[0]} // TODO: Add state for selected image
+                  src={product.images[selectedImageIndex] || product.images[0]}
                   alt={product.title}
                   className={`w-full h-full object-cover transform transition-transform duration-700 hover:scale-105 ${product.status === 'sold' ? 'grayscale' : ''}`}
                 />
@@ -139,7 +141,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               {product.images.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                   {product.images.map((img, idx) => (
-                    <button key={idx} className="w-16 h-16 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-500 focus:border-brand-500 transition-all flex-shrink-0">
+                    <button key={idx} onClick={() => setSelectedImageIndex(idx)} className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${selectedImageIndex === idx ? 'border-brand-500 ring-2 ring-brand-300' : 'border-transparent hover:border-brand-500'}`}>
                       <img src={img} className={`w-full h-full object-cover ${product.status === 'sold' ? 'grayscale' : ''}`} alt="" />
                     </button>
                   ))}
