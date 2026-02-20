@@ -89,12 +89,36 @@ export const getUserConversations = async (req: Request, res: Response) => {
                     return !deletedBy.includes(userId as string);
                 })
                 .map(async (conversation: any) => {
-                    // Public info read (Products) works with anon client too, but scoped is safer/consistent
+                    // 获取产品信息（含卖家信息）
                     const { data: product } = await supabaseClient
                         .from('products')
                         .select('title, images, seller_id, seller_name, seller_avatar')
                         .eq('id', conversation.product_id)
                         .single();
+
+                    // 确定对方用户ID
+                    const otherUserId = conversation.user1_id === userId
+                        ? conversation.user2_id
+                        : conversation.user1_id;
+
+                    // 从 auth.users 获取对方用户的真实信息
+                    let otherUserInfo = null;
+                    try {
+                        const { data: otherUserData } = await supabaseClient
+                            .from('users')
+                            .select('id, name, avatar')
+                            .eq('id', otherUserId)
+                            .single();
+                        if (otherUserData) {
+                            otherUserInfo = {
+                                id: otherUserData.id,
+                                name: otherUserData.name,
+                                avatar: otherUserData.avatar
+                            };
+                        }
+                    } catch (e) {
+                        // 如果 users 表查不到，回退到产品中的 seller 信息
+                    }
 
                     return {
                         ...conversation,
@@ -104,7 +128,8 @@ export const getUserConversations = async (req: Request, res: Response) => {
                             id: product.seller_id,
                             name: product.seller_name,
                             avatar: product.seller_avatar
-                        } : null
+                        } : null,
+                        buyerInfo: otherUserInfo
                     };
                 })
         );

@@ -378,7 +378,8 @@ const AppContent: React.FC = () => {
         }
       });
       if (error) throw error;
-      setUser(updatedUser);
+      // 只更新 name/avatar，保留已有的 country/city 等字段
+      setUser(prev => prev ? { ...prev, name: updatedUser.name, avatar: updatedUser.avatar } : updatedUser);
       showToast(t('toast.profile_updated'), 'success');
     } catch (error) {
       console.error('更新失败:', error);
@@ -554,19 +555,31 @@ const AppContent: React.FC = () => {
           let otherUser;
 
           if (isBuyer && sellerInfo) {
+            // 买家看到卖家信息（来自产品表）
             otherUser = {
               id: sellerInfo.id,
               name: sellerInfo.name,
               email: '',
-              avatar: sellerInfo.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop',
+              avatar: sellerInfo.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sellerInfo.id}`,
+              isVerified: false
+            };
+          } else if (c.buyerInfo) {
+            // 卖家看到买家信息（来自 users 表）
+            otherUser = {
+              id: c.buyerInfo.id,
+              name: c.buyerInfo.name || 'User',
+              email: '',
+              avatar: c.buyerInfo.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.buyerInfo.id}`,
               isVerified: false
             };
           } else {
+            // 最终 fallback
+            const otherId = isBuyer ? c.user2_id : c.user1_id;
             otherUser = {
-              id: isBuyer ? c.user2_id : c.user1_id,
-              name: isBuyer ? 'Seller' : 'Buyer',
+              id: otherId,
+              name: 'User',
               email: '',
-              avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
+              avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherId}`,
               isVerified: false
             };
           }
