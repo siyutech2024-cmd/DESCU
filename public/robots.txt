@@ -2,6 +2,7 @@
 User-agent: *
 Allow: /
 Allow: /product/
+Allow: /sitemap.xml
 
 # Block non-SEO pages (require login)
 Disallow: /admin/
@@ -10,5 +11,30 @@ Disallow: /favorites
 Disallow: /orders
 Disallow: /profile
 
-# Sitemap
+# AI Search Engine Crawlers — full access to product content
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+# Sitemap & AI manifest
 Sitemap: https://descu.ai/sitemap.xml

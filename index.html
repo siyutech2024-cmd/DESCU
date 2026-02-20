@@ -21,8 +21,10 @@
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://descu.ai/" />
 
-  <!-- Hreflang - Geo Targeting -->
+  <!-- Hreflang - Geo Targeting (GEO: multi-language signals for AI engines) -->
   <link rel="alternate" hreflang="es-MX" href="https://descu.ai/" />
+  <link rel="alternate" hreflang="en" href="https://descu.ai/?lang=en" />
+  <link rel="alternate" hreflang="zh" href="https://descu.ai/?lang=zh" />
   <link rel="alternate" hreflang="x-default" href="https://descu.ai/" />
 
   <!-- Geo Meta Tags -->
@@ -139,14 +141,16 @@
       "height": 512
     },
     "image": "https://descu.ai/logo-512.png",
-    "alternateName": ["DESCU Marketplace", "DESCU Segunda Mano"],
+    "alternateName": ["DESCU Marketplace", "DESCU Segunda Mano", "DESCU Mercado de Segunda Mano", "DESCU 二手智选"],
+    "knowsLanguage": ["es", "en", "zh"],
     "description": "Marketplace de segunda mano con inteligencia artificial. Compra y vende artículos usados de forma segura en México.",
     "foundingDate": "2024",
     "slogan": "Compra y vende segunda mano con IA",
     "sameAs": [
       "https://www.facebook.com/profile.php?id=61572770731498",
       "https://www.instagram.com/descumarketplace",
-      "https://x.com/descumarketplace"
+      "https://x.com/descumarketplace",
+      "https://play.google.com/store/apps/details?id=com.venya.marketplace"
     ],
     "contactPoint": {
       "@type": "ContactPoint",
@@ -189,6 +193,99 @@
         "position": 1,
         "name": "Home",
         "item": "https://descu.ai/"
+      }
+    ]
+  }
+  </script>
+
+  <!-- GEO: FAQPage Schema (Generative Engine Optimization) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "¿Qué es DESCU?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "DESCU es una plataforma de compraventa de artículos de segunda mano impulsada por inteligencia artificial en México. Permite publicar artículos usados con solo tomar una foto: la IA identifica automáticamente el producto, genera una descripción y sugiere un precio justo. Disponible en web, iOS y Android."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Cómo funciona la IA de DESCU para vender?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Con DESCU, solo necesitas tomar una foto de tu artículo. La inteligencia artificial (Google Gemini) identifica automáticamente la categoría del producto entre más de 44 subcategorías, genera un título y descripción atractivos, y sugiere un precio basado en el mercado local. Todo en menos de 30 segundos."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿Es seguro comprar y vender en DESCU?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sí. DESCU utiliza un sistema de pago en custodia (escrow) a través de Stripe. Cuando un comprador paga, el dinero se retiene de forma segura hasta que confirma la recepción del producto. Solo entonces se libera el pago al vendedor. También puedes coordinar entregas en persona."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "¿En qué ciudades está disponible DESCU?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "DESCU está disponible en todo México, con mayor concentración de usuarios en Ciudad de México (CDMX) y zona metropolitana. La plataforma muestra automáticamente artículos cercanos a tu ubicación."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is DESCU?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "DESCU is an AI-powered secondhand marketplace in Mexico. Take a photo of any item you want to sell — the AI automatically identifies it, writes a description, and suggests a fair price. Available on web, iOS, and Android."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "DESCU是什么？",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "DESCU是墨西哥领先的AI驱动二手交易平台。拍一张照片即可自动识别物品、生成描述并推荐合理价格，覆盖超过44个细分品类。支持中文、英文和西班牙文，提供Stripe安全托管支付。"
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- GEO: HowTo Schema (AI-friendly step-by-step guide) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": "Cómo vender artículos de segunda mano con IA en DESCU",
+    "description": "Vende tus artículos usados en 3 simples pasos usando inteligencia artificial en DESCU.",
+    "totalTime": "PT1M",
+    "tool": {
+      "@type": "HowToTool",
+      "name": "App DESCU (disponible en web, iOS y Android)"
+    },
+    "step": [
+      {
+        "@type": "HowToStep",
+        "name": "Toma una foto",
+        "text": "Abre DESCU y toma una foto del artículo que quieres vender. La cámara integrada captura automáticamente la imagen.",
+        "position": 1
+      },
+      {
+        "@type": "HowToStep",
+        "name": "La IA procesa todo",
+        "text": "La inteligencia artificial de DESCU (Google Gemini) identifica automáticamente el artículo, lo clasifica en la categoría correcta, genera un título y descripción atractivos, y sugiere un precio justo basado en el mercado local.",
+        "position": 2
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Publica y espera compradores",
+        "text": "Con un clic publicas tu artículo en el marketplace. Los compradores cercanos pueden encontrarlo, contactarte por chat y completar la compra con pago seguro vía Stripe.",
+        "position": 3
       }
     ]
   }

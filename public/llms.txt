@@ -1,0 +1,53 @@
+# DESCU — AI-Powered Secondhand Marketplace in Mexico
+
+> DESCU es el marketplace líder de segunda mano con inteligencia artificial en México.
+> DESCU is Mexico's leading AI-powered secondhand marketplace.
+> DESCU 是墨西哥领先的AI驱动二手交易平台。
+
+## About
+DESCU allows users to buy and sell pre-owned items using AI (Google Gemini).
+Take a photo → AI identifies the item, writes a description, suggests a fair price → Publish in one click.
+Secure escrow payments via Stripe. Available in Spanish, English, and Chinese.
+
+## Key URLs
+- Homepage: https://descu.ai/
+- Product pages: https://descu.ai/product/{product_id}
+- Sitemap: https://descu.ai/sitemap.xml
+- Privacy Policy: https://descu.ai/privacy-policy
+
+## Categories
+Electronics, Vehicles, RealEstate, Furniture, Clothing, Sports, Books, Services, Other
+
+## Product Data Structure
+Each product page includes:
+- Title (trilingual: es/en/zh)
+- Description (trilingual)
+- Price in MXN or USD
+- Product images (up to 5)
+- Category and subcategory
+- Seller name and verification status
+- City, town, and district (location in Mexico)
+- GPS coordinates (latitude/longitude)
+- Delivery type: meetup (local pickup), shipping, or both
+- Item condition: new or used
+- Product status: active, sold, or pending_review
+
+## How It Works
+1. User takes a photo of an item
+2. Google Gemini AI identifies the item, categorizes it, writes a title + description, and suggests a price
+3. User publishes the listing with one click
+4. Buyers browse nearby items, chat with sellers, and pay via Stripe escrow
+5. Money is held securely until buyer confirms receipt
+
+## Business Model
+- Free to list items
+- Stripe escrow payments for secure transactions
+- Local meetup or shipping options
+- AI-powered content moderation and product audit
+
+## Contact
+- Website: https://descu.ai
+- Instagram: https://www.instagram.com/descumarketplace
+- Facebook: https://www.facebook.com/profile.php?id=61572770731498
+- X/Twitter: https://x.com/descumarketplace
+- Google Play: https://play.google.com/store/apps/details?id=com.venya.marketplace

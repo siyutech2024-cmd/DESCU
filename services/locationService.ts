@@ -102,10 +102,24 @@ export const canPurchaseProduct = (
 };
 
 // Get detailed location information with town/district level granularity
+// Uses localStorage cache to avoid redundant Nominatim calls (1h TTL)
 export const getDetailedLocation = async (
     latitude: number,
     longitude: number
 ): Promise<DetailedLocationInfo> => {
+    // Cache: round to 3 decimals (~111m precision) for cache key
+    const cacheKey = `geo_cache_${latitude.toFixed(3)}_${longitude.toFixed(3)}`;
+    try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            const { data, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 3600000) { // 1 hour TTL
+                console.log('[LocationService] 使用缓存:', cacheKey);
+                return data as DetailedLocationInfo;
+            }
+        }
+    } catch { /* ignore cache errors */ }
+
     try {
         // Use our backend proxy to avoid CORS issues
         const response = await fetch(
@@ -149,6 +163,12 @@ export const getDetailedLocation = async (
         };
 
         console.log('[LocationService] 解析结果:', result);
+
+        // Persist to cache
+        try {
+            localStorage.setItem(cacheKey, JSON.stringify({ data: result, ts: Date.now() }));
+        } catch { /* quota exceeded or SSR — ignore */ }
+
         return result;
     } catch (error) {
         console.error('Error getting detailed location:', error);

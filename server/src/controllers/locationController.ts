@@ -10,7 +10,7 @@ export const reverseGeocodeProxy = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Latitude and longitude are required' });
         }
 
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`;
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`;
 
         const response = await fetch(url, {
             headers: {

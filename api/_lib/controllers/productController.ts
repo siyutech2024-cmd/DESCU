@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 import { t } from '../utils/i18n.js';
+import { notifyIndexNow } from '../../indexnow.js';
 
 export const createProduct = async (req: any, res: Response) => {
     try {
@@ -94,6 +95,11 @@ export const createProduct = async (req: any, res: Response) => {
         if (error) {
             console.error('Supabase insert error:', error);
             throw error;
+        }
+
+        // Async push to IndexNow (best-effort, don't block response)
+        if (data?.id) {
+            notifyIndexNow(data.id).catch(() => { });
         }
 
         res.status(201).json(data);
