@@ -260,22 +260,50 @@ const AppContent: React.FC = () => {
                   const updatedConvs = await getUserConversations(user.id);
                   if (updatedConvs && updatedConvs.length > 0) {
                     // 更新对话列表
-                    setConversations(updatedConvs.map((conv: any) => ({
-                      id: conv.id,
-                      productId: conv.product_id,
-                      productTitle: conv.product_title || conv.products?.title || 'Unknown Product',
-                      productImage: conv.product_image || conv.products?.images?.[0],
-                      otherUser: {
-                        id: conv.other_user_id,
-                        name: conv.other_user_name,
-                        email: conv.other_user_email || '',
-                        avatar: conv.other_user_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.other_user_id}`
-                      },
-                      messages: conv.messages || [],
-                      lastMessageTime: conv.last_message_time,
-                      buyerId: conv.buyer_id,
-                      sellerId: conv.seller_id
-                    })));
+                    setConversations(updatedConvs.map((c: any) => {
+                      const isBuyer = user.id === c.user1_id;
+                      const sellerInfo = c.sellerInfo || c.seller_info;
+                      let otherUser;
+
+                      if (isBuyer && sellerInfo) {
+                        otherUser = {
+                          id: sellerInfo.id,
+                          name: sellerInfo.name,
+                          email: '',
+                          avatar: sellerInfo.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${sellerInfo.id}`,
+                          isVerified: false
+                        };
+                      } else if (c.buyerInfo) {
+                        otherUser = {
+                          id: c.buyerInfo.id,
+                          name: c.buyerInfo.name || 'User',
+                          email: '',
+                          avatar: c.buyerInfo.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.buyerInfo.id}`,
+                          isVerified: false
+                        };
+                      } else {
+                        const otherId = isBuyer ? c.user2_id : c.user1_id;
+                        otherUser = {
+                          id: otherId,
+                          name: 'User',
+                          email: '',
+                          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherId}`,
+                          isVerified: false
+                        };
+                      }
+
+                      return {
+                        id: c.id,
+                        productId: c.product_id,
+                        productTitle: c.productTitle || c.product_title || 'Product',
+                        productImage: c.productImage || c.product_image || '',
+                        otherUser,
+                        messages: [],
+                        lastMessageTime: new Date(c.updated_at).getTime(),
+                        buyerId: c.buyer_id || c.user1_id,
+                        sellerId: c.seller_id || c.user2_id
+                      };
+                    }));
                   }
                 } catch (error) {
                   console.error('[App] Error refreshing conversations:', error);
