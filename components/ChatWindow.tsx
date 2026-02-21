@@ -18,6 +18,7 @@ import { ImageSender } from './chat/ImageSender';
 import { ImagesMessage } from './chat/ImagesMessage';
 import { MeetupTimeSender } from './chat/MeetupTimeSender';
 import { MeetupTimeMessage } from './chat/MeetupTimeMessage';
+import { UserProfileModal } from './UserProfileModal';
 
 interface ChatWindowProps {
   conversation: Conversation;
@@ -52,6 +53,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
   const pendingMessageIds = useRef<Set<string>>(new Set()); // 跟踪正在发送的消息ID，防止重复
+  const [showUserProfile, setShowUserProfile] = useState(false);
 
   // Pagination states
   const [messageOffset, setMessageOffset] = useState(0);
@@ -253,17 +255,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </button>
 
         {/* ... (User Avatar & Name) ... */}
-        <div className="relative">
+        <div className="relative cursor-pointer" onClick={() => setShowUserProfile(true)}>
           <img
             src={conversation.otherUser.avatar}
             alt={conversation.otherUser.name}
-            className="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-white/80"
+            className="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-white/80 hover:ring-brand-300 transition-all"
           />
           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <h2 className="font-bold text-gray-900 truncate leading-tight">{conversation.otherUser.name}</h2>
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowUserProfile(true)}>
+          <h2 className="font-bold text-gray-900 truncate leading-tight hover:text-brand-600 transition-colors">{conversation.otherUser.name}</h2>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
             <p className="text-xs text-brand-600 font-medium truncate">{t('chat.online')}</p>
@@ -691,6 +693,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </button>
         </form>
       </div>
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={showUserProfile}
+        onClose={() => setShowUserProfile(false)}
+        userId={conversation.otherUser.id}
+        userName={conversation.otherUser.name}
+        userAvatar={conversation.otherUser.avatar}
+        currentUserId={currentUser.id}
+        canRate={!!activeOrder && (activeOrder.status === 'completed' || activeOrder.status === 'delivered')}
+      />
     </div>
   );
 };

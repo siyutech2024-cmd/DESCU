@@ -120,6 +120,19 @@ const AppContent: React.FC = () => {
         isVerified: false,
       };
 
+      // 同步用户信息到 public.users 表（供聊天和订单通知使用）
+      try {
+        await supabase.from('users').upsert({
+          id: baseUser.id,
+          name: baseUser.name,
+          avatar_url: baseUser.avatar,
+          email: baseUser.email,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      } catch (syncErr) {
+        console.warn('[App] Failed to sync user to public.users:', syncErr);
+      }
+
       // Get user location from IP
       try {
         const { getLocationFromIP } = await import('./services/locationService');
