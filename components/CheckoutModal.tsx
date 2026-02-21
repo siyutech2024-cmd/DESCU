@@ -166,6 +166,56 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
             const data = await res.json();
             setCreatedOrder(data.order);
 
+            // 🔔 直接在聊天中发送订单通知给卖家
+            try {
+                // 查找或创建对话
+                const { data: existingConv } = await supabase
+                    .from('conversations')
+                    .select('id')
+                    .eq('product_id', product.id)
+                    .eq('user1_id', session.user.id)
+                    .eq('user2_id', product.seller.id)
+                    .single();
+
+                let conversationId = existingConv?.id;
+                if (!conversationId) {
+                    // 尝试反向查找
+                    const { data: reverseConv } = await supabase
+                        .from('conversations')
+                        .select('id')
+                        .eq('product_id', product.id)
+                        .eq('user2_id', session.user.id)
+                        .eq('user1_id', product.seller.id)
+                        .single();
+                    conversationId = reverseConv?.id;
+                }
+
+                if (conversationId) {
+                    const orderMsg = orderType === 'meetup'
+                        ? `📦 ${t('checkout.order_notify_meetup')}`
+                        : `📦 ${t('checkout.order_notify_shipping')}`;
+
+                    await supabase.from('messages').insert({
+                        conversation_id: conversationId,
+                        sender_id: session.user.id,
+                        text: orderMsg,
+                        message_type: 'order_status',
+                        content: JSON.stringify({
+                            type: 'order_status',
+                            orderId: data.order.id,
+                            status: 'created',
+                            orderType,
+                            paymentMethod,
+                            totalAmount: data.order.total_amount
+                        }),
+                        is_read: false
+                    });
+                    console.log('[Checkout] Order notification sent to chat');
+                }
+            } catch (notifyErr) {
+                console.error('[Checkout] Failed to send chat notification:', notifyErr);
+            }
+
             if (data.requiresPayment && payload.paymentMethod === 'online') {
                 // Now create Payment Intent
                 const piRes = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {

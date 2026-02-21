@@ -423,6 +423,8 @@ const translations: Record<Language, Record<string, string>> = {
     'checkout.address': '收货地址',
     'checkout.address_required': '请选择或添加收货地址',
     'checkout.address_hint': '请选择收货地址后继续',
+    'checkout.order_notify_meetup': '买家已下单！请在聊天中约定见面时间和地点',
+    'checkout.order_notify_shipping': '买家已下单并付款！请尽快安排发货',
   },
   en: {
     'app.name': 'DESCU',
@@ -835,6 +837,8 @@ const translations: Record<Language, Record<string, string>> = {
     'checkout.address': 'Shipping Address',
     'checkout.address_required': 'Please select or add a shipping address',
     'checkout.address_hint': 'Address selection required to proceed',
+    'checkout.order_notify_meetup': 'Buyer placed an order! Arrange meetup details in chat',
+    'checkout.order_notify_shipping': 'Buyer placed an order and paid! Please ship the item soon',
   },
   es: {
     'app.name': 'DESCU',
@@ -1247,6 +1251,8 @@ const translations: Record<Language, Record<string, string>> = {
     'checkout.address': 'Dirección de Envío',
     'checkout.address_required': 'Selecciona o agrega una dirección de envío',
     'checkout.address_hint': 'Se requiere seleccionar dirección para continuar',
+    'checkout.order_notify_meetup': '¡El comprador hizo un pedido! Coordina el encuentro en el chat',
+    'checkout.order_notify_shipping': '¡El comprador hizo un pedido y pagó! Envía el artículo pronto',
   }
 };
 

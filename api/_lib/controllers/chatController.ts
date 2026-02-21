@@ -101,19 +101,19 @@ export const getUserConversations = async (req: Request, res: Response) => {
                         ? conversation.user2_id
                         : conversation.user1_id;
 
-                    // 从 auth.users 获取对方用户的真实信息
+                    // 从 public.users 获取对方用户的真实信息
                     let otherUserInfo = null;
                     try {
                         const { data: otherUserData } = await supabaseClient
                             .from('users')
-                            .select('id, name, avatar')
+                            .select('id, name, avatar_url')
                             .eq('id', otherUserId)
                             .single();
                         if (otherUserData) {
                             otherUserInfo = {
                                 id: otherUserData.id,
                                 name: otherUserData.name,
-                                avatar: otherUserData.avatar
+                                avatar: otherUserData.avatar_url
                             };
                         }
                     } catch (e) {
@@ -134,8 +134,40 @@ export const getUserConversations = async (req: Request, res: Response) => {
                 })
         );
 
+        // 批量查询订单状态（减少 N+1 查询）
+        const convIds = conversationsWithDetails.map(c => c.product_id).filter(Boolean);
+        let orderMap: Record<string, { id: string; status: string }> = {};
+        if (convIds.length > 0) {
+            const { data: orders } = await supabaseClient
+                .from('orders')
+                .select('id, product_id, buyer_id, seller_id, status')
+                .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+                .not('status', 'eq', 'cancelled')
+                .order('created_at', { ascending: false });
+
+            if (orders) {
+                orders.forEach((order: any) => {
+                    // 用 product_id + 参与者 匹配
+                    const key = order.product_id;
+                    if (!orderMap[key]) {
+                        orderMap[key] = { id: order.id, status: order.status };
+                    }
+                });
+            }
+        }
+
+        // 附加订单信息到对话
+        const finalConversations = conversationsWithDetails.map(conv => {
+            const order = orderMap[conv.product_id];
+            return {
+                ...conv,
+                orderId: order?.id || null,
+                orderStatus: order?.status || null
+            };
+        });
+
         console.log(`[Chat] Found ${data?.length || 0} conversations for user: ${userId}`);
-        res.json(conversationsWithDetails);
+        res.json(finalConversations);
     } catch (error) {
         console.error('Error fetching conversations:', error);
         res.status(500).json({ error: 'Failed to fetch conversations' });

@@ -301,7 +301,9 @@ const AppContent: React.FC = () => {
                         messages: [],
                         lastMessageTime: new Date(c.updated_at).getTime(),
                         buyerId: c.buyer_id || c.user1_id,
-                        sellerId: c.seller_id || c.user2_id
+                        sellerId: c.seller_id || c.user2_id,
+                        orderId: c.orderId || null,
+                        orderStatus: c.orderStatus || null
                       };
                     }));
                   }
@@ -406,6 +408,16 @@ const AppContent: React.FC = () => {
         }
       });
       if (error) throw error;
+
+      // 同步更新 public.users 表（供聊天和订单通知使用）
+      await supabase.from('users').upsert({
+        id: updatedUser.id,
+        name: updatedUser.name,
+        avatar_url: updatedUser.avatar,
+        email: updatedUser.email,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+
       // 只更新 name/avatar，保留已有的 country/city 等字段
       setUser(prev => prev ? { ...prev, name: updatedUser.name, avatar: updatedUser.avatar } : updatedUser);
       showToast(t('toast.profile_updated'), 'success');
@@ -619,7 +631,9 @@ const AppContent: React.FC = () => {
             productImage: c.productImage || c.product_image || '',
             otherUser,
             lastMessageTime: new Date(c.updated_at).getTime(),
-            messages: []
+            messages: [],
+            orderId: c.orderId || null,
+            orderStatus: c.orderStatus || null
           };
         });
 

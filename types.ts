@@ -96,6 +96,8 @@ export interface Conversation {
   sellerId?: string;
   messages: Message[];
   lastMessageTime: number;
+  orderId?: string;
+  orderStatus?: string;
 }
 
 export type ViewState =
