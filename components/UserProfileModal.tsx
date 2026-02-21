@@ -3,6 +3,12 @@ import { X, Star, User as UserIcon, Calendar, Shield, MessageCircle } from 'luci
 import { useLanguage } from '../contexts/LanguageContext';
 import { API_BASE_URL } from '../services/apiConfig';
 
+const localeMap: Record<string, string> = {
+    zh: 'zh-CN',
+    en: 'en-US',
+    es: 'es-MX'
+};
+
 interface UserProfileModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -22,7 +28,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     currentUserId,
     canRate = false
 }) => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [ratingStats, setRatingStats] = useState<{ total_reviews: number; average_rating: number }>({ total_reviews: 0, average_rating: 0 });
     const [myRating, setMyRating] = useState(0);
     const [hoveredStar, setHoveredStar] = useState(0);
@@ -47,7 +53,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             supabase.from('users').select('created_at').eq('id', userId).single()
                 .then(({ data }) => {
                     if (data?.created_at) {
-                        setMemberSince(new Date(data.created_at).toLocaleDateString(undefined, {
+                        setMemberSince(new Date(data.created_at).toLocaleDateString(localeMap[language] || 'en-US', {
                             year: 'numeric', month: 'short'
                         }));
                     }
@@ -102,8 +108,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         key={star}
                         size={size}
                         className={`transition-all duration-150 ${star <= (interactive ? (hoveredStar || myRating) : Math.round(rating))
-                                ? 'text-yellow-400 fill-yellow-400'
-                                : 'text-gray-300'
+                            ? 'text-yellow-400 fill-yellow-400'
+                            : 'text-gray-300'
                             } ${interactive ? 'cursor-pointer hover:scale-110 active:scale-95' : ''}`}
                         onClick={interactive ? () => setMyRating(star) : undefined}
                         onMouseEnter={interactive ? () => setHoveredStar(star) : undefined}
@@ -153,26 +159,26 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                         {/* 统计卡片 */}
                         <div className="flex gap-3 mt-4">
-                            <div className="flex-1 bg-gray-50 rounded-xl p-3">
-                                <div className="flex items-center justify-center gap-1.5 text-gray-500 mb-1">
-                                    <MessageCircle size={14} />
-                                    <span className="text-xs font-medium">{t('profile.reviews')}</span>
+                            <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center">
+                                <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
+                                    <MessageCircle size={13} />
+                                    <span className="text-[11px] font-medium leading-none">{t('profile.reviews')}</span>
                                 </div>
-                                <p className="text-lg font-bold text-gray-900">{ratingStats.total_reviews}</p>
+                                <p className="text-base font-bold text-gray-900 mt-1">{ratingStats.total_reviews}</p>
                             </div>
-                            <div className="flex-1 bg-gray-50 rounded-xl p-3">
-                                <div className="flex items-center justify-center gap-1.5 text-gray-500 mb-1">
-                                    <Calendar size={14} />
-                                    <span className="text-xs font-medium">{t('profile.member_since')}</span>
+                            <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center">
+                                <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
+                                    <Calendar size={13} />
+                                    <span className="text-[11px] font-medium leading-none">{t('profile.member_since')}</span>
                                 </div>
-                                <p className="text-sm font-bold text-gray-900">{memberSince || '-'}</p>
+                                <p className="text-[13px] font-bold text-gray-900 mt-1 whitespace-nowrap">{memberSince || '-'}</p>
                             </div>
-                            <div className="flex-1 bg-gray-50 rounded-xl p-3">
-                                <div className="flex items-center justify-center gap-1.5 text-gray-500 mb-1">
-                                    <Shield size={14} />
-                                    <span className="text-xs font-medium">{t('profile.trust')}</span>
+                            <div className="flex-1 bg-gray-50 rounded-xl p-3 text-center">
+                                <div className="flex items-center justify-center gap-1 text-gray-500 mb-1">
+                                    <Shield size={13} />
+                                    <span className="text-[11px] font-medium leading-none">{t('profile.trust')}</span>
                                 </div>
-                                <p className="text-lg font-bold text-gray-900">
+                                <p className="text-base font-bold text-gray-900 mt-1">
                                     {ratingStats.average_rating >= 4.5 ? '⭐' : ratingStats.average_rating >= 3 ? '✅' : '🆕'}
                                 </p>
                             </div>
