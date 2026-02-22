@@ -14,6 +14,7 @@ interface HomePageProps {
     selectedCategory: string;
     setSelectedCategory: (category: string) => void;
     isLoadingLoc: boolean;
+    isLoadingProducts: boolean;
     permissionDenied: boolean;
     searchQuery: string;
     onSellClick: () => void;
@@ -31,6 +32,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     selectedCategory,
     setSelectedCategory,
     isLoadingLoc,
+    isLoadingProducts,
     permissionDenied,
     searchQuery,
     onSellClick,
@@ -157,7 +159,20 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
             </div>
 
-            {sortedProducts.length === 0 ? (
+            {isLoadingProducts ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-6">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="animate-pulse rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100">
+                            <div className="aspect-square bg-gray-200" />
+                            <div className="p-3 space-y-2">
+                                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                                <div className="h-3 bg-gray-100 rounded w-1/2" />
+                                <div className="h-5 bg-brand-100 rounded w-1/3" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : sortedProducts.length === 0 ? (
                 <div className="text-center py-24 glass-panel rounded-[2.5rem] flex flex-col items-center justify-center">
                     <div className="bg-gray-50/50 w-28 h-28 rounded-full flex items-center justify-center mb-6 text-gray-300 border-2 border-dashed border-gray-200">
                         {searchQuery ? <SearchX size={48} /> : <Package size={48} />}

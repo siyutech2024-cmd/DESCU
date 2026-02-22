@@ -79,6 +79,7 @@ const AppContent: React.FC = () => {
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingLoc, setIsLoadingLoc] = useState(true);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [locationInfo, setLocationInfo] = useState<DetailedLocationInfo | null>(null);
@@ -457,7 +458,7 @@ const AppContent: React.FC = () => {
 
   const loadProducts = async (coords: Coordinates, pageNum: number = 1) => {
     try {
-      if (pageNum === 1) setIsLoadingLoc(true); // Initial load
+      if (pageNum === 1) setIsLoadingProducts(true);
       else setIsLoadingMore(true);
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -469,12 +470,14 @@ const AppContent: React.FC = () => {
       const limit = 20;
       const offset = (pageNum - 1) * limit;
 
+      console.log('[App] loadProducts: fetching page', pageNum, 'lang:', language);
       const response = await fetch(`${API_BASE_URL}/api/products?lang=${language}&limit=${limit}&offset=${offset}`, {
         headers
       });
 
       if (response.ok) {
         const dbProducts = await response.json();
+        console.log('[App] loadProducts: received', dbProducts.length, 'products');
         const convertedProducts: Product[] = dbProducts.map((p: any) => ({
           id: p.id,
           seller: {
@@ -527,14 +530,15 @@ const AppContent: React.FC = () => {
         }
 
       } else {
+        console.error('[App] loadProducts: API returned', response.status);
         if (pageNum === 1) setProducts([]);
       }
     } catch (error: any) {
       console.error('加载商品失败:', error);
-      showToast(`加载失败: ${error.message || '未知错误'}`, 'error'); // [DEBUG] Show error to user
+      showToast(`加载失败: ${error.message || '未知错误'}`, 'error');
       if (pageNum === 1) setProducts([]);
     } finally {
-      setIsLoadingLoc(false);
+      setIsLoadingProducts(false);
       setIsLoadingMore(false);
     }
   };
@@ -559,22 +563,28 @@ const AppContent: React.FC = () => {
               longitude: position.coords.longitude,
             };
             setLocation(coords);
-            const detailedLocation = await getDetailedLocation(coords.latitude, coords.longitude);
-            if (detailedLocation) setLocationInfo(detailedLocation);
+            setIsLoadingLoc(false); // 定位成功
 
-            // Fetch Page 1
+            // 产品加载立即开始（不等待反向地理编码）
             setPage(1);
             loadProducts(coords, 1);
+
+            // 反向地理编码异步执行（不阻塞产品加载）
+            getDetailedLocation(coords.latitude, coords.longitude)
+              .then(detail => { if (detail) setLocationInfo(detail); })
+              .catch(err => console.warn('[App] getDetailedLocation error:', err));
           },
           (error) => {
             console.error("Loc error", error);
             setPermissionDenied(true);
+            setIsLoadingLoc(false); // 定位失败也要结束
             setLocation(fallbackCDMX);
             setPage(1);
             // Fallback Load local mock data if API fails or for dev
             if (process.env.NODE_ENV === 'development') {
               const items = generateMockProducts(fallbackCDMX, language);
               setProducts(items);
+              setIsLoadingProducts(false);
             } else {
               loadProducts(fallbackCDMX, 1);
             }
@@ -583,6 +593,7 @@ const AppContent: React.FC = () => {
         );
       } else {
         setPermissionDenied(true);
+        setIsLoadingLoc(false);
         setLocation(fallbackCDMX);
         setPage(1);
         loadProducts(fallbackCDMX, 1);
@@ -1079,6 +1090,7 @@ const AppContent: React.FC = () => {
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
                 isLoadingLoc={isLoadingLoc}
+                isLoadingProducts={isLoadingProducts}
                 permissionDenied={permissionDenied}
                 searchQuery={searchQuery}
                 onSellClick={handleSellClick}
