@@ -1107,6 +1107,7 @@ const AppContent: React.FC = () => {
               <ProductPage
                 products={products}
                 onContactSeller={handleContactSeller}
+                onRequireLogin={() => setIsLoginModalOpen(true)}
                 user={user}
               />
             } />

@@ -17,11 +17,12 @@ interface ProductDetailsProps {
   onBack: () => void;
   // onAddToCart removed - direct purchase model
   onContactSeller: (product: Product) => void;
+  onRequireLogin: () => void;
   isInCart: boolean;
   user: User | null;
 }
 
-export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onContactSeller, isInCart, user }) => {
+export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onContactSeller, onRequireLogin, isInCart, user }) => {
   const { t, language } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
 
@@ -299,16 +300,22 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 </button>
 
                 <button
-                  onClick={() => setIsCheckoutOpen(true)}
-                  disabled={!user || !purchaseEligibility.canPurchase || product.status === 'sold'}
-                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${!user || !purchaseEligibility.canPurchase || product.status === 'sold'
+                  onClick={() => {
+                    if (!user) {
+                      onRequireLogin();
+                    } else {
+                      setIsCheckoutOpen(true);
+                    }
+                  }}
+                  disabled={product.status === 'sold' || (!!user && !purchaseEligibility.canPurchase)}
+                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${(product.status === 'sold' || (!!user && !purchaseEligibility.canPurchase))
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
                     }`}
-                  title={!purchaseEligibility.canPurchase ? purchaseEligibility.reason : (purchaseEligibility.warning || '')}
+                  title={(!user || purchaseEligibility.canPurchase) ? (purchaseEligibility.warning || '') : purchaseEligibility.reason}
                 >
                   <ShoppingBag size={22} />
-                  {product.status === 'sold' ? t('product.sold') : (!purchaseEligibility.canPurchase ? t('product.not_available') : (product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it')))}
+                  {product.status === 'sold' ? t('product.sold') : ((!!user && !purchaseEligibility.canPurchase) ? t('product.not_available') : (product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it')))}
                 </button>
               </div>
 

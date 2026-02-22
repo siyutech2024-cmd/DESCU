@@ -11,12 +11,14 @@ interface ProductPageProps {
     products: Product[];
     // onAddToCart and cart removed - direct purchase model
     onContactSeller: (product: Product) => void;
+    onRequireLogin: () => void;
     user: User | null;
 }
 
 export const ProductPage: React.FC<ProductPageProps> = ({
     products,
     onContactSeller,
+    onRequireLogin,
     user
 }) => {
     const { id } = useParams<{ id: string }>();
@@ -154,6 +156,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
             product={product}
             onBack={() => navigate('/')}
             onContactSeller={onContactSeller}
+            onRequireLogin={onRequireLogin}
             isInCart={false}
             user={user}
         />
