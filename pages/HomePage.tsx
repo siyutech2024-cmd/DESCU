@@ -52,6 +52,20 @@ export const HomePage: React.FC<HomePageProps> = ({
         description: 'Marketplace de segunda mano con inteligencia artificial. Compra y vende artículos usados cerca de ti en México. Electrónicos, autos, muebles, ropa y más. ¡Publica con IA en un clic!',
     });
 
+    // Map Category enum values to translation keys (enum values like "RealEstate" don't match keys like "real_estate")
+    const CATEGORY_LABEL_MAP: Record<string, string> = {
+        'all': 'cat.all',
+        [Category.Electronics]: 'cat.electronics',
+        [Category.Furniture]: 'cat.furniture',
+        [Category.Clothing]: 'cat.clothing',
+        [Category.Books]: 'cat.books',
+        [Category.Sports]: 'cat.sports',
+        [Category.Vehicles]: 'cat.vehicles',
+        [Category.RealEstate]: 'cat.real_estate',
+        [Category.Services]: 'cat.services',
+        [Category.Other]: 'cat.other',
+    };
+
     const CATEGORIES = [
         { id: 'all', icon: RefreshCw, label: 'cat.all' },
         { id: Category.Vehicles, icon: Car, label: 'cat.vehicles' },
@@ -144,7 +158,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <div className="flex items-center justify-between mb-6 px-1">
                 <h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
-                    {selectedCategory === 'all' ? t('list.header') : t(`cat.${selectedCategory}`)}
+                    {selectedCategory === 'all' ? t('list.header') : t(CATEGORY_LABEL_MAP[selectedCategory] || `cat.${selectedCategory}`)}
                     <span className="text-sm font-normal text-gray-400 bg-white/50 px-2 py-0.5 rounded-full backdrop-blur-xs border border-white/40">{sortedProducts.length}</span>
                 </h2>
 

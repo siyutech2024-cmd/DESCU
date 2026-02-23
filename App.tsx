@@ -534,8 +534,13 @@ const AppContent: React.FC = () => {
         if (pageNum === 1) setProducts([]);
       }
     } catch (error: any) {
+      // Ignore aborted requests (caused by language switch or component re-mount)
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+        console.log('[App] loadProducts: request aborted (expected during language switch)');
+        return;
+      }
       console.error('加载商品失败:', error);
-      showToast(`加载失败: ${error.message || '未知错误'}`, 'error');
+      showToast(`${t('toast.load_failed')}: ${error.message || '未知错误'}`, 'error');
       if (pageNum === 1) setProducts([]);
     } finally {
       setIsLoadingProducts(false);

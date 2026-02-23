@@ -189,3 +189,35 @@ export const markMessagesAsRead = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to mark messages as read' });
     }
 };
+
+// 删除对话及其消息
+export const deleteConversation = async (req: Request, res: Response) => {
+    try {
+        const { conversationId } = req.params;
+
+        // 先删除对话中的所有消息
+        const { error: msgError } = await supabase
+            .from('messages')
+            .delete()
+            .eq('conversation_id', conversationId);
+
+        if (msgError) {
+            console.error('Error deleting messages:', msgError);
+        }
+
+        // 再删除对话本身
+        const { error: convError } = await supabase
+            .from('conversations')
+            .delete()
+            .eq('id', conversationId);
+
+        if (convError) throw convError;
+
+        console.log(`[Chat] Conversation ${conversationId} deleted`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting conversation:', error);
+        res.status(500).json({ error: 'Failed to delete conversation' });
+    }
+};
+
