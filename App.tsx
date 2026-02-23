@@ -458,17 +458,18 @@ const AppContent: React.FC = () => {
 
   const FALLBACK_CDMX = { latitude: 19.4326, longitude: -99.1332 };
 
-  const loadProducts = async (coords: Coordinates, pageNum: number = 1, signal?: AbortSignal) => {
+  const loadProducts = async (coords: Coordinates, pageNum: number = 1, cancelledRef?: { current: boolean }) => {
     try {
       if (pageNum === 1) setIsLoadingProducts(true);
       else setIsLoadingMore(true);
 
       // 检查是否已被取消
-      if (signal?.aborted) return;
+      if (cancelledRef?.current) return;
 
+      // getSession 是本地缓存读取，不传 AbortSignal 避免 Supabase 内部 Promise 链泄漏 AbortError
       const { data: { session } } = await supabase.auth.getSession();
 
-      if (signal?.aborted) return;
+      if (cancelledRef?.current) return;
 
       const headers: HeadersInit = {};
       if (session?.access_token) {
@@ -481,13 +482,13 @@ const AppContent: React.FC = () => {
       console.log('[App] loadProducts: fetching page', pageNum, 'lang:', language);
       const response = await fetch(`${API_BASE_URL}/api/products?lang=${language}&limit=${limit}&offset=${offset}`, {
         headers,
-        signal, // 传递 AbortSignal 给 fetch
       });
 
-      if (signal?.aborted) return;
+      if (cancelledRef?.current) return;
 
       if (response.ok) {
         const dbProducts = await response.json();
+        if (cancelledRef?.current) return;
         console.log('[App] loadProducts: received', dbProducts.length, 'products');
         const convertedProducts: Product[] = dbProducts.map((p: any) => ({
           id: p.id,
@@ -501,7 +502,6 @@ const AppContent: React.FC = () => {
           },
           title: p.title,
           description: p.description,
-          // 多语言翻译字段
           title_zh: p.title_zh,
           title_en: p.title_en,
           title_es: p.title_es,
@@ -524,9 +524,10 @@ const AppContent: React.FC = () => {
           createdAt: new Date(p.created_at).getTime(),
           isPromoted: p.is_promoted || false,
           status: p.status,
-          // Calculate real distance from user location
           distance: calculateDistance(coords, { latitude: p.latitude || coords.latitude || 0, longitude: p.longitude || coords.longitude || 0 }),
         }));
+
+        if (cancelledRef?.current) return;
 
         if (convertedProducts.length < limit) {
           setHasMore(false);
@@ -542,18 +543,15 @@ const AppContent: React.FC = () => {
 
       } else {
         console.error('[App] loadProducts: API returned', response.status);
-        if (pageNum === 1) setProducts([]);
+        if (!cancelledRef?.current && pageNum === 1) setProducts([]);
       }
     } catch (error: any) {
-      // Ignore aborted requests (caused by language switch, location change, or component re-mount)
-      if (error.name === 'AbortError' || error.message?.includes('aborted') || signal?.aborted) {
-        return; // 静默忽略，不打印日志避免控制台噪音
-      }
+      if (cancelledRef?.current) return;
       console.error('加载商品失败:', error);
       showToast(`${t('toast.load_failed')}: ${error.message || '未知错误'}`, 'error');
       if (pageNum === 1) setProducts([]);
     } finally {
-      if (!signal?.aborted) {
+      if (!cancelledRef?.current) {
         setIsLoadingProducts(false);
         setIsLoadingMore(false);
       }
@@ -580,7 +578,6 @@ const AppContent: React.FC = () => {
             setLocation(coords);
             setIsLoadingLoc(false);
 
-            // 反向地理编码异步执行
             getDetailedLocation(coords.latitude, coords.longitude)
               .then(detail => { if (detail) setLocationInfo(detail); })
               .catch(err => console.warn('[App] getDetailedLocation error:', err));
@@ -605,20 +602,19 @@ const AppContent: React.FC = () => {
 
   // ========== 产品加载 useEffect（等 location 就绪后加载，language 变化时重载）==========
   useEffect(() => {
-    // 等待定位完成（location 从 null 变为有值），避免 null→fallback→real 的连续重载
     if (!location) return;
 
-    const abortController = new AbortController();
+    // 用 cancelled 标志代替 AbortController，避免 abort() 导致 Supabase 内部 uncaught AbortError
+    const cancelledRef = { current: false };
 
     setPage(1);
     setHasMore(true);
-    loadProducts(location, 1, abortController.signal);
+    loadProducts(location, 1, cancelledRef);
 
-    // cleanup: 取消前一次未完成的请求
     return () => {
-      abortController.abort();
+      cancelledRef.current = true;
     };
-  }, [language, location]); // language 或 location 变化都重新加载
+  }, [language, location]);
 
   // Load conversations
   useEffect(() => {
