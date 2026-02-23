@@ -456,12 +456,20 @@ const AppContent: React.FC = () => {
     }));
   };
 
-  const loadProducts = async (coords: Coordinates, pageNum: number = 1) => {
+  const FALLBACK_CDMX = { latitude: 19.4326, longitude: -99.1332 };
+
+  const loadProducts = async (coords: Coordinates, pageNum: number = 1, signal?: AbortSignal) => {
     try {
       if (pageNum === 1) setIsLoadingProducts(true);
       else setIsLoadingMore(true);
 
+      // 检查是否已被取消
+      if (signal?.aborted) return;
+
       const { data: { session } } = await supabase.auth.getSession();
+
+      if (signal?.aborted) return;
+
       const headers: HeadersInit = {};
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
@@ -472,8 +480,11 @@ const AppContent: React.FC = () => {
 
       console.log('[App] loadProducts: fetching page', pageNum, 'lang:', language);
       const response = await fetch(`${API_BASE_URL}/api/products?lang=${language}&limit=${limit}&offset=${offset}`, {
-        headers
+        headers,
+        signal, // 传递 AbortSignal 给 fetch
       });
+
+      if (signal?.aborted) return;
 
       if (response.ok) {
         const dbProducts = await response.json();
@@ -534,21 +545,20 @@ const AppContent: React.FC = () => {
         if (pageNum === 1) setProducts([]);
       }
     } catch (error: any) {
-      // Ignore aborted requests (caused by language switch or component re-mount)
-      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
-        console.log('[App] loadProducts: request aborted (expected during language switch)');
-        return;
+      // Ignore aborted requests (caused by language switch, location change, or component re-mount)
+      if (error.name === 'AbortError' || error.message?.includes('aborted') || signal?.aborted) {
+        return; // 静默忽略，不打印日志避免控制台噪音
       }
       console.error('加载商品失败:', error);
       showToast(`${t('toast.load_failed')}: ${error.message || '未知错误'}`, 'error');
       if (pageNum === 1) setProducts([]);
     } finally {
-      setIsLoadingProducts(false);
-      setIsLoadingMore(false);
+      if (!signal?.aborted) {
+        setIsLoadingProducts(false);
+        setIsLoadingMore(false);
+      }
     }
   };
-
-  const FALLBACK_CDMX = { latitude: 19.4326, longitude: -99.1332 };
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMore) return;
@@ -593,20 +603,21 @@ const AppContent: React.FC = () => {
     initLocation();
   }, []); // 只执行一次
 
-  // ========== 产品加载 useEffect（依赖 language，不依赖定位）==========
+  // ========== 产品加载 useEffect（等 location 就绪后加载，language 变化时重载）==========
   useEffect(() => {
-    // 使用当前定位或 fallback 坐标，确保产品始终能加载
-    const coords = location || FALLBACK_CDMX;
+    // 等待定位完成（location 从 null 变为有值），避免 null→fallback→real 的连续重载
+    if (!location) return;
+
+    const abortController = new AbortController();
+
     setPage(1);
     setHasMore(true);
+    loadProducts(location, 1, abortController.signal);
 
-    if (process.env.NODE_ENV === 'development' && !location) {
-      const items = generateMockProducts(coords, language);
-      setProducts(items);
-      setIsLoadingProducts(false);
-    } else {
-      loadProducts(coords, 1);
-    }
+    // cleanup: 取消前一次未完成的请求
+    return () => {
+      abortController.abort();
+    };
   }, [language, location]); // language 或 location 变化都重新加载
 
   // Load conversations
