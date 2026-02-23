@@ -548,17 +548,17 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const FALLBACK_CDMX = { latitude: 19.4326, longitude: -99.1332 };
+
   const handleLoadMore = () => {
-    if (!location || isLoadingMore || !hasMore) return;
+    if (isLoadingMore || !hasMore) return;
     const nextPage = page + 1;
     setPage(nextPage);
-    loadProducts(location, nextPage);
+    loadProducts(location || FALLBACK_CDMX, nextPage);
   };
 
-  // Geolocation Init
+  // ========== 定位 useEffect（只执行一次，不依赖 language）==========
   useEffect(() => {
-    const fallbackCDMX = { latitude: 19.4326, longitude: -99.1332 };
-
     const initLocation = async () => {
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
@@ -568,13 +568,9 @@ const AppContent: React.FC = () => {
               longitude: position.coords.longitude,
             };
             setLocation(coords);
-            setIsLoadingLoc(false); // 定位成功
+            setIsLoadingLoc(false);
 
-            // 产品加载立即开始（不等待反向地理编码）
-            setPage(1);
-            loadProducts(coords, 1);
-
-            // 反向地理编码异步执行（不阻塞产品加载）
+            // 反向地理编码异步执行
             getDetailedLocation(coords.latitude, coords.longitude)
               .then(detail => { if (detail) setLocationInfo(detail); })
               .catch(err => console.warn('[App] getDetailedLocation error:', err));
@@ -582,31 +578,36 @@ const AppContent: React.FC = () => {
           (error) => {
             console.error("Loc error", error);
             setPermissionDenied(true);
-            setIsLoadingLoc(false); // 定位失败也要结束
-            setLocation(fallbackCDMX);
-            setPage(1);
-            // Fallback Load local mock data if API fails or for dev
-            if (process.env.NODE_ENV === 'development') {
-              const items = generateMockProducts(fallbackCDMX, language);
-              setProducts(items);
-              setIsLoadingProducts(false);
-            } else {
-              loadProducts(fallbackCDMX, 1);
-            }
+            setIsLoadingLoc(false);
+            setLocation(FALLBACK_CDMX);
           },
           { enableHighAccuracy: false, timeout: 5000, maximumAge: 3600000 }
         );
       } else {
         setPermissionDenied(true);
         setIsLoadingLoc(false);
-        setLocation(fallbackCDMX);
-        setPage(1);
-        loadProducts(fallbackCDMX, 1);
+        setLocation(FALLBACK_CDMX);
       }
     };
 
     initLocation();
-  }, [language]);
+  }, []); // 只执行一次
+
+  // ========== 产品加载 useEffect（依赖 language，不依赖定位）==========
+  useEffect(() => {
+    // 使用当前定位或 fallback 坐标，确保产品始终能加载
+    const coords = location || FALLBACK_CDMX;
+    setPage(1);
+    setHasMore(true);
+
+    if (process.env.NODE_ENV === 'development' && !location) {
+      const items = generateMockProducts(coords, language);
+      setProducts(items);
+      setIsLoadingProducts(false);
+    } else {
+      loadProducts(coords, 1);
+    }
+  }, [language, location]); // language 或 location 变化都重新加载
 
   // Load conversations
   useEffect(() => {
