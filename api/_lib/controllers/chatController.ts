@@ -6,8 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Helper to create authenticated client
 const getAuthClient = (authHeader?: string) => {
-    const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_ANON_KEY;
 
     if (!sbUrl || !sbKey) {
         throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
@@ -82,92 +82,29 @@ export const getUserConversations = async (req: Request, res: Response) => {
         }
 
         const conversationsWithDetails = await Promise.all(
-            (data || [])
-                .filter((conversation: any) => {
-                    // 过滤用户已软删除的对话
-                    const deletedBy: string[] = conversation.deleted_by || [];
-                    return !deletedBy.includes(userId as string);
-                })
-                .map(async (conversation: any) => {
-                    // 获取产品信息（含卖家信息）
-                    const { data: product } = await supabaseClient
-                        .from('products')
-                        .select('title, images, seller_id, seller_name, seller_avatar')
-                        .eq('id', conversation.product_id)
-                        .single();
+            (data || []).map(async (conversation) => {
+                // Public info read (Products) works with anon client too, but scoped is safer/consistent
+                const { data: product } = await supabaseClient
+                    .from('products')
+                    .select('title, images, seller_id, seller_name, seller_avatar')
+                    .eq('id', conversation.product_id)
+                    .single();
 
-                    // 确定对方用户ID
-                    const otherUserId = conversation.user1_id === userId
-                        ? conversation.user2_id
-                        : conversation.user1_id;
-
-                    // 从 public.users 获取对方用户的真实信息
-                    let otherUserInfo = null;
-                    try {
-                        const { data: otherUserData } = await supabaseClient
-                            .from('users')
-                            .select('id, name, avatar_url')
-                            .eq('id', otherUserId)
-                            .single();
-                        if (otherUserData) {
-                            otherUserInfo = {
-                                id: otherUserData.id,
-                                name: otherUserData.name,
-                                avatar: otherUserData.avatar_url
-                            };
-                        }
-                    } catch (e) {
-                        // 如果 users 表查不到，回退到产品中的 seller 信息
-                    }
-
-                    return {
-                        ...conversation,
-                        productTitle: product?.title || '未知商品',
-                        productImage: product?.images?.[0] || '',
-                        sellerInfo: product ? {
-                            id: product.seller_id,
-                            name: product.seller_name,
-                            avatar: product.seller_avatar
-                        } : null,
-                        buyerInfo: otherUserInfo
-                    };
-                })
+                return {
+                    ...conversation,
+                    productTitle: product?.title || '未知商品',
+                    productImage: product?.images?.[0] || '',
+                    sellerInfo: product ? {
+                        id: product.seller_id,
+                        name: product.seller_name,
+                        avatar: product.seller_avatar
+                    } : null
+                };
+            })
         );
 
-        // 批量查询订单状态（减少 N+1 查询）
-        const convIds = conversationsWithDetails.map(c => c.product_id).filter(Boolean);
-        let orderMap: Record<string, { id: string; status: string }> = {};
-        if (convIds.length > 0) {
-            const { data: orders } = await supabaseClient
-                .from('orders')
-                .select('id, product_id, buyer_id, seller_id, status')
-                .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-                .not('status', 'eq', 'cancelled')
-                .order('created_at', { ascending: false });
-
-            if (orders) {
-                orders.forEach((order: any) => {
-                    // 用 product_id + 参与者 匹配
-                    const key = order.product_id;
-                    if (!orderMap[key]) {
-                        orderMap[key] = { id: order.id, status: order.status };
-                    }
-                });
-            }
-        }
-
-        // 附加订单信息到对话
-        const finalConversations = conversationsWithDetails.map(conv => {
-            const order = orderMap[conv.product_id];
-            return {
-                ...conv,
-                orderId: order?.id || null,
-                orderStatus: order?.status || null
-            };
-        });
-
         console.log(`[Chat] Found ${data?.length || 0} conversations for user: ${userId}`);
-        res.json(finalConversations);
+        res.json(conversationsWithDetails);
     } catch (error) {
         console.error('Error fetching conversations:', error);
         res.status(500).json({ error: 'Failed to fetch conversations' });
@@ -250,45 +187,5 @@ export const markMessagesAsRead = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error marking messages as read:', error);
         res.status(500).json({ error: 'Failed to mark messages as read' });
-    }
-};
-
-// 用户软删除对话（后台保留记录）
-export const deleteConversation = async (req: Request, res: Response) => {
-    try {
-        const { conversationId } = req.params;
-        const { userId } = req.body;
-
-        if (!userId) {
-            return res.status(400).json({ error: 'userId is required' });
-        }
-
-        // 先获取当前 deleted_by 数组
-        const { data: conv, error: fetchError } = await supabase
-            .from('conversations')
-            .select('deleted_by')
-            .eq('id', conversationId)
-            .single();
-
-        if (fetchError) throw fetchError;
-
-        // 追加用户ID到 deleted_by（避免重复）
-        const currentDeleted: string[] = conv?.deleted_by || [];
-        if (!currentDeleted.includes(userId)) {
-            currentDeleted.push(userId);
-        }
-
-        const { error: updateError } = await supabase
-            .from('conversations')
-            .update({ deleted_by: currentDeleted })
-            .eq('id', conversationId);
-
-        if (updateError) throw updateError;
-
-        console.log(`[Chat] Conversation ${conversationId} soft-deleted by user ${userId}`);
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error deleting conversation:', error);
-        res.status(500).json({ error: 'Failed to delete conversation' });
     }
 };

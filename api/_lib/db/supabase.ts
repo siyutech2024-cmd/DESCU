@@ -1,25 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Environment variable validation with fallback to VITE_* for backward compatibility
-// Production should use SUPABASE_URL, but we support VITE_* to prevent deployment breaks
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY;
+// Environment variable validation
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
 // Log environment status at module load (for debugging)
 if (!supabaseUrl || !supabaseKey) {
     console.error('❌ CRITICAL: Missing SUPABASE environment variables!');
     console.error('  SUPABASE_URL:', supabaseUrl ? '✓' : '✗ MISSING');
     console.error('  SUPABASE_KEY:', supabaseKey ? '✓' : '✗ MISSING');
-    console.warn('⚠️  Using placeholder values to prevent module crash. API calls will fail.');
 } else {
-    // Log which variables are being used
-    if (process.env.VITE_SUPABASE_URL && !process.env.SUPABASE_URL) {
-        console.warn('⚠️  Using VITE_SUPABASE_URL (deprecated for backend). Consider adding SUPABASE_URL to environment variables.');
-    }
-    const keyType = process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE_KEY' :
-        (process.env.SUPABASE_ANON_KEY ? 'ANON_KEY' : 'VITE_ANON_KEY');
+    const keyType = process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SERVICE_ROLE_KEY' : 'ANON_KEY';
     console.log(`✓ Supabase ready with ${keyType}`);
 }
 

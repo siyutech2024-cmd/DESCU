@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { errorMessages, SupportedLanguage } from '../i18n/messages.js';
+import { errorMessages, SupportedLanguage } from '../i18n/messages';
 
 /**
  * Extract user's preferred language from request headers

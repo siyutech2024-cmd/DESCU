@@ -129,7 +129,6 @@ export const getLoginLink = async (req: Request, res: Response) => {
 };
 
 // Update Seller Bank Info (Manual Payout)
-// 统一使用 bank_clabe 字段，与 /api/users/bank-info 端点保持一致
 export const updateSellerBankInfo = async (req: Request, res: Response) => {
     try {
         const authReq = req as AuthenticatedRequest;
@@ -142,12 +141,11 @@ export const updateSellerBankInfo = async (req: Request, res: Response) => {
             .from('sellers')
             .upsert({
                 user_id: userId,
-                bank_clabe: accountNumber,
                 bank_name: bankName,
-                bank_holder_name: holderName,
-                bank_info_updated_at: new Date().toISOString(),
+                account_number: accountNumber,
+                account_holder_name: holderName,
                 onboarding_complete: true // Mark as ready since they provided bank info
-            }, { onConflict: 'user_id' });
+            });
 
         if (error) throw error;
 
@@ -315,10 +313,10 @@ export const confirmOrder = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Order already completed' });
         }
 
-        // 2. Get Seller's info (Stripe Connect and/or Bank CLABE)
+        // 2. Get Seller's Stripe Account
         const { data: seller } = await supabase
             .from('sellers')
-            .select('stripe_connect_id, bank_clabe, bank_name, bank_holder_name')
+            .select('stripe_connect_id')
             .eq('user_id', order.seller_id)
             .single();
 
@@ -328,7 +326,6 @@ export const confirmOrder = async (req: Request, res: Response) => {
         let platformFeeCollected = 0;
 
         // 3. Execute Transfer if seller has Stripe account and payment is online
-        // 检查多个字段以确保覆盖所有在线支付场景
         const isOnlinePayment = order.payment_method === 'online' || order.stripe_payment_intent_id || order.payment_intent_id;
 
         if (seller?.stripe_connect_id && isOnlinePayment) {
@@ -428,17 +425,6 @@ export const confirmOrder = async (req: Request, res: Response) => {
                 new_status: newStatus
             }
         });
-
-        // 7. Send notification
-        try {
-            const { notifyOrderStatus } = await import('../services/orderNotificationService.js');
-            await notifyOrderStatus(orderId, newStatus, {
-                transferId,
-                transferAmount: transferAmount / 100
-            });
-        } catch (notifyError) {
-            console.error('[Escrow Release] Notification failed:', notifyError);
-        }
 
         res.json({
             success: true,
@@ -670,47 +656,23 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         }
     }
 
-    // Handle payments - 统一使用 escrow_held 状态，资金担保在平台
+    // Handle payments
     if (event.type === 'payment_intent.succeeded') {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const { productId } = paymentIntent.metadata;
 
         console.log('Payment succeeded for product:', productId);
 
-        // 统一使用 escrow_held 状态，资金始终担保在平台账户，等待买家确认收货
+        // Mark as PAID (Escrowed)
         await supabase
             .from('orders')
-            .update({
-                status: 'escrow_held',
-                escrow_status: 'held',
-                stripe_payment_intent_id: paymentIntent.id,
-                updated_at: new Date()
-            })
+            .update({ status: 'paid', updated_at: new Date() })
             .eq('payment_intent_id', paymentIntent.id);
 
         await supabase
             .from('products')
             .update({ status: 'sold' })
             .eq('id', productId);
-
-        // 记录担保事件
-        const { data: updatedOrder } = await supabase
-            .from('orders')
-            .select('id')
-            .eq('payment_intent_id', paymentIntent.id)
-            .single();
-
-        if (updatedOrder) {
-            await supabase.from('order_timeline').insert({
-                order_id: updatedOrder.id,
-                event_type: 'escrow_payment_received',
-                description: '付款成功，资金已进入担保账户，等待买家确认收货后释放',
-                metadata: {
-                    payment_intent: paymentIntent.id,
-                    product_id: productId
-                }
-            });
-        }
     }
 
     // Handle Checkout Session Completed - 担保付款完成
@@ -754,4 +716,3 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
 
     res.send();
 };
-
