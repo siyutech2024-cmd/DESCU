@@ -466,15 +466,19 @@ const AppContent: React.FC = () => {
       // 检查是否已被取消
       if (cancelledRef?.current) return;
 
-      // getSession 是本地缓存读取，不传 AbortSignal 避免 Supabase 内部 Promise 链泄漏 AbortError
-      const { data: { session } } = await supabase.auth.getSession();
+      // getSession 可能在 Auth Callback 期间抛出 AbortError，用 try-catch 包裹使其不阻塞产品加载
+      const headers: HeadersInit = {};
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+      } catch (sessionErr) {
+        // Auth 过渡期间 getSession 可能失败，继续无认证加载
+        console.warn('[App] getSession failed (auth transition), loading without auth');
+      }
 
       if (cancelledRef?.current) return;
-
-      const headers: HeadersInit = {};
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
 
       const limit = 20;
       const offset = (pageNum - 1) * limit;
@@ -547,6 +551,8 @@ const AppContent: React.FC = () => {
       }
     } catch (error: any) {
       if (cancelledRef?.current) return;
+      // Supabase 或 fetch 可能在 auth/language 过渡期抛出 AbortError，静默忽略
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) return;
       console.error('加载商品失败:', error);
       showToast(`${t('toast.load_failed')}: ${error.message || '未知错误'}`, 'error');
       if (pageNum === 1) setProducts([]);
