@@ -148,15 +148,11 @@ const AppContent: React.FC = () => {
       return baseUser;
     };
 
-    // 抽离Auth处理逻辑
-    const handleAuthCallback = async (url: string) => {
+    // 抽离Auth处理逻辑 — 返回 true 表示 session 已设置成功
+    const handleAuthCallback = async (url: string): Promise<boolean> => {
       console.log('[App] Handling Auth Callback:', url);
-      // 处理Hash中的参数 (access_token, refresh_token)
-      // URL可能是 "com.venya.marketplace://google-callback#access_token=..." 
-      // 或者 "http://localhost:3000/#access_token=..."
-
       const hashIndex = url.indexOf('#');
-      if (hashIndex === -1) return;
+      if (hashIndex === -1) return false;
 
       const hashParams = new URLSearchParams(url.substring(hashIndex + 1));
       const accessToken = hashParams.get('access_token');
@@ -164,36 +160,57 @@ const AppContent: React.FC = () => {
 
       if (accessToken && refreshToken) {
         console.log('[App] Tokens found, setting session...');
-        try {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
+        // 重试机制：Supabase 内部可能因并发产生 AbortError
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
 
-          if (error) {
-            console.error('[App] Set session error:', error);
-            showToast(t('toast.login_failed'), 'error');
-          } else if (data.session) {
-            console.log('[App] Session set successfully');
-            const userWithLocation = await loadUserWithLocation(data.session);
-            if (userWithLocation) setUser(userWithLocation);
-            console.log('[App] User state updated');
+            if (error) {
+              console.error('[App] Set session error:', error);
+              if (attempt === 3) showToast(t('toast.login_failed'), 'error');
+              continue;
+            }
+
+            if (data.session) {
+              console.log('[App] Session set successfully');
+              const userWithLocation = await loadUserWithLocation(data.session);
+              if (userWithLocation) setUser(userWithLocation);
+              console.log('[App] User state updated');
+              // 清除 URL 中的 token hash
+              window.history.replaceState(null, '', window.location.pathname);
+              return true;
+            }
+          } catch (err: any) {
+            console.warn(`[App] Auth attempt ${attempt}/3 failed:`, err.message);
+            if (attempt < 3) {
+              // AbortError 时等待一小段后重试
+              await new Promise(r => setTimeout(r, 500 * attempt));
+            } else {
+              console.error('[App] Unexpected auth error after retries:', err);
+            }
           }
-        } catch (err) {
-          console.error('[App] Unexpected auth error:', err);
         }
       }
+      return false;
     };
 
     const initAuth = async () => {
-      // 1. 检查当前URL (冷启动)
-      await handleAuthCallback(window.location.href);
+      // 1. 检查当前URL (冷启动) — 如果 callback 成功，跳过 getSession 避免竞争
+      const callbackHandled = await handleAuthCallback(window.location.href);
+      if (callbackHandled) return;
 
-      // 2. 检查现有Session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const userWithLocation = await loadUserWithLocation(session);
-        if (userWithLocation) setUser(userWithLocation);
+      // 2. 无 callback 时检查现有 Session
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const userWithLocation = await loadUserWithLocation(session);
+          if (userWithLocation) setUser(userWithLocation);
+        }
+      } catch (err) {
+        console.warn('[App] getSession error:', err);
       }
     };
 
