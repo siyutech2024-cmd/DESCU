@@ -19,6 +19,12 @@ window.addEventListener('error', (e) => {
 }, true);
 
 window.addEventListener('unhandledrejection', (e) => {
+  // Supabase SDK 内部 AbortError（channel/auth cleanup），无害，静默处理
+  if (e.reason?.name === 'AbortError' || e.reason?.message?.includes('aborted')) {
+    e.preventDefault();
+    return;
+  }
+  // 部署后 chunk 文件名变化导致动态导入失败，自动刷新
   if (e.reason?.message?.includes('Failed to fetch dynamically imported module')) {
     const lastReload = sessionStorage.getItem('chunk_reload');
     const now = Date.now();
