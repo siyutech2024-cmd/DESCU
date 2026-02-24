@@ -7,14 +7,14 @@ import { getOptimizedImageUrl } from '../services/imageOptimizer';
 
 interface ProductCardProps {
   product: Product;
-  // onAddToCart removed - direct purchase model
   isInCart: boolean;
   onClick: (product: Product) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (product: Product) => void;
+  priority?: boolean; // 首屏图片优先加载
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onClick, isFavorite, onToggleFavorite }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onClick, isFavorite, onToggleFavorite, priority = false }) => {
   const { t, language } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
 
@@ -75,7 +75,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
         <img
           src={getOptimizedImageUrl(product.images[0], 'thumbnail')}
           alt={localizedTitle}
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
+          width={300}
+          height={300}
           className={`object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out ${product.status === 'sold' ? 'grayscale opacity-70' : ''}`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

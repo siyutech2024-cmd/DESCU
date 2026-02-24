@@ -206,15 +206,15 @@ export const HomePage: React.FC<HomePageProps> = ({
             ) : (
                 <div className="flex flex-col gap-8 pb-20">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-6">
-                        {sortedProducts.map((product) => (
+                        {sortedProducts.map((product, index) => (
                             <ProductCard
                                 key={product.id}
                                 product={product}
-                                // onAddToCart removed
                                 isInCart={false}
                                 onClick={(p) => navigate(`/product/${p.id}`)}
                                 isFavorite={favorites.has(product.id)}
                                 onToggleFavorite={onToggleFavorite}
+                                priority={index < 4}
                             />
                         ))}
                     </div>
