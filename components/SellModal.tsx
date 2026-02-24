@@ -543,7 +543,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
                     }`}
                 >
                   <Handshake size={24} className="mb-1" />
-                  <span className="text-[10px] md:text-xs font-bold">{t('del.meetup')}</span>
+                  <span className="text-[10px] md:text-xs font-bold">{t('delivery.meetup')}</span>
                 </button>
                 <button
                   type="button"
@@ -554,7 +554,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
                     }`}
                 >
                   <Truck size={24} className="mb-1" />
-                  <span className="text-[10px] md:text-xs font-bold">{t('del.shipping')}</span>
+                  <span className="text-[10px] md:text-xs font-bold">{t('delivery.shipping')}</span>
                 </button>
                 <button
                   type="button"
@@ -568,7 +568,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
                     <Handshake size={14} />
                     <Truck size={14} />
                   </div>
-                  <span className="text-[10px] md:text-xs font-bold">{t('del.both')}</span>
+                  <span className="text-[10px] md:text-xs font-bold">{t('delivery.both')}</span>
                 </button>
               </div>
             </div>
@@ -600,7 +600,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
             ) : isUploading ? (
               <>
                 <Loader2 size={20} className="animate-spin" />
-                {t('modal.uploading') || `Uploading ${uploadProgress}/${images.length}...`}
+                {`${t('modal.submit.analyzing') || 'Uploading'} ${uploadProgress}/${images.length}...`}
               </>
             ) : (
               <>
