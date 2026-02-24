@@ -181,23 +181,33 @@ const AppContent: React.FC = () => {
       });
       subscriptionRef = subscription;
 
-      // 步骤 2：对于非 OAuth 回流（已有 cookie/localStorage session），用 getSession 恢复
-      // OAuth 回调由 onAuthStateChange 处理，无需手动 getSession（会导致 AbortError）
-      if (!hasHashTokens) {
+      // 步骤 2：也调用 getSession() 以防 _initialize() 已经完成（onAuthStateChange 注册太晚）
+      // OAuth 和普通加载都需要，因为 _initialize() 可能在 useEffect 之前就完成了
+      const tryGetSession = async (attempt = 1): Promise<void> => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            console.log('[App] Existing session found:', session.user.email);
+            console.log(`[App] Session found (attempt ${attempt}):`, session.user.email);
             const userWithLocation = await loadUserWithLocation(session);
             if (userWithLocation) setUser(userWithLocation);
+          } else if (hasHashTokens && attempt < 3) {
+            // OAuth 回调：_initialize() 可能还在处理，等待后重试
+            console.log(`[App] No session yet (attempt ${attempt}), retrying...`);
+            await new Promise(r => setTimeout(r, 800 * attempt));
+            return tryGetSession(attempt + 1);
           }
-        } catch (err) {
-          // 首次加载时偶尔会 abort，忽略即可
-          console.warn('[App] getSession error (non-critical):', err);
+        } catch (err: any) {
+          if (err?.name === 'AbortError' && attempt < 3) {
+            // _initialize() 还在处理中，等待后重试
+            console.log(`[App] AbortError (attempt ${attempt}), retrying...`);
+            await new Promise(r => setTimeout(r, 800 * attempt));
+            return tryGetSession(attempt + 1);
+          }
+          // 非 AbortError 或已重试完毕，忽略（onAuthStateChange 会兜底）
+          console.warn('[App] getSession error (non-critical):', err?.message);
         }
-      } else {
-        console.log('[App] OAuth callback detected — waiting for onAuthStateChange...');
-      }
+      };
+      tryGetSession();
 
       // 清除 URL hash token（延迟以免干扰 _initialize()）
       if (hasHashTokens) {
