@@ -83,22 +83,59 @@ export const getUserConversations = async (req: Request, res: Response) => {
 
         const conversationsWithDetails = await Promise.all(
             (data || []).map(async (conversation) => {
-                // Public info read (Products) works with anon client too, but scoped is safer/consistent
+                // 获取产品信息（包含卖家信息）
                 const { data: product } = await supabaseClient
                     .from('products')
                     .select('title, images, seller_id, seller_name, seller_avatar')
                     .eq('id', conversation.product_id)
                     .single();
 
+                // 获取买家信息（user1_id 通常是买家/发起者）
+                let buyerInfo = null;
+                const buyerId = conversation.user1_id;
+                if (buyerId) {
+                    const { data: buyerProfile } = await supabaseClient
+                        .from('users')
+                        .select('id, name, avatar')
+                        .eq('id', buyerId)
+                        .single();
+                    if (buyerProfile) {
+                        buyerInfo = {
+                            id: buyerProfile.id,
+                            name: buyerProfile.name || buyerProfile.id.slice(0, 8),
+                            avatar: buyerProfile.avatar
+                        };
+                    }
+                }
+
+                // 获取卖家信息（如果 product 表没有卖家信息，查 users 表）
+                let sellerInfo = null;
+                if (product) {
+                    sellerInfo = {
+                        id: product.seller_id,
+                        name: product.seller_name,
+                        avatar: product.seller_avatar
+                    };
+                    // 如果卖家名称为空，从 users 表补全
+                    if (!sellerInfo.name && product.seller_id) {
+                        const { data: sellerProfile } = await supabaseClient
+                            .from('users')
+                            .select('id, name, avatar')
+                            .eq('id', product.seller_id)
+                            .single();
+                        if (sellerProfile) {
+                            sellerInfo.name = sellerProfile.name || sellerProfile.id.slice(0, 8);
+                            sellerInfo.avatar = sellerInfo.avatar || sellerProfile.avatar;
+                        }
+                    }
+                }
+
                 return {
                     ...conversation,
                     productTitle: product?.title || '未知商品',
                     productImage: product?.images?.[0] || '',
-                    sellerInfo: product ? {
-                        id: product.seller_id,
-                        name: product.seller_name,
-                        avatar: product.seller_avatar
-                    } : null
+                    sellerInfo,
+                    buyerInfo,
                 };
             })
         );

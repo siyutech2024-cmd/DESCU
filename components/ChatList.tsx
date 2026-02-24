@@ -351,9 +351,11 @@ export const ChatList: React.FC<ChatListProps> = ({
                             onTouchMove={(e) => handleTouchMove(e, conv.id)}
                             onTouchEnd={handleTouchEnd}
                             onContextMenu={(e) => handleContextMenu(e, conv.id)}
-                            className={`group relative z-10 w-full flex items-center gap-3 bg-gray-50 hover:bg-white p-3 rounded-xl cursor-pointer hover:shadow-sm transition-transform duration-200 border border-transparent hover:border-gray-100 ${swipedConvId === conv.id ? '-translate-x-32' : 'translate-x-0'
-                              }`}
-                            style={{ animationDelay: `${idx * 30}ms` }}
+                            className={`group relative z-10 w-full flex items-center gap-3 bg-gray-50 hover:bg-white p-3 rounded-xl cursor-pointer hover:shadow-sm transition-transform duration-200 border border-transparent hover:border-gray-100`}
+                            style={{
+                              transform: swipedConvId === conv.id ? 'translateX(-128px)' : 'translateX(0)',
+                              animationDelay: `${idx * 30}ms`
+                            }}
                           >
                             {/* 状态指示条 */}
                             <div className={`absolute left-0 top-2 bottom-2 w-1 rounded-full ${conv.category === 'active' ? 'bg-blue-500' :
