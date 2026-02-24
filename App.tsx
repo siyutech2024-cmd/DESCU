@@ -158,7 +158,8 @@ const AppContent: React.FC = () => {
     const initAuth = async () => {
       const hasHashTokens = window.location.hash.includes('access_token');
 
-      // 步骤 1：注册 onAuthStateChange（处理 token 刷新、登出等后续事件）
+      // 步骤 1：注册 onAuthStateChange
+      // 这是最可靠的方式 — Supabase _initialize() 完成 token 交换后会自动触发
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -180,38 +181,29 @@ const AppContent: React.FC = () => {
       });
       subscriptionRef = subscription;
 
-      // 步骤 2：获取 session
-      // 如果有 hash token，_initialize() 已经在处理，稍等一下让它完成
-      if (hasHashTokens) {
-        console.log('[App] OAuth callback detected, waiting for Supabase to process...');
-        await new Promise(r => setTimeout(r, 500));
-      }
-
-      // 用 getSession 获取 _initialize() 处理后的结果（或已有 session）
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          console.log('[App] Session found:', session.user.email);
-          const userWithLocation = await loadUserWithLocation(session);
-          if (userWithLocation) setUser(userWithLocation);
-        } else if (hasHashTokens) {
-          // _initialize() 可能还没完成，再等一下重试
-          console.log('[App] No session yet, retrying...');
-          await new Promise(r => setTimeout(r, 1000));
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          if (retrySession) {
-            console.log('[App] Session found on retry:', retrySession.user.email);
-            const userWithLocation = await loadUserWithLocation(retrySession);
+      // 步骤 2：对于非 OAuth 回流（已有 cookie/localStorage session），用 getSession 恢复
+      // OAuth 回调由 onAuthStateChange 处理，无需手动 getSession（会导致 AbortError）
+      if (!hasHashTokens) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            console.log('[App] Existing session found:', session.user.email);
+            const userWithLocation = await loadUserWithLocation(session);
             if (userWithLocation) setUser(userWithLocation);
           }
+        } catch (err) {
+          // 首次加载时偶尔会 abort，忽略即可
+          console.warn('[App] getSession error (non-critical):', err);
         }
-      } catch (err) {
-        console.warn('[App] getSession error:', err);
+      } else {
+        console.log('[App] OAuth callback detected — waiting for onAuthStateChange...');
       }
 
-      // 清除 URL hash token
+      // 清除 URL hash token（延迟以免干扰 _initialize()）
       if (hasHashTokens) {
-        window.history.replaceState(null, '', window.location.pathname);
+        setTimeout(() => {
+          window.history.replaceState(null, '', window.location.pathname);
+        }, 2000);
       }
     };
 
