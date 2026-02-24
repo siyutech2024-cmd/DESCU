@@ -156,10 +156,10 @@ const AppContent: React.FC = () => {
     let subscriptionRef: { unsubscribe: () => void } | null = null;
 
     const initAuth = async () => {
-      const hasHashTokens = window.location.hash.includes('access_token');
+      const hash = window.location.hash;
+      const hasHashTokens = hash.includes('access_token');
 
-      // 步骤 1：注册 onAuthStateChange
-      // 这是最可靠的方式 — Supabase _initialize() 完成 token 交换后会自动触发
+      // 步骤 1：注册 onAuthStateChange（处理后续 token 刷新、登出等事件）
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -181,39 +181,46 @@ const AppContent: React.FC = () => {
       });
       subscriptionRef = subscription;
 
-      // 步骤 2：也调用 getSession() 以防 _initialize() 已经完成（onAuthStateChange 注册太晚）
-      // OAuth 和普通加载都需要，因为 _initialize() 可能在 useEffect 之前就完成了
-      const tryGetSession = async (attempt = 1): Promise<void> => {
+      // 步骤 2：处理 OAuth 回调（手动解析 hash token）
+      // 由于 detectSessionInUrl: false，_initialize() 不会自动处理，我们完全掌控
+      if (hasHashTokens) {
+        console.log('[App] OAuth callback: manually processing hash tokens...');
+        try {
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (error) {
+              console.error('[App] setSession error:', error);
+            } else if (data.session) {
+              console.log('[App] OAuth login success:', data.session.user.email);
+              // onAuthStateChange 会自动触发，但也即时设置 user
+              const userWithLocation = await loadUserWithLocation(data.session);
+              if (userWithLocation) setUser(userWithLocation);
+            }
+          }
+          // 清除 URL hash
+          window.history.replaceState(null, '', window.location.pathname);
+        } catch (err) {
+          console.error('[App] OAuth callback error:', err);
+        }
+      } else {
+        // 步骤 3：非 OAuth — 恢复已有 session
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            console.log(`[App] Session found (attempt ${attempt}):`, session.user.email);
+            console.log('[App] Existing session found:', session.user.email);
             const userWithLocation = await loadUserWithLocation(session);
             if (userWithLocation) setUser(userWithLocation);
-          } else if (hasHashTokens && attempt < 3) {
-            // OAuth 回调：_initialize() 可能还在处理，等待后重试
-            console.log(`[App] No session yet (attempt ${attempt}), retrying...`);
-            await new Promise(r => setTimeout(r, 800 * attempt));
-            return tryGetSession(attempt + 1);
           }
-        } catch (err: any) {
-          if (err?.name === 'AbortError' && attempt < 3) {
-            // _initialize() 还在处理中，等待后重试
-            console.log(`[App] AbortError (attempt ${attempt}), retrying...`);
-            await new Promise(r => setTimeout(r, 800 * attempt));
-            return tryGetSession(attempt + 1);
-          }
-          // 非 AbortError 或已重试完毕，忽略（onAuthStateChange 会兜底）
-          console.warn('[App] getSession error (non-critical):', err?.message);
+        } catch (err) {
+          console.warn('[App] getSession error (non-critical):', err);
         }
-      };
-      tryGetSession();
-
-      // 清除 URL hash token（延迟以免干扰 _initialize()）
-      if (hasHashTokens) {
-        setTimeout(() => {
-          window.history.replaceState(null, '', window.location.pathname);
-        }, 2000);
       }
     };
 

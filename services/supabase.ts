@@ -12,7 +12,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const url = supabaseUrl || 'https://placeholder.supabase.co';
 const key = supabaseAnonKey || 'placeholder';
 
-export const supabase = createClient(url, key);
+export const supabase = createClient(url, key, {
+    auth: {
+        detectSessionInUrl: false,  // 禁用自动检测，我们在 App.tsx initAuth 中手动处理
+        autoRefreshToken: true,
+        persistSession: true,
+    }
+});
 
 export const uploadProductImage = async (file: File): Promise<string | null> => {
     try {
