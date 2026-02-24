@@ -469,17 +469,8 @@ const AppContent: React.FC = () => {
       // 检查是否已被取消
       if (cancelledRef?.current) return;
 
-      // getSession 可能在 Auth Callback 期间抛出 AbortError，用 try-catch 包裹使其不阻塞产品加载
+      // 产品 API 是公开的，不需要认证头
       const headers: HeadersInit = {};
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
-      } catch (sessionErr) {
-        // Auth 过渡期间 getSession 可能失败，继续无认证加载
-        console.warn('[App] getSession failed (auth transition), loading without auth');
-      }
 
       if (cancelledRef?.current) return;
 
