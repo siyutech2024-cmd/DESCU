@@ -315,14 +315,14 @@ export const ChatList: React.FC<ChatListProps> = ({
 
                       return (
                         <div key={conv.id} className="relative overflow-hidden rounded-xl">
-                          {/* 滑动操作按钮背景 - z-0 在底层 */}
-                          <div className="absolute right-0 top-0 bottom-0 flex items-stretch z-0">
+                          {/* 滑动操作按钮背景 */}
+                          <div className="absolute inset-y-0 right-0 flex items-stretch z-0">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleHideConversation(conv.id);
                               }}
-                              className="w-14 bg-gray-500 text-white flex flex-col items-center justify-center gap-0.5"
+                              className="w-16 bg-gray-500 text-white flex flex-col items-center justify-center gap-0.5"
                             >
                               <EyeOff size={16} />
                               <span className="text-[9px] font-bold">{t('chat.hide')}</span>
@@ -333,14 +333,14 @@ export const ChatList: React.FC<ChatListProps> = ({
                                 setConfirmDeleteId(conv.id);
                                 setSwipedConvId(null);
                               }}
-                              className="w-14 bg-red-500 text-white flex flex-col items-center justify-center gap-0.5"
+                              className="w-16 bg-red-500 text-white flex flex-col items-center justify-center gap-0.5 rounded-r-xl"
                             >
                               <Trash2 size={16} />
                               <span className="text-[9px] font-bold">{t('chat.delete')}</span>
                             </button>
                           </div>
 
-                          {/* 对话卡片主体 - z-10 覆盖按钮 */}
+                          {/* 对话卡片主体 */}
                           <div
                             onClick={(e) => {
                               e.stopPropagation();
@@ -351,7 +351,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                             onTouchMove={(e) => handleTouchMove(e, conv.id)}
                             onTouchEnd={handleTouchEnd}
                             onContextMenu={(e) => handleContextMenu(e, conv.id)}
-                            className={`group relative z-10 w-full flex items-center gap-3 bg-gray-50 hover:bg-white p-3 cursor-pointer hover:shadow-sm transition-transform duration-200 border border-transparent hover:border-gray-100 ${swipedConvId === conv.id ? '-translate-x-28' : 'translate-x-0'
+                            className={`group relative z-10 w-full flex items-center gap-3 bg-gray-50 hover:bg-white p-3 rounded-xl cursor-pointer hover:shadow-sm transition-transform duration-200 border border-transparent hover:border-gray-100 ${swipedConvId === conv.id ? '-translate-x-32' : 'translate-x-0'
                               }`}
                             style={{ animationDelay: `${idx * 30}ms` }}
                           >
