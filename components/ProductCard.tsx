@@ -76,7 +76,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
           src={getOptimizedImageUrl(product.images[0], 'thumbnail')}
           alt={localizedTitle}
           loading={priority ? 'eager' : 'lazy'}
-          fetchPriority={priority ? 'high' : 'auto'}
           decoding="async"
           width={300}
           height={300}
