@@ -196,6 +196,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                             orderId: data.order.id,
                             eventType: 'created',
                             status: 'created',
+                            productId: product.id,
                             productTitle: product.title,
                             productImage: product.images?.[0] || '',
                             amount: data.order.total_amount || product.price,

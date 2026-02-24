@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ShoppingCart,
     DollarSign,
@@ -9,7 +10,8 @@ import {
     Package,
     PartyPopper,
     XCircle,
-    AlertTriangle
+    AlertTriangle,
+    ExternalLink
 } from 'lucide-react';
 
 interface OrderStatusMessageProps {
@@ -33,6 +35,7 @@ interface OrderStatusMessageProps {
 }
 
 export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content }) => {
+    const navigate = useNavigate();
     const {
         orderId,
         eventType,
@@ -45,7 +48,8 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
         description,
         location,
         time,
-        trackingNumber
+        trackingNumber,
+        productId,
     } = content;
 
     const amount = rawAmount ?? totalAmount ?? 0;
@@ -165,8 +169,11 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                 </div>
             </div>
 
-            {/* Product Info */}
-            <div className="flex items-center gap-3 p-3 bg-white/60 rounded-xl mb-3">
+            {/* Product Info - 可点击跳转产品页 */}
+            <div
+                onClick={() => productId ? navigate(`/product/${productId}`) : undefined}
+                className={`flex items-center gap-3 p-3 bg-white/60 rounded-xl mb-3 ${productId ? 'cursor-pointer hover:bg-white/80 hover:shadow-sm transition-all active:scale-[0.98]' : ''}`}
+            >
                 {productImage && (
                     <img
                         src={productImage}
@@ -182,6 +189,7 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                         ${(amount || 0).toFixed(2)} {currency || ''}
                     </div>
                 </div>
+                {productId && <ExternalLink size={14} className="text-gray-400 flex-shrink-0" />}
             </div>
 
             {/* Additional Info */}
