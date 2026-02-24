@@ -73,24 +73,28 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                 setSummary(data.summary || { totalEarned: 0, pending: 0, completed: 0 });
             }
 
-            // Fetch bank info
-            const { data: seller } = await supabase
-                .from('sellers')
-                .select('bank_clabe, bank_name, bank_holder_name')
-                .eq('user_id', userId)
-                .single();
+            // Fetch bank info (may fail if sellers table doesn't exist yet)
+            try {
+                const { data: seller } = await supabase
+                    .from('sellers')
+                    .select('bank_clabe, bank_name, bank_holder_name')
+                    .eq('user_id', userId)
+                    .single();
 
-            if (seller?.bank_clabe) {
-                setBankInfo({
-                    bank_clabe: seller.bank_clabe,
-                    bank_name: seller.bank_name || '',
-                    bank_holder_name: seller.bank_holder_name || ''
-                });
-                setBankForm({
-                    clabe: seller.bank_clabe,
-                    bankName: seller.bank_name || '',
-                    holderName: seller.bank_holder_name || ''
-                });
+                if (seller?.bank_clabe) {
+                    setBankInfo({
+                        bank_clabe: seller.bank_clabe,
+                        bank_name: seller.bank_name || '',
+                        bank_holder_name: seller.bank_holder_name || ''
+                    });
+                    setBankForm({
+                        clabe: seller.bank_clabe,
+                        bankName: seller.bank_name || '',
+                        holderName: seller.bank_holder_name || ''
+                    });
+                }
+            } catch {
+                // sellers table may not exist yet, ignore
             }
         } catch (err) {
             console.error('Fetch payout data error:', err);
