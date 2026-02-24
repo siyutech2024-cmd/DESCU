@@ -38,7 +38,8 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
         eventType,
         productTitle,
         productImage,
-        amount,
+        amount: rawAmount,
+        totalAmount,
         currency,
         message,
         description,
@@ -46,6 +47,8 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
         time,
         trackingNumber
     } = content;
+
+    const amount = rawAmount ?? totalAmount ?? 0;
 
     // 根据事件类型配置样式
     const getEventConfig = () => {
@@ -176,7 +179,7 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                         {productTitle}
                     </div>
                     <div className="text-xs text-gray-500">
-                        ${amount.toFixed(2)} {currency}
+                        ${(amount || 0).toFixed(2)} {currency || ''}
                     </div>
                 </div>
             </div>
@@ -208,7 +211,7 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
             {/* Order ID */}
             <div className="mt-3 pt-3 border-t border-gray-200/50">
                 <div className="text-xs text-gray-500 font-mono">
-                    订单 #{orderId.slice(0, 8)}
+                    订单 #{orderId?.slice(0, 8) || '...'}
                 </div>
             </div>
         </div>

@@ -23,13 +23,13 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
     isSeller,
     onUpdate
 }) => {
-    const { negotiationId, originalPrice, proposedPrice, counterPrice, productTitle, status, finalPrice } = content;
+    const { negotiationId, originalPrice = 0, proposedPrice = 0, counterPrice, productTitle, status, finalPrice } = content;
     const { t } = useLanguage();
     const [isResponding, setIsResponding] = useState(false);
     const [counterInput, setCounterInput] = useState('');
     const [showCounterInput, setShowCounterInput] = useState(false);
 
-    const priceChange = ((proposedPrice - originalPrice) / originalPrice * 100).toFixed(1);
+    const priceChange = originalPrice > 0 ? ((proposedPrice - originalPrice) / originalPrice * 100).toFixed(1) : '0';
     const isDiscount = proposedPrice < originalPrice;
 
     const handleRespond = async (action: 'accept' | 'reject' | 'counter') => {
