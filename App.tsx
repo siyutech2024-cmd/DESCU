@@ -149,57 +149,90 @@ const AppContent: React.FC = () => {
     };
 
     // ========== Auth 初始化 ==========
-    // 策略：onAuthStateChange 是唯一的 auth 状态来源
-    // Supabase v2 会自动检测 URL hash 中的 token 并触发 onAuthStateChange
-    // 不再手动调用 setSession()，避免与 onAuthStateChange 竞争导致 AbortError
+    // 关键顺序：
+    // 1. 先处理 OAuth callback（setSession）— 此时无监听器，不会竞争
+    // 2. 再注册 onAuthStateChange — 处理后续状态变化
+    // 3. 非 callback 时调用 getSession — 恢复已有 session
+    let subscriptionRef: { unsubscribe: () => void } | null = null;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[App] Auth state change:', event);
-      if (session?.user) {
-        const userWithLocation = await loadUserWithLocation(session);
-        if (userWithLocation) {
-          setUser(userWithLocation);
+    const initAuth = async () => {
+      const hasHashTokens = window.location.hash.includes('access_token');
 
-          // 🌍 自动更新用户位置到服务器
-          const userWithLoc = userWithLocation as any;
-          if (userWithLoc.country && userWithLoc.city) {
-            updateUserLocationToServer(userWithLoc).catch(err => {
-              console.error('[App] Failed to update user location:', err);
+      // 步骤 1：OAuth callback — 在注册监听器前完成 setSession
+      if (hasHashTokens) {
+        console.log('[App] OAuth callback detected, setting session...');
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          try {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
             });
+
+            if (error) {
+              console.error('[App] setSession error:', error);
+              showToast(t('toast.login_failed'), 'error');
+            } else if (data.session) {
+              console.log('[App] Session set successfully');
+              const userWithLocation = await loadUserWithLocation(data.session);
+              if (userWithLocation) setUser(userWithLocation);
+            }
+          } catch (err) {
+            console.error('[App] setSession exception:', err);
           }
-        }
-        // OAuth callback 成功后清除 URL 中的 token hash
-        if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
+          // 清除 URL hash
           window.history.replaceState(null, '', window.location.pathname);
         }
-      } else {
-        setUser(null);
       }
-    });
 
-    // 仅在非 OAuth callback 场景下（无 hash token）检查已有 session（页面刷新）
-    if (!window.location.hash.includes('access_token')) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          loadUserWithLocation(session).then(userWithLocation => {
-            if (userWithLocation) setUser(userWithLocation);
-          });
+      // 步骤 2：注册 onAuthStateChange（处理 token 刷新、登出等后续事件）
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('[App] Auth state change:', event);
+        if (session?.user) {
+          const userWithLocation = await loadUserWithLocation(session);
+          if (userWithLocation) {
+            setUser(userWithLocation);
+            const userWithLoc = userWithLocation as any;
+            if (userWithLoc.country && userWithLoc.city) {
+              updateUserLocationToServer(userWithLoc).catch(err => {
+                console.error('[App] Failed to update user location:', err);
+              });
+            }
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
         }
-      }).catch(err => {
-        console.warn('[App] getSession error:', err);
       });
-    }
+      subscriptionRef = subscription;
 
-    // Deep Link (Capacitor 原生应用后台恢复)
+      // 步骤 3：非 callback 时检查已有 session（页面刷新恢复登录状态）
+      if (!hasHashTokens) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const userWithLocation = await loadUserWithLocation(session);
+            if (userWithLocation) setUser(userWithLocation);
+          }
+        } catch (err) {
+          console.warn('[App] getSession error:', err);
+        }
+      }
+    };
+
+    initAuth();
+
+    // Deep Link (Capacitor 原生应用)
     CapacitorApp.addListener('appUrlOpen', async (event) => {
       console.log('[App] Deep link opened:', event.url);
-      // Supabase 会通过 onAuthStateChange 自动处理
     });
 
     return () => {
-      subscription.unsubscribe();
+      subscriptionRef?.unsubscribe();
       CapacitorApp.removeAllListeners();
     };
   }, []);

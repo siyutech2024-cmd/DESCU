@@ -77,31 +77,34 @@ export const compressImage = (file: File, maxWidth = 800, quality = 0.7, targetS
 
         ctx.drawImage(img, 0, 0, width, height);
 
+        // 检测 WebP 支持，回退到 JPEG
+        const useWebP = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+        const mimeType = useWebP ? 'image/webp' : 'image/jpeg';
+        const ext = useWebP ? 'webp' : 'jpg';
+
         // Progressive quality reduction to hit target size
         const tryCompress = (q: number) => {
           canvas.toBlob((blob) => {
             if (!blob) return reject('Compression failed');
 
             const sizeKB = blob.size / 1024;
-            // If still too large and quality can be reduced further, try again
             if (sizeKB > targetSizeKB && q > 0.3) {
               tryCompress(q - 0.1);
               return;
             }
 
-            const ext = q > 0.5 ? 'jpg' : 'jpg';
-            const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-              type: 'image/jpeg',
+            const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, `.${ext}`), {
+              type: mimeType,
               lastModified: Date.now(),
             });
 
             const reduction = ((1 - compressedFile.size / file.size) * 100).toFixed(0);
             console.log(
-              `[Compress] ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB (${reduction}% reduction, q=${q.toFixed(1)}, ${width}x${height})`
+              `[Compress] ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB (${reduction}% reduction, q=${q.toFixed(1)}, ${width}x${height}, ${ext})`
             );
 
             resolve(compressedFile);
-          }, 'image/jpeg', q);
+          }, mimeType, q);
         };
 
         tryCompress(quality);
