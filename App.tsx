@@ -34,6 +34,7 @@ const HomePage = React.lazy(() => import('./pages/HomePage').then(module => ({ d
 const ProductPage = React.lazy(() => import('./pages/ProductPage').then(module => ({ default: module.ProductPage })));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then(module => ({ default: module.ProfilePage })));
 const ChatPage = React.lazy(() => import('./pages/ChatPage').then(module => ({ default: module.ChatPage })));
+const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage').then(module => ({ default: module.UserProfilePage })));
 const AdminPage = React.lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage }))); // [NEW] Admin
 const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicyPage'));
 
@@ -1141,6 +1142,9 @@ const AppContent: React.FC = () => {
                 onLogin={handleLogin}
                 onSendMessage={handleSendMessage}
               />
+            } />
+            <Route path="/user/:id" element={
+              <UserProfilePage currentUserId={user?.id} />
             } />
             <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
             <Route path="/admin/*" element={<AdminPage />} />

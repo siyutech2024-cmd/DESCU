@@ -255,7 +255,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </button>
 
         {/* ... (User Avatar & Name) ... */}
-        <div className="relative cursor-pointer" onClick={() => setShowUserProfile(true)}>
+        <div className="relative cursor-pointer" onClick={() => navigate(`/user/${conversation.otherUser.id}`)}>
           <img
             src={conversation.otherUser.avatar}
             alt={conversation.otherUser.name}
@@ -264,7 +264,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
         </div>
 
-        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowUserProfile(true)}>
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/user/${conversation.otherUser.id}`)}>
           <h2 className="font-bold text-gray-900 truncate leading-tight hover:text-brand-600 transition-colors">{conversation.otherUser.name}</h2>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
@@ -693,16 +693,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </button>
         </form>
       </div>
-      {/* User Profile Modal */}
-      <UserProfileModal
-        isOpen={showUserProfile}
-        onClose={() => setShowUserProfile(false)}
-        userId={conversation.otherUser.id}
-        userName={conversation.otherUser.name}
-        userAvatar={conversation.otherUser.avatar}
-        currentUserId={currentUser.id}
-        canRate={!!activeOrder && (activeOrder.status === 'completed' || activeOrder.status === 'delivered')}
-      />
+
     </div>
   );
 };
