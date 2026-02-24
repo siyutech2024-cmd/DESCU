@@ -118,6 +118,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
     const [isLoading, setIsLoading] = useState(false);
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [createdOrder, setCreatedOrder] = useState<any>(null);
+    const [conversationId, setConversationId] = useState<string | null>(null);
 
     // Reset state on open
     useEffect(() => {
@@ -127,6 +128,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
             setPaymentMethod('cash');
             setClientSecret(null);
             setCreatedOrder(null);
+            setConversationId(null);
             setIsLoading(false);
         }
     }, [isOpen]);
@@ -166,37 +168,44 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
             const data = await res.json();
             setCreatedOrder(data.order);
 
-            // 🔔 直接在聊天中发送订单通知给卖家
+            // 🔔 确保对话存在，并发送订单通知给卖家
             try {
-                // 查找或创建对话
+                // 查找已有对话
                 const { data: existingConv } = await supabase
                     .from('conversations')
                     .select('id')
                     .eq('product_id', product.id)
-                    .eq('user1_id', session.user.id)
-                    .eq('user2_id', product.seller.id)
-                    .single();
+                    .or(`and(user1_id.eq.${session.user.id},user2_id.eq.${product.seller.id}),and(user1_id.eq.${product.seller.id},user2_id.eq.${session.user.id})`)
+                    .maybeSingle();
 
-                let conversationId = existingConv?.id;
-                if (!conversationId) {
-                    // 尝试反向查找
-                    const { data: reverseConv } = await supabase
+                let convId = existingConv?.id;
+
+                // 如果没有对话，创建一个
+                if (!convId) {
+                    const { data: newConv } = await supabase
                         .from('conversations')
+                        .insert({
+                            product_id: product.id,
+                            product_title: product.title,
+                            product_image: product.images?.[0] || '',
+                            user1_id: session.user.id,
+                            user2_id: product.seller.id,
+                        })
                         .select('id')
-                        .eq('product_id', product.id)
-                        .eq('user2_id', session.user.id)
-                        .eq('user1_id', product.seller.id)
                         .single();
-                    conversationId = reverseConv?.id;
+                    convId = newConv?.id;
                 }
 
-                if (conversationId) {
+                if (convId) {
+                    setConversationId(convId);
+
+                    // 发送订单通知消息
                     const orderMsg = orderType === 'meetup'
                         ? `📦 ${t('checkout.order_notify_meetup')}`
                         : `📦 ${t('checkout.order_notify_shipping')}`;
 
                     await supabase.from('messages').insert({
-                        conversation_id: conversationId,
+                        conversation_id: convId,
                         sender_id: session.user.id,
                         text: orderMsg,
                         message_type: 'order_status',
@@ -210,7 +219,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         }),
                         is_read: false
                     });
-                    console.log('[Checkout] Order notification sent to chat');
+                    console.log('[Checkout] Order notification sent to chat, convId:', convId);
                 }
             } catch (notifyErr) {
                 console.error('[Checkout] Failed to send chat notification:', notifyErr);
@@ -423,9 +432,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                                 ? t('checkout.meetup_success')
                                 : t('checkout.shipping_success')}
                         </p>
-                        <button onClick={() => { onClose(); navigate('/profile?tab=buying'); }} className="bg-brand-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-200">
-                            {t('checkout.go_orders')}
-                        </button>
+                        <div className="space-y-3 pt-2">
+                            {/* 主按钮：跳转到与卖家的聊天 */}
+                            <button
+                                onClick={() => {
+                                    onClose();
+                                    if (conversationId) {
+                                        navigate(`/chat/${conversationId}`);
+                                    } else {
+                                        navigate('/chat');
+                                    }
+                                }}
+                                className="w-full bg-brand-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-200 hover:bg-brand-700 transition-all"
+                            >
+                                {t('checkout.chat_seller')}
+                            </button>
+                            {/* 次按钮：查看订单列表 */}
+                            <button
+                                onClick={() => { onClose(); navigate('/profile?tab=buying'); }}
+                                className="w-full bg-gray-100 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all"
+                            >
+                                {t('checkout.go_orders')}
+                            </button>
+                        </div>
                     </div>
                 );
         }
