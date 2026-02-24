@@ -110,3 +110,93 @@ export const generateSitemap = async (req: any, res: any) => {
         else if (typeof res.send === 'function') res.send('Error generating sitemap');
     }
 };
+
+/**
+ * llms-full.txt — 动态生成所有产品的完整文本摘要
+ * AI 搜索引擎可一次性读取全站内容
+ */
+export const generateLlmsFull = async (req: any, res: any) => {
+    try {
+        const { data: products } = await supabase
+            .from('products')
+            .select('id, title, title_es, title_en, description, description_es, description_en, price, currency, category, subcategory, city, location_name, status')
+            .eq('status', 'active')
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+        let txt = `# DESCU — Full Product Catalog\n`;
+        txt += `> Generated: ${new Date().toISOString()}\n`;
+        txt += `> Total active products: ${products?.length || 0}\n\n`;
+        txt += `DESCU is Mexico's AI-powered secondhand marketplace. Buy and sell used items near you.\n`;
+        txt += `Website: https://descu.ai\n\n`;
+        txt += `---\n\n`;
+
+        if (products) {
+            for (const p of products) {
+                const title = p.title_es || p.title_en || p.title || 'Untitled';
+                const desc = p.description_es || p.description_en || p.description || '';
+                const price = p.price ? `${p.price} ${p.currency || 'MXN'}` : 'Contact seller';
+                txt += `## ${title}\n`;
+                txt += `- URL: https://descu.ai/product/${p.id}\n`;
+                txt += `- Price: ${price}\n`;
+                txt += `- Category: ${p.category || 'Other'}${p.subcategory ? ` > ${p.subcategory}` : ''}\n`;
+                txt += `- Location: ${p.city || p.location_name || 'Mexico'}\n`;
+                if (desc) txt += `- Description: ${desc.substring(0, 200)}\n`;
+                txt += `\n`;
+            }
+        }
+
+        txt += `---\n`;
+        txt += `© 2024 DESCU. AI-Powered Secondhand Marketplace in Mexico.\n`;
+
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+        res.status(200).send(txt);
+    } catch (error) {
+        console.error('llms-full.txt Error:', error);
+        res.status(500).send('Error generating llms-full.txt');
+    }
+};
+
+/**
+ * IndexNow — 主动通知 Bing/Yandex 新 URL 变更
+ */
+const INDEXNOW_KEY = 'e8f4a2b1c3d5e6f7a8b9c0d1e2f3a4b5';
+
+export const notifyIndexNow = async (urls: string[]) => {
+    try {
+        const body = {
+            host: 'descu.ai',
+            key: INDEXNOW_KEY,
+            keyLocation: `https://descu.ai/${INDEXNOW_KEY}.txt`,
+            urlList: urls,
+        };
+
+        const response = await fetch('https://api.indexnow.org/IndexNow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify(body),
+        });
+
+        console.log(`[IndexNow] Notified ${urls.length} URLs, status: ${response.status}`);
+        return response.status;
+    } catch (error) {
+        console.error('[IndexNow] Error:', error);
+        return 0;
+    }
+};
+
+/**
+ * Google Sitemap Ping — 通知 Google 更新 sitemap
+ */
+export const pingGoogleSitemap = async () => {
+    try {
+        const response = await fetch('https://www.google.com/ping?sitemap=https://descu.ai/sitemap.xml');
+        console.log(`[Google Ping] Status: ${response.status}`);
+        return response.status;
+    } catch (error) {
+        console.error('[Google Ping] Error:', error);
+        return 0;
+    }
+};

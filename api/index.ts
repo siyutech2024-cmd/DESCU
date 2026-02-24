@@ -73,7 +73,7 @@ import {
     getUserOrders
 } from './_lib/controllers/paymentController.js';
 
-import { generateSitemap } from './_lib/controllers/seoController.js';
+import { generateSitemap, generateLlmsFull, notifyIndexNow, pingGoogleSitemap } from './_lib/controllers/seoController.js';
 import { reverseGeocodeProxy } from './_lib/controllers/locationController.js';
 import { autoReviewPendingProducts } from './_lib/services/auditService.js';
 import { batchTranslateProducts } from './_lib/services/batchTranslateService.js';
@@ -713,6 +713,7 @@ app.get('/api/users/payouts', requireAuth, async (req: any, res) => {
 
 // SEO & Location
 app.get('/sitemap.xml', generateSitemap);
+app.get('/llms-full.txt', generateLlmsFull);
 app.get('/api/location/reverse', reverseGeocodeProxy);
 
 // New IP Location Proxy

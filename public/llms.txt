@@ -12,6 +12,7 @@ Secure escrow payments via Stripe. Available in Spanish, English, and Chinese.
 ## Key URLs
 - Homepage: https://descu.ai/
 - Product pages: https://descu.ai/product/{product_id}
+- Full product catalog: https://descu.ai/llms-full.txt
 - Sitemap: https://descu.ai/sitemap.xml
 - Privacy Policy: https://descu.ai/privacy-policy
 

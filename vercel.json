@@ -9,6 +9,10 @@
             "destination": "/api/sitemap"
         },
         {
+            "source": "/llms-full.txt",
+            "destination": "/api"
+        },
+        {
             "source": "/",
             "has": [
                 {

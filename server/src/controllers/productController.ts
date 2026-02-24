@@ -96,6 +96,15 @@ export const createProduct = async (req: any, res: Response) => {
             throw error;
         }
 
+        // 异步通知搜索引擎新产品（不阻塞响应）
+        if (data?.id) {
+            import('./seoController.js').then(({ notifyIndexNow, pingGoogleSitemap }) => {
+                const productUrl = `https://descu.ai/product/${data.id}`;
+                notifyIndexNow([productUrl, 'https://descu.ai/']).catch(() => { });
+                pingGoogleSitemap().catch(() => { });
+            }).catch(() => { });
+        }
+
         res.status(201).json(data);
     } catch (error: any) {
         console.error('Error creating product:', error);
