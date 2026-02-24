@@ -149,46 +149,15 @@ const AppContent: React.FC = () => {
     };
 
     // ========== Auth 初始化 ==========
-    // 关键顺序：
-    // 1. 先处理 OAuth callback（setSession）— 此时无监听器，不会竞争
-    // 2. 再注册 onAuthStateChange — 处理后续状态变化
-    // 3. 非 callback 时调用 getSession — 恢复已有 session
+    // Supabase v2 的 createClient() 已经在模块加载时通过 _initialize() 自动处理了 URL hash token
+    // 我们不需要（也不能）手动调用 setSession()，否则会与 _initialize() 竞争导致 AbortError
+    // 只需等待 _initialize() 完成后用 getSession() 获取结果
     let subscriptionRef: { unsubscribe: () => void } | null = null;
 
     const initAuth = async () => {
       const hasHashTokens = window.location.hash.includes('access_token');
 
-      // 步骤 1：OAuth callback — 在注册监听器前完成 setSession
-      if (hasHashTokens) {
-        console.log('[App] OAuth callback detected, setting session...');
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-
-        if (accessToken && refreshToken) {
-          try {
-            const { data, error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-
-            if (error) {
-              console.error('[App] setSession error:', error);
-              showToast(t('toast.login_failed'), 'error');
-            } else if (data.session) {
-              console.log('[App] Session set successfully');
-              const userWithLocation = await loadUserWithLocation(data.session);
-              if (userWithLocation) setUser(userWithLocation);
-            }
-          } catch (err) {
-            console.error('[App] setSession exception:', err);
-          }
-          // 清除 URL hash
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-      }
-
-      // 步骤 2：注册 onAuthStateChange（处理 token 刷新、登出等后续事件）
+      // 步骤 1：注册 onAuthStateChange（处理 token 刷新、登出等后续事件）
       const {
         data: { subscription },
       } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -210,17 +179,38 @@ const AppContent: React.FC = () => {
       });
       subscriptionRef = subscription;
 
-      // 步骤 3：非 callback 时检查已有 session（页面刷新恢复登录状态）
-      if (!hasHashTokens) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            const userWithLocation = await loadUserWithLocation(session);
+      // 步骤 2：获取 session
+      // 如果有 hash token，_initialize() 已经在处理，稍等一下让它完成
+      if (hasHashTokens) {
+        console.log('[App] OAuth callback detected, waiting for Supabase to process...');
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // 用 getSession 获取 _initialize() 处理后的结果（或已有 session）
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('[App] Session found:', session.user.email);
+          const userWithLocation = await loadUserWithLocation(session);
+          if (userWithLocation) setUser(userWithLocation);
+        } else if (hasHashTokens) {
+          // _initialize() 可能还没完成，再等一下重试
+          console.log('[App] No session yet, retrying...');
+          await new Promise(r => setTimeout(r, 1000));
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession) {
+            console.log('[App] Session found on retry:', retrySession.user.email);
+            const userWithLocation = await loadUserWithLocation(retrySession);
             if (userWithLocation) setUser(userWithLocation);
           }
-        } catch (err) {
-          console.warn('[App] getSession error:', err);
         }
+      } catch (err) {
+        console.warn('[App] getSession error:', err);
+      }
+
+      // 清除 URL hash token
+      if (hasHashTokens) {
+        window.history.replaceState(null, '', window.location.pathname);
       }
     };
 
