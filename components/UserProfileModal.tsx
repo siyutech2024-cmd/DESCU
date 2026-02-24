@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Star, User as UserIcon, Calendar, Shield, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Star, User as UserIcon, Calendar, Shield, MessageCircle, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { API_BASE_URL } from '../services/apiConfig';
 
@@ -36,6 +37,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasRated, setHasRated] = useState(false);
     const [memberSince, setMemberSince] = useState<string>('');
+    const [userProducts, setUserProducts] = useState<any[]>([]);
+    const [displayName, setDisplayName] = useState(userName);
+    const [displayAvatar, setDisplayAvatar] = useState(userAvatar);
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!isOpen || !userId) return;
@@ -48,17 +53,28 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             })
             .catch(console.error);
 
-        // 获取用户注册时间
+        // 获取用户注册时间 + 真实名称
         import('../services/supabase').then(({ supabase }) => {
-            supabase.from('users').select('created_at').eq('id', userId).single()
+            supabase.from('users').select('created_at, name, avatar').eq('id', userId).single()
                 .then(({ data }) => {
                     if (data?.created_at) {
                         setMemberSince(new Date(data.created_at).toLocaleDateString(localeMap[language] || 'en-US', {
                             year: 'numeric', month: 'short'
                         }));
                     }
+                    // 用真实名称覆盖传入的名称
+                    if (data?.name) setDisplayName(data.name);
+                    if (data?.avatar) setDisplayAvatar(data.avatar);
                 });
         });
+
+        // 获取用户的产品列表
+        fetch(`${API_BASE_URL}/api/products?seller_id=${userId}&limit=6`)
+            .then(r => r.json())
+            .then(data => {
+                if (Array.isArray(data)) setUserProducts(data);
+            })
+            .catch(console.error);
     }, [isOpen, userId]);
 
     const handleSubmitRating = async () => {
@@ -136,8 +152,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         {/* 大头像 */}
                         <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
                             <img
-                                src={userAvatar}
-                                alt={userName}
+                                src={displayAvatar}
+                                alt={displayName}
                                 className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                             />
                         </div>
@@ -145,7 +161,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
                     {/* 用户信息 */}
                     <div className="pt-14 pb-4 px-6 text-center">
-                        <h2 className="text-xl font-bold text-gray-900">{userName}</h2>
+                        <h2 className="text-xl font-bold text-gray-900">{displayName}</h2>
 
                         <div className="flex items-center justify-center gap-4 mt-3">
                             {/* 评分 */}
@@ -217,6 +233,35 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     {hasRated && (
                         <div className="border-t border-gray-100 px-6 py-4 text-center">
                             <p className="text-sm text-green-600 font-medium">✅ {t('profile.rated_success')}</p>
+                        </div>
+                    )}
+
+                    {/* 用户产品列表 */}
+                    {userProducts.length > 0 && (
+                        <div className="border-t border-gray-100 px-6 py-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <ShoppingBag size={14} className="text-gray-500" />
+                                <p className="text-sm font-bold text-gray-700">{t('profile.user_products')}</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                                {userProducts.map((p: any) => (
+                                    <div
+                                        key={p.id}
+                                        onClick={() => { onClose(); navigate(`/product/${p.id}`); }}
+                                        className="flex flex-col bg-gray-50 rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-all active:scale-[0.97]"
+                                    >
+                                        <img
+                                            src={p.images?.[0] || ''}
+                                            alt={p.title}
+                                            className="w-full h-20 object-cover"
+                                        />
+                                        <div className="p-2">
+                                            <p className="text-[11px] font-medium text-gray-900 truncate">{p.title}</p>
+                                            <p className="text-[11px] font-bold text-brand-600">${p.price}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
