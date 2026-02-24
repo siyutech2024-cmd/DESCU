@@ -194,10 +194,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         content: JSON.stringify({
                             type: 'order_status',
                             orderId: data.order.id,
+                            eventType: 'created',
                             status: 'created',
+                            productTitle: product.title,
+                            productImage: product.images?.[0] || '',
+                            amount: data.order.total_amount || product.price,
+                            currency: product.currency || 'MXN',
                             orderType,
                             paymentMethod,
-                            totalAmount: data.order.total_amount
+                            totalAmount: data.order.total_amount,
+                            message: orderType === 'meetup' ? `📦 ${t('checkout.meetup_title')}` : `📦 ${t('checkout.shipping_title')}`,
+                            description: orderType === 'meetup'
+                                ? t('checkout.meetup_success')
+                                : t('checkout.shipping_success'),
                         }),
                         is_read: false
                     });
