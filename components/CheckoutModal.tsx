@@ -12,6 +12,7 @@ import { X, Lock, CreditCard, MapPin, Truck, Wallet, ArrowLeft, CheckCircle, Ban
 import { Product, User } from '../types';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
+import { createOrGetConversation } from '../services/chatService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useRegion } from '../contexts/RegionContext';
 import { AddressList } from './AddressList';
@@ -168,34 +169,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
             const data = await res.json();
             setCreatedOrder(data.order);
 
-            // 🔔 确保对话存在，并发送订单通知给卖家
+            // 🔔 创建/获取对话，并发送订单通知给卖家
             try {
-                // 查找已有对话
-                const { data: existingConv } = await supabase
-                    .from('conversations')
-                    .select('id')
-                    .eq('product_id', product.id)
-                    .or(`and(user1_id.eq.${session.user.id},user2_id.eq.${product.seller.id}),and(user1_id.eq.${product.seller.id},user2_id.eq.${session.user.id})`)
-                    .maybeSingle();
+                const conversation = await createOrGetConversation(
+                    product.id,
+                    session.user.id,
+                    product.seller.id
+                );
 
-                let convId = existingConv?.id;
-
-                // 如果没有对话，创建一个
-                if (!convId) {
-                    const { data: newConv } = await supabase
-                        .from('conversations')
-                        .insert({
-                            product_id: product.id,
-                            product_title: product.title,
-                            product_image: product.images?.[0] || '',
-                            user1_id: session.user.id,
-                            user2_id: product.seller.id,
-                        })
-                        .select('id')
-                        .single();
-                    convId = newConv?.id;
-                }
-
+                const convId = conversation.id || conversation.conversation?.id;
                 if (convId) {
                     setConversationId(convId);
 
@@ -219,10 +201,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         }),
                         is_read: false
                     });
-                    console.log('[Checkout] Order notification sent to chat, convId:', convId);
+                    console.log('[Checkout] Order notification sent, convId:', convId);
                 }
             } catch (notifyErr) {
-                console.error('[Checkout] Failed to send chat notification:', notifyErr);
+                console.error('[Checkout] Failed to create conversation or notify:', notifyErr);
             }
 
             if (data.requiresPayment && payload.paymentMethod === 'online') {
