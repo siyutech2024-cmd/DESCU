@@ -93,6 +93,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -202,8 +203,19 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         fileInputRef.current?.click();
       }
     } else {
+      // 移动浏览器：使用带 capture 的 input 直接调用相机
+      // Android Chrome 会自动弹出"相机/文件"选择面板
       fileInputRef.current?.click();
     }
+  };
+
+  // 直接拍照（移动端浏览器使用）
+  const triggerCamera = () => {
+    if (images.length >= MAX_IMAGES) {
+      showToast(t('modal.max_images') || `Maximum ${MAX_IMAGES} images`, 'warning');
+      return;
+    }
+    cameraInputRef.current?.click();
   };
 
   const removeImage = (id: string) => {
@@ -318,17 +330,35 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
             {images.length === 0 ? (
               /* Empty state — full upload zone */
               <div
-                onClick={triggerImageSelection}
                 className="relative w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand-500 hover:bg-brand-50/50 transition-all overflow-hidden"
               >
-                <div className="text-center p-6 space-y-3">
-                  <div className="w-16 h-16 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
-                    <Upload size={28} />
+                <div className="text-center p-6 space-y-4">
+                  <div className="flex gap-4 justify-center">
+                    {/* 拍照按钮 */}
+                    <button
+                      type="button"
+                      onClick={triggerCamera}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-50 hover:bg-brand-100 text-brand-600 transition-all active:scale-95"
+                    >
+                      <div className="w-14 h-14 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-lg">
+                        <Camera size={26} />
+                      </div>
+                      <span className="text-xs font-bold">{t('modal.take_photo') || 'Tomar Foto'}</span>
+                    </button>
+
+                    {/* 从相册选择 */}
+                    <button
+                      type="button"
+                      onClick={triggerImageSelection}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-600 transition-all active:scale-95"
+                    >
+                      <div className="w-14 h-14 bg-gray-200 text-gray-600 rounded-full flex items-center justify-center shadow-sm">
+                        <Upload size={26} />
+                      </div>
+                      <span className="text-xs font-bold">{t('modal.from_gallery') || 'Galería'}</span>
+                    </button>
                   </div>
-                  <div>
-                    <p className="text-base font-semibold text-gray-900">{t('modal.upload_text')}</p>
-                    <p className="text-sm text-gray-400 mt-1">{t('modal.upload_hint')}</p>
-                  </div>
+                  <p className="text-sm text-gray-400">{t('modal.upload_hint')}</p>
                 </div>
               </div>
             ) : (
@@ -390,6 +420,15 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
               type="file"
               accept="image/*"
               multiple
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+            {/* 相机专用 input（带 capture 属性，直接打开相机） */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
               className="hidden"
               onChange={handleImageSelect}
             />
