@@ -111,16 +111,22 @@ const AppContent: React.FC = () => {
 
   // Supabase Auth State Listener
   useEffect(() => {
-    const loadUserWithLocation = async (session: any) => {
+    // 快速提取基础用户信息（无网络请求，立即返回）
+    const getBaseUser = (session: any) => {
       if (!session?.user) return null;
-
-      const baseUser = {
+      return {
         id: session.user.id,
         name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
         email: session.user.email || '',
         avatar: session.user.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`,
         isVerified: false,
       };
+    };
+
+    // 异步加载位置 + 同步数据库（不阻塞 UI）
+    const loadUserWithLocation = async (session: any) => {
+      const baseUser = getBaseUser(session);
+      if (!baseUser) return null;
 
       // 同步用户信息到 public.users 表（供聊天和订单通知使用）
       try {
@@ -165,16 +171,21 @@ const AppContent: React.FC = () => {
       } = supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('[App] Auth state change:', event);
         if (session?.user) {
-          const userWithLocation = await loadUserWithLocation(session);
-          if (userWithLocation) {
-            setUser(userWithLocation);
-            const userWithLoc = userWithLocation as any;
-            if (userWithLoc.country && userWithLoc.city) {
-              updateUserLocationToServer(userWithLoc).catch(err => {
-                console.error('[App] Failed to update user location:', err);
-              });
+          // 立即设置基础用户（无延迟）
+          const baseUser = getBaseUser(session);
+          if (baseUser) setUser(baseUser);
+          // 异步加载位置信息，完成后更新
+          loadUserWithLocation(session).then(userWithLocation => {
+            if (userWithLocation) {
+              setUser(userWithLocation);
+              const userWithLoc = userWithLocation as any;
+              if (userWithLoc.country && userWithLoc.city) {
+                updateUserLocationToServer(userWithLoc).catch(err => {
+                  console.error('[App] Failed to update user location:', err);
+                });
+              }
             }
-          }
+          });
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         }
@@ -199,9 +210,11 @@ const AppContent: React.FC = () => {
               console.error('[App] setSession error:', error);
             } else if (data.session) {
               console.log('[App] OAuth login success:', data.session.user.email);
-              // onAuthStateChange 会自动触发，但也即时设置 user
-              const userWithLocation = await loadUserWithLocation(data.session);
-              if (userWithLocation) setUser(userWithLocation);
+              // 立即设置基础用户（onAuthStateChange 也会触发，但这里确保最快响应）
+              const baseUser = getBaseUser(data.session);
+              if (baseUser) setUser(baseUser);
+              // 异步补充位置信息
+              loadUserWithLocation(data.session).then(u => { if (u) setUser(u); });
             }
           }
           // 清除 URL hash
@@ -215,8 +228,11 @@ const AppContent: React.FC = () => {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
             console.log('[App] Existing session found:', session.user.email);
-            const userWithLocation = await loadUserWithLocation(session);
-            if (userWithLocation) setUser(userWithLocation);
+            // 立即设置基础用户
+            const baseUser = getBaseUser(session);
+            if (baseUser) setUser(baseUser);
+            // 异步补充位置信息
+            loadUserWithLocation(session).then(u => { if (u) setUser(u); });
           }
         } catch (err) {
           console.warn('[App] getSession error (non-critical):', err);
@@ -229,6 +245,33 @@ const AppContent: React.FC = () => {
     // Deep Link (Capacitor 原生应用)
     CapacitorApp.addListener('appUrlOpen', async (event) => {
       console.log('[App] Deep link opened:', event.url);
+      // 处理 OAuth 回调 deep link
+      if (event.url.includes('access_token')) {
+        try {
+          const hashIndex = event.url.indexOf('#');
+          if (hashIndex !== -1) {
+            const hashParams = new URLSearchParams(event.url.substring(hashIndex + 1));
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+            if (accessToken && refreshToken) {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+              if (error) {
+                console.error('[App] Deep link setSession error:', error);
+              } else if (data.session) {
+                console.log('[App] Deep link login success:', data.session.user.email);
+                // onAuthStateChange 会自动处理 user state 更新
+              }
+            }
+          }
+          // 关闭外部浏览器
+          try { await Browser.close(); } catch (_) { }
+        } catch (err) {
+          console.error('[App] Deep link OAuth callback error:', err);
+        }
+      }
     });
 
     return () => {
@@ -1173,6 +1216,7 @@ const AppContent: React.FC = () => {
         unreadCount={unreadCount}
         orderCount={pendingOrderCount}
         locationInfo={locationInfo}
+        user={user}
       />
       <React.Suspense fallback={null}>
         {isSellModalOpen && (

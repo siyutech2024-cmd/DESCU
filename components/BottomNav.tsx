@@ -14,6 +14,7 @@ interface BottomNavProps {
   unreadCount: number;
   orderCount: number;
   locationInfo?: DetailedLocationInfo | null;
+  user?: { avatar: string; name: string } | null;
 }
 
 // 区域选项配置
@@ -32,7 +33,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onSellClick,
   unreadCount,
   orderCount,
-  locationInfo
+  locationInfo,
+  user
 }) => {
   const { t } = useLanguage();
   const { region, setRegion } = useRegion();
@@ -172,7 +174,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               onClick={() => onChangeView('profile')}
               className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'profile' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              <UserIcon size={22} strokeWidth={currentView === 'profile' ? 2.5 : 2} fill={currentView === 'profile' ? "currentColor" : "none"} />
+              {user ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className={`w-6 h-6 rounded-full object-cover border-2 ${currentView === 'profile' ? 'border-brand-500' : 'border-gray-300'
+                    }`}
+                />
+              ) : (
+                <UserIcon size={22} strokeWidth={currentView === 'profile' ? 2.5 : 2} fill={currentView === 'profile' ? "currentColor" : "none"} />
+              )}
               <span className="text-[10px] font-bold">{t('nav.profile')}</span>
             </button>
           </div>
