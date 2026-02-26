@@ -36,6 +36,9 @@ Allow: /
 User-agent: Bytespider
 Allow: /
 
-# Sitemap & AI manifest
+# Sitemap
 Sitemap: https://descu.ai/sitemap.xml
-AI-Manifest: https://descu.ai/llms.txt
+
+# AI manifest (see https://descu.ai/llms.txt for LLM-friendly site description)
+# Full product catalog: https://descu.ai/llms-full.txt
+# RSS Feed: https://descu.ai/rss.xml

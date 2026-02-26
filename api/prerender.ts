@@ -159,6 +159,36 @@ export default async function handler(req: any, res: any) {
             return res.status(200).send(html);
         }
 
+        // Programmatic SEO: /buy/{category}/in/{city} landing pages
+        const landingMatch = pathParam.match(/^\/buy\/([^/]+)\/in\/([^/]+)$/);
+        if (landingMatch) {
+            const category = decodeURIComponent(landingMatch[1]);
+            const city = decodeURIComponent(landingMatch[2]).replace(/-/g, ' ');
+
+            let query = supabase
+                .from('products')
+                .select('id, title, title_es, title_en, title_zh, price, currency, images, category, subcategory, city, town, status')
+                .eq('status', 'active')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            // Case-insensitive category match
+            if (category.toLowerCase() !== 'all') {
+                query = query.ilike('category', category);
+            }
+            // City match (try both city and town fields)
+            if (city.toLowerCase() !== 'all' && city.toLowerCase() !== 'mexico') {
+                query = query.or(`city.ilike.%${city}%,town.ilike.%${city}%`);
+            }
+
+            const { data: products } = await query;
+            const html = generateLandingPageHtml(products || [], category, city, lang);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+            return res.status(200).send(html);
+        }
+
         // Product page prerender
         const productMatch = pathParam.match(/^\/product\/([a-zA-Z0-9_-]+)$/);
         if (!productMatch) {
@@ -518,3 +548,149 @@ function generateHomepageHtml(products: any[], lang: 'zh' | 'en' | 'es'): string
 </body>
 </html>`;
 }
+
+/**
+ * Programmatic SEO: Generate landing pages for /buy/{category}/in/{city}
+ * Each combination creates a unique page targeting long-tail search queries like:
+ * "buy used electronics in mexico city" or "comprar electrónicos usados en CDMX"
+ */
+function generateLandingPageHtml(products: any[], category: string, city: string, lang: 'zh' | 'en' | 'es'): string {
+    const baseUrl = 'https://descu.ai';
+    const htmlLang = lang === 'zh' ? 'zh-CN' : lang === 'en' ? 'en' : 'es-MX';
+    const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1);
+    const cityDisplay = city.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const slug = `/buy/${encodeURIComponent(category.toLowerCase())}/in/${encodeURIComponent(city.toLowerCase().replace(/\s+/g, '-'))}`;
+    const pageUrl = `${baseUrl}${slug}`;
+
+    const titles: Record<string, string> = {
+        es: `Comprar ${categoryDisplay} de Segunda Mano en ${cityDisplay} | DESCU`,
+        en: `Buy Used ${categoryDisplay} in ${cityDisplay}, Mexico | DESCU`,
+        zh: `在${cityDisplay}购买二手${categoryDisplay} | DESCU`,
+    };
+    const descs: Record<string, string> = {
+        es: `Encuentra ${categoryDisplay.toLowerCase()} de segunda mano en ${cityDisplay}, México. Compra y vende artículos usados de forma segura con pago en custodia vía Stripe en DESCU.`,
+        en: `Find used ${categoryDisplay.toLowerCase()} in ${cityDisplay}, Mexico. Buy and sell pre-owned items safely with Stripe escrow payments on DESCU.`,
+        zh: `在墨西哥${cityDisplay}寻找二手${categoryDisplay}。通过DESCU平台的Stripe安全托管支付，安全买卖二手物品。`,
+    };
+    const h1s: Record<string, string> = {
+        es: `${categoryDisplay} de Segunda Mano en ${cityDisplay}`,
+        en: `Used ${categoryDisplay} in ${cityDisplay}`,
+        zh: `${cityDisplay}的二手${categoryDisplay}`,
+    };
+
+    const title = titles[lang] || titles['es'];
+    const desc = descs[lang] || descs['es'];
+    const h1 = h1s[lang] || h1s['es'];
+
+    // Build ItemList JSON-LD
+    const itemListEntries = products.map((p: any, idx: number) => {
+        const pTitle = getLocalizedText(p, 'title', lang) || p.title || 'Product';
+        const image = (p.images && p.images[0]) || `${baseUrl}/og-image.png`;
+        return {
+            "@type": "ListItem",
+            "position": idx + 1,
+            "url": `${baseUrl}/product/${p.id}`,
+            "name": pTitle,
+            "image": image
+        };
+    });
+
+    const jsonLd = JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "CollectionPage",
+                "name": h1,
+                "description": desc,
+                "url": pageUrl,
+                "inLanguage": htmlLang,
+                "isPartOf": { "@type": "WebSite", "name": "DESCU", "url": baseUrl }
+            },
+            {
+                "@type": "ItemList",
+                "name": h1,
+                "numberOfItems": products.length,
+                "itemListElement": itemListEntries
+            },
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    { "@type": "ListItem", "position": 1, "name": "DESCU", "item": baseUrl },
+                    { "@type": "ListItem", "position": 2, "name": categoryDisplay, "item": `${baseUrl}/?category=${category}` },
+                    { "@type": "ListItem", "position": 3, "name": cityDisplay, "item": pageUrl }
+                ]
+            }
+        ]
+    });
+
+    // Product cards HTML
+    const productCardsHtml = products.map((p: any) => {
+        const pTitle = getLocalizedText(p, 'title', lang) || p.title || 'Product';
+        const price = formatPrice(p.price || 0, p.currency || 'MXN');
+        const image = (p.images && p.images[0]) || '';
+        const pCity = p.city || p.town || '';
+        return `<article style="border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:12px;">
+            ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(pTitle)}" style="width:100%;height:200px;object-fit:cover;border-radius:8px;" loading="lazy" />` : ''}
+            <h2 style="font-size:16px;margin:8px 0 4px;"><a href="${baseUrl}/product/${p.id}" style="color:#333;text-decoration:none;">${escapeHtml(pTitle)}</a></h2>
+            <p style="font-size:20px;font-weight:bold;color:#ec4899;margin:4px 0;">${price}</p>
+            ${pCity ? `<p style="font-size:13px;color:#888;margin:2px 0;">📍 ${escapeHtml(pCity)}</p>` : ''}
+            <p style="font-size:13px;color:#888;margin:2px 0;">${escapeHtml(p.category || '')}</p>
+        </article>`;
+    }).join('\n');
+
+    const noResultsMsg: Record<string, string> = {
+        es: `No hay artículos de ${categoryDisplay.toLowerCase()} disponibles en ${cityDisplay} en este momento. <a href="${baseUrl}/">Ver todos los artículos</a>.`,
+        en: `No ${categoryDisplay.toLowerCase()} items available in ${cityDisplay} right now. <a href="${baseUrl}/">Browse all items</a>.`,
+        zh: `目前${cityDisplay}暂无二手${categoryDisplay}。<a href="${baseUrl}/">浏览所有商品</a>。`,
+    };
+
+    return `<!DOCTYPE html>
+<html lang="${htmlLang}">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${escapeHtml(title)}</title>
+    <meta name="description" content="${escapeHtml(desc)}" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="${pageUrl}" />
+
+    <meta name="geo.region" content="MX" />
+    <meta name="geo.placename" content="${escapeHtml(cityDisplay)}" />
+
+    <link rel="alternate" hreflang="es-MX" href="${pageUrl}" />
+    <link rel="alternate" hreflang="en" href="${pageUrl}?lang=en" />
+    <link rel="alternate" hreflang="zh" href="${pageUrl}?lang=zh" />
+    <link rel="alternate" hreflang="x-default" href="${pageUrl}" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${pageUrl}" />
+    <meta property="og:title" content="${escapeHtml(title)}" />
+    <meta property="og:description" content="${escapeHtml(desc)}" />
+    <meta property="og:image" content="${baseUrl}/og-image.png" />
+    <meta property="og:site_name" content="DESCU" />
+
+    <script type="application/ld+json">${jsonLd}</script>
+</head>
+<body>
+    <div id="root">
+        <header style="padding:20px;text-align:center;">
+            <a href="${baseUrl}/" style="font-size:24px;font-weight:bold;color:#ec4899;text-decoration:none;">DESCU</a>
+            <p>${lang === 'zh' ? 'AI智能二手交易平台' : lang === 'en' ? 'AI-Powered Secondhand Marketplace' : 'Marketplace de Segunda Mano con IA'}</p>
+        </header>
+        <main style="max-width:800px;margin:0 auto;padding:20px;">
+            <nav style="margin-bottom:16px;font-size:14px;color:#666;">
+                <a href="${baseUrl}/">DESCU</a> &gt;
+                <a href="${baseUrl}/?category=${encodeURIComponent(category)}">${escapeHtml(categoryDisplay)}</a> &gt;
+                <span>${escapeHtml(cityDisplay)}</span>
+            </nav>
+            <h1 style="font-size:22px;margin-bottom:16px;">${escapeHtml(h1)} (${products.length})</h1>
+            ${products.length > 0 ? productCardsHtml : `<p>${noResultsMsg[lang] || noResultsMsg['es']}</p>`}
+        </main>
+        <footer style="text-align:center;padding:20px;color:#999;font-size:12px;">
+            <p>&copy; 2024 DESCU</p>
+        </footer>
+    </div>
+</body>
+</html>`;
+}
+

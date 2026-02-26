@@ -65,6 +65,24 @@ export default async function handler(req: any, res: any) {
   </url>`;
         }
 
+        // Programmatic SEO: City × Category landing pages
+        const majorCities = [
+            'ciudad-de-mexico', 'guadalajara', 'monterrey', 'puebla', 'tijuana',
+            'leon', 'cancun', 'merida', 'queretaro', 'toluca',
+            'aguascalientes', 'chihuahua', 'morelia', 'saltillo', 'hermosillo'
+        ];
+        for (const cat of categories) {
+            for (const city of majorCities) {
+                xml += `
+  <url>
+    <loc>${baseUrl}/buy/${cat.toLowerCase()}/in/${city}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`;
+            }
+        }
+
         // Product pages with hreflang + image tags
         if (products) {
             for (const p of products) {
