@@ -19,13 +19,14 @@ export default async function handler(req: any, res: any) {
 
         const { data: products, error } = await supabase
             .from('products')
-            .select('id, title, title_es, title_en, title_zh, description, description_es, description_en, description_zh, price, currency, category, subcategory, condition, city, town, district, delivery_type, images, status, created_at, updated_at')
+            .select('*')
             .eq('status', 'active')
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(2000);
 
         if (error) {
+            console.error('[llms-full] Supabase error:', error.message);
             throw error;
         }
 
