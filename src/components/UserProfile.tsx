@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import OrderList from './OrderList';
 import { SellerPayoutCard } from './SellerPayoutCard';
 import { CreditBadge } from './CreditBadge';
-import { ArrowLeft, Camera, Save, Check, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, Star, Heart, Lock } from 'lucide-react';
+import { ArrowLeft, Camera, Save, Check, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, Scale, ExternalLink, Star, Heart, Lock } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '@/i18n';
-import { getFullDataUrl } from '../services/utils';
+import { compressImage } from '../services/utils';
+import { notify } from '@/lib/toast';
 import { api } from '@/lib/api/client';
-import { markProductAsSold, relistProduct } from '../services/supabase';
+import { markProductAsSold, relistProduct, uploadAvatarImage } from '../services/supabase';
 
 interface UserProfileProps {
   user: User;
@@ -38,13 +39,12 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [name, setName] = useState(user.name);
   const [avatar, setAvatar] = useState(user.avatar);
   const [isSaved, setIsSaved] = useState(false);
-  const [isUploadingID, setIsUploadingID] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [activeTab, setActiveTab] = useState<'listings' | 'buying' | 'selling' | 'favorites'>('listings');
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [listingsLimit, setListingsLimit] = useState(6); // 商品列表分页限制
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const idInputRef = useRef<HTMLInputElement>(null);
   const [soldProducts, setSoldProducts] = useState<Set<string>>(new Set());
   const [markingSoldId, setMarkingSoldId] = useState<string | null>(null);
 
@@ -88,13 +88,22 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      try {
-        const url = await getFullDataUrl(e.target.files[0]);
-        setAvatar(url);
-      } catch (err) {
-        console.error("Failed to load image", err);
-      }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
+    try {
+      // Compress and upload to Storage. Never store a data-URL: the avatar ends up in
+      // auth user_metadata (i.e. inside every JWT), and a base64 image there breaks all
+      // authenticated requests with oversized headers.
+      const compressed = await compressImage(file, 512, 0.8, 120);
+      const url = await uploadAvatarImage(compressed, user.id);
+      if (!url) throw new Error('upload failed');
+      setAvatar(url);
+    } catch (err) {
+      console.error('Failed to upload avatar', err);
+      notify.error(t('toast.upload_failed'));
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -130,14 +139,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     }
   }, []);
 
-  const handleIDUpload = () => {
-    setIsUploadingID(true);
-    setTimeout(() => {
-      setIsUploadingID(false);
-      if (onVerifyUser) onVerifyUser();
-    }, 2000);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateUser({ ...user, name, avatar });
@@ -170,8 +171,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-50 shadow-md">
                   <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
                 </div>
-                <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Camera className="text-white" size={24} />
+                <div className={`absolute inset-0 bg-black/30 rounded-full flex items-center justify-center transition-opacity ${isUploadingAvatar ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                  {isUploadingAvatar ? <Loader2 className="text-white animate-spin" size={24} /> : <Camera className="text-white" size={24} />}
                 </div>
                 {user.isVerified && (
                   <div className="absolute bottom-0 right-0 bg-blue-500 text-white p-1 rounded-full border-2 border-white">
@@ -418,18 +419,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                 <h3 className="font-bold text-gray-900">{user.isVerified ? t('profile.is_verified') : t('profile.verify_title')}</h3>
                 <p className="text-sm text-gray-500 mt-1 mb-3">{t('profile.verify_desc')}</p>
 
-                {!user.isVerified && onVerifyUser && (
-                  <div>
-                    <input type="file" ref={idInputRef} className="hidden" accept="image/*,.pdf" onChange={handleIDUpload} />
-                    <button
-                      onClick={() => idInputRef.current?.click()}
-                      disabled={isUploadingID}
-                      className="bg-white border border-gray-300 hover:border-blue-500 hover:text-blue-600 text-gray-700 text-sm font-bold py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center gap-2"
-                    >
-                      {isUploadingID ? <><Loader2 size={16} className="animate-spin" /> {t('profile.verifying')}</> : <><FileText size={16} /> {t('profile.get_verified')}</>}
-                    </button>
-                  </div>
-                )}
+                {/* Verification is granted by the DESCU team after review; there is no self-service flow. */}
               </div>
             </div>
           </div>

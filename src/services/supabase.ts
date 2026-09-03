@@ -42,6 +42,20 @@ export const uploadProductImage = async (file: File): Promise<string | null> => 
     }
 };
 
+/** Upload a (pre-compressed) avatar to Storage and return its public URL. */
+export const uploadAvatarImage = async (file: File, userId: string): Promise<string | null> => {
+    try {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+        const filePath = `avatars/${userId}/${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from('products').upload(filePath, file, { upsert: true, contentType: file.type || undefined });
+        if (error) throw error;
+        return supabase.storage.from('products').getPublicUrl(filePath).data.publicUrl;
+    } catch (error) {
+        console.error('Error uploading avatar:', error);
+        return null;
+    }
+};
+
 // 标记产品为已售出
 export const markProductAsSold = async (productId: string): Promise<boolean> => {
     try {

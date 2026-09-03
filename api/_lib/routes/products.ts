@@ -6,7 +6,7 @@ import { requireAuth } from '../middleware/userAuth.js';
 /** Product catalogue + AI image analysis. */
 export const productsRouter = Router();
 
-productsRouter.post('/api/analyze', analyzeImage);
+productsRouter.post('/api/analyze', requireAuth, analyzeImage);
 productsRouter.get('/api/products/health', productsHealthCheck);
 productsRouter.post('/api/products', requireAuth, createProduct);
 productsRouter.get('/api/products', getProducts);

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
-import { judgeDisputeWithGemini } from '../../services/geminiService';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 import { api, ApiError } from '@/lib/api/client';
 
 const DisputeList = () => {
@@ -41,25 +40,6 @@ const DisputeList = () => {
         } catch (e) {
             console.error(e);
             alert('网络错误');
-        }
-    };
-
-    const handleAiJudge = async (dispute: any) => {
-        alert('AI is analyzing... (Check console/wait for popup)');
-
-        const verdict = await judgeDisputeWithGemini({
-            reason: dispute.reason,
-            description: dispute.description
-        });
-
-        if (verdict) {
-            const msg = `🤖 AI Suggestion:\n\nVerdict: ${verdict.verdict}\nReason: ${verdict.reasoning}\nConfidence: ${(verdict.confidence * 100).toFixed(0)}%\n\nApply this verdict?`;
-            if (confirm(msg)) {
-                if (verdict.verdict.includes('Refund')) handleResolve(dispute.id, 'refund');
-                else if (verdict.verdict.includes('Release')) handleResolve(dispute.id, 'release');
-            }
-        } else {
-            alert('AI could not determine a verdict.');
         }
     };
 
@@ -138,14 +118,6 @@ const DisputeList = () => {
                                         <p className="text-xs text-gray-400">
                                             创建时间：{new Date(d.created_at).toLocaleString()}
                                         </p>
-                                        {d.status === 'open' && (
-                                            <button
-                                                onClick={() => handleAiJudge(d)}
-                                                className="mt-3 text-xs text-purple-600 flex items-center gap-1 hover:underline bg-purple-50 px-3 py-1.5 rounded-full"
-                                            >
-                                                <Sparkles size={14} /> AI智能分析
-                                            </button>
-                                        )}
                                     </div>
                                     <div className="flex gap-2 ml-4">
                                         {d.status === 'open' && (

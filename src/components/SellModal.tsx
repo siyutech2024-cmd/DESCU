@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Sparkles, MapPin, Loader2, Camera, Truck, Handshake, Info, AlertCircle, Plus, Star, GripVertical } from 'lucide-react';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
-import { analyzeImageWithGemini } from '../services/geminiService';
+import { analyzeProductImage } from '@/features/products/analyzeApi';
 import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
 import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
@@ -35,6 +35,7 @@ const mapCategoryFromAI = (aiCategory: string): Category => {
     'car': Category.Vehicles,
     'auto': Category.Vehicles,
     'realestate': Category.RealEstate,
+    'real_estate': Category.RealEstate,
     'real estate': Category.RealEstate,
     'property': Category.RealEstate,
     'house': Category.RealEstate,
@@ -119,7 +120,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         setAiStatus('analyzing');
         try {
           const base64 = await fileToBase64(compressedFile);
-          const result = await analyzeImageWithGemini(base64);
+          const result = await analyzeProductImage(base64, language);
 
           if (result) {
             setFormData(prev => ({
@@ -128,8 +129,8 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
               description: result.description,
               category: mapCategoryFromAI(result.category),
               subcategory: result.subcategory || undefined,
-              price: result.price.toString(),
-              deliveryType: (result.deliveryType === 'Meetup' ? DeliveryType.Meetup : result.deliveryType === 'Shipping' ? DeliveryType.Shipping : DeliveryType.Both),
+              price: result.suggestedPrice != null ? String(result.suggestedPrice) : prev.price,
+              deliveryType: (result.suggestedDeliveryType === 'meetup' ? DeliveryType.Meetup : result.suggestedDeliveryType === 'shipping' ? DeliveryType.Shipping : DeliveryType.Both),
             }));
             setAiStatus('success');
           } else {
