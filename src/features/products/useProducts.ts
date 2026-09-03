@@ -16,7 +16,7 @@ type ProductPages = InfiniteData<ApiProduct[], number>;
 export const useProducts = (origin: Coordinates | null) => {
     const { language } = useLanguage();
     const queryClient = useQueryClient();
-    const queryKey = queryKeys.products.list(language);
+    const queryKey = useMemo(() => queryKeys.products.list(language), [language]);
 
     const query = useInfiniteQuery<ApiProduct[], Error, ProductPages, typeof queryKey, number>({
         queryKey,
@@ -59,7 +59,8 @@ export const useProducts = (origin: Coordinates | null) => {
 
     return {
         products,
-        isLoading: query.isLoading,
+        // Treat "waiting for a location" as loading so the feed shows skeletons, not the empty state.
+        isLoading: origin === null || query.isPending,
         isLoadingMore: query.isFetchingNextPage,
         hasMore: query.hasNextPage ?? false,
         loadMore: () => {

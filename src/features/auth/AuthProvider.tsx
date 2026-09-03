@@ -42,12 +42,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const userRef = useRef<User | null>(null);
     userRef.current = user;
+    /** Ids already enriched with profile sync + IP location (avoids duplicate work when
+     *  both init() and onAuthStateChange fire for the same session). */
+    const enrichedIds = useRef(new Set<string>());
 
     /** Set the fast, network-free user, then enrich with profile sync + IP location. */
     const applySession = useCallback((session: Session | null | undefined) => {
         const base = userFromSession(session);
         if (!base) return;
-        setUser(base);
+        setUser(prev => (prev && prev.id === base.id ? { ...base, ...prev, name: base.name, avatar: base.avatar } : base));
+
+        if (enrichedIds.current.has(base.id)) return;
+        enrichedIds.current.add(base.id);
 
         (async () => {
             await syncUserProfile(base);
@@ -73,6 +79,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (session?.user) {
                 applySession(session);
             } else if (event === 'SIGNED_OUT') {
+                enrichedIds.current.clear();
                 setUser(null);
             }
         });

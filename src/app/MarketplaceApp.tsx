@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
@@ -67,8 +67,12 @@ export const MarketplaceApp: React.FC = () => {
         document.title = 'DESCU';
     }, [language]);
 
+    const lastToastedError = useRef<unknown>(null);
     useEffect(() => {
-        if (feed.error) notify.error(`${t('toast.load_failed')}: ${getErrorMessage(feed.error)}`);
+        if (feed.error && feed.error !== lastToastedError.current) {
+            lastToastedError.current = feed.error;
+            notify.error(`${t('toast.load_failed')}: ${getErrorMessage(feed.error)}`);
+        }
     }, [feed.error, t]);
 
     const currentView = useMemo(() => viewFromPath(pathname), [pathname]);

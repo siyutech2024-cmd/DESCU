@@ -26,7 +26,7 @@ export const useConversations = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const userId = user?.id ?? '';
-    const queryKey = queryKeys.conversations(userId);
+    const queryKey = useMemo(() => queryKeys.conversations(userId), [userId]);
 
     const query = useQuery({
         queryKey,

@@ -63,5 +63,8 @@ export const useCreateProduct = (user: User | null, { onCreated }: Options = {})
         },
     });
 
-    return { createProduct: mutation.mutateAsync, isCreating: mutation.isPending };
+    /** Fire-and-forget: errors are reported via toast, never rethrown to the caller. */
+    const createProductSafe = (input: NewProductInput) => mutation.mutateAsync(input).catch(() => undefined);
+
+    return { createProduct: createProductSafe, isCreating: mutation.isPending };
 };

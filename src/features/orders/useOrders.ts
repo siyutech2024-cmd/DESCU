@@ -17,6 +17,7 @@ export const useOrders = () => {
         queryKey: queryKeys.orders(userId),
         enabled: !!userId,
         refetchInterval: ORDERS_POLL_MS,
+        refetchIntervalInBackground: true,
         queryFn: async () => {
             const data = await api.get<{ orders?: Order[] }>('/api/orders', { auth: 'required' });
             return data.orders ?? [];
