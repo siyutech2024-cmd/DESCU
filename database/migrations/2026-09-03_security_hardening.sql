@@ -46,6 +46,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE INSERT, UPDATE, DELETE, TRUNCAT
 ALTER TABLE public.sellers ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read access to sellers" ON public.sellers;
 DROP POLICY IF EXISTS "Users can CRUD their own seller profile" ON public.sellers;
+DROP POLICY IF EXISTS "Users can insert own seller profile" ON public.sellers;
+DROP POLICY IF EXISTS "Users can update own seller profile" ON public.sellers;
+DROP POLICY IF EXISTS "Users can view own seller profile" ON public.sellers;
 DROP POLICY IF EXISTS "sellers_owner_all" ON public.sellers;
 CREATE POLICY "sellers_owner_all" ON public.sellers
   FOR ALL TO authenticated
@@ -54,71 +57,24 @@ CREATE POLICY "sellers_owner_all" ON public.sellers
 DROP INDEX IF EXISTS public.idx_sellers_bank_clabe;  -- no query needs an index on account numbers
 
 -- -----------------------------------------------------------------------------
--- 4. conversations / messages: participants only.
---    The browser still inserts chat attachments/system cards directly, so
---    authenticated participants keep INSERT; sender must be the caller.
+-- 4. conversations / messages
+--    Live DB (checked 2026-09-03) already has RLS on with participant policies
+--    ("Users can view their own conversations", "messages_select_policy",
+--    "messages_insert_policy" — note user1_id/user2_id/sender_id are TEXT there).
+--    We only make sure RLS stays on and add the indexes those policies need.
+--    Conversation creation stays API-only (no client INSERT policy on purpose).
 -- -----------------------------------------------------------------------------
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages      ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users can view own conversations"        ON public.conversations;
-DROP POLICY IF EXISTS "Users can create conversations"          ON public.conversations;
-DROP POLICY IF EXISTS "conversations_participant_select"        ON public.conversations;
-DROP POLICY IF EXISTS "conversations_participant_insert"        ON public.conversations;
-DROP POLICY IF EXISTS "conversations_participant_update"        ON public.conversations;
-
-CREATE POLICY "conversations_participant_select" ON public.conversations
-  FOR SELECT TO authenticated
-  USING (auth.uid() = user1_id OR auth.uid() = user2_id);
-CREATE POLICY "conversations_participant_insert" ON public.conversations
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
-CREATE POLICY "conversations_participant_update" ON public.conversations
-  FOR UPDATE TO authenticated
-  USING (auth.uid() = user1_id OR auth.uid() = user2_id)
-  WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
-
-DROP POLICY IF EXISTS "Users can view messages in own conversations" ON public.messages;
-DROP POLICY IF EXISTS "Users can send messages"                      ON public.messages;
-DROP POLICY IF EXISTS "Users can update own messages"                ON public.messages;
-DROP POLICY IF EXISTS "messages_participant_select"                  ON public.messages;
-DROP POLICY IF EXISTS "messages_participant_insert"                  ON public.messages;
-DROP POLICY IF EXISTS "messages_participant_update"                  ON public.messages;
-
-CREATE POLICY "messages_participant_select" ON public.messages
-  FOR SELECT TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.conversations c
-    WHERE c.id = messages.conversation_id
-      AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
-  ));
-CREATE POLICY "messages_participant_insert" ON public.messages
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    sender_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM public.conversations c
-      WHERE c.id = messages.conversation_id
-        AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
-    )
-  );
--- read receipts / pin updates by either participant
-CREATE POLICY "messages_participant_update" ON public.messages
-  FOR UPDATE TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.conversations c
-    WHERE c.id = messages.conversation_id
-      AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
-  ));
-
--- Indexes the participant policies and chat queries rely on
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON public.messages (conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_conversations_user1 ON public.conversations (user1_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_user2 ON public.conversations (user2_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_product ON public.conversations (product_id);
 
 -- -----------------------------------------------------------------------------
--- 5. admin_logs: service role only (the API writes/reads it).
+-- 5. admin_logs: service role only (the API writes/reads it). The live DB has
+--    four permissive policies (two USING(true), two for any authenticated user).
 -- -----------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -126,6 +82,8 @@ BEGIN
     EXECUTE 'ALTER TABLE public.admin_logs ENABLE ROW LEVEL SECURITY';
     EXECUTE 'DROP POLICY IF EXISTS "管理员可以查看操作日志" ON public.admin_logs';
     EXECUTE 'DROP POLICY IF EXISTS "管理员可以插入操作日志" ON public.admin_logs';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated insert logs" ON public.admin_logs';
+    EXECUTE 'DROP POLICY IF EXISTS "Allow authenticated select logs" ON public.admin_logs';
     -- no policies => only service_role (bypasses RLS) can access
   END IF;
 END $$;
