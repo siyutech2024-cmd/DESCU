@@ -75,9 +75,11 @@ router.post('/api/orders/create', requireAuth, async (req: any, res) => {
         });
 
         // Auto-create chat
-        const { data: conversation } = await supabase.from('conversations').select().eq('product_id', productId).eq('buyer_id', buyerId).eq('seller_id', product.seller_id).single();
+        const { data: conversation } = await supabase.from('conversations').select('id').eq('product_id', productId)
+            .or(`and(user1_id.eq.${buyerId},user2_id.eq.${product.seller_id}),and(user1_id.eq.${product.seller_id},user2_id.eq.${buyerId})`)
+            .limit(1).maybeSingle();
         if (!conversation) {
-            await supabase.from('conversations').insert({ product_id: productId, buyer_id: buyerId, seller_id: product.seller_id });
+            await supabase.from('conversations').insert({ product_id: productId, user1_id: buyerId, user2_id: product.seller_id });
         }
 
         // 🔔 发送订单创建通知到聊天

@@ -4,6 +4,7 @@ import { supabase } from '../db/supabase.js';
 import { AuthenticatedRequest } from '../middleware/userAuth.js';
 import { getAuthClient } from '../utils/supabaseHelper.js';
 import { confirmBlockReason, isPaymentSettled } from '../domain/orders.js';
+import { processStripeEvent } from '../services/stripeWebhookService.js';
 
 export const ordersHealthCheck = (req: Request, res: Response) => {
     res.json({
@@ -254,15 +255,19 @@ export const markOrderAsShipped = async (req: Request, res: Response) => {
 
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // 1. Verify Ownership (Must be SELLER)
+        // 1. Verify Ownership (Must be SELLER) and that the order is actually paid & shippable
         const { data: order } = await supabase
             .from('orders')
-            .select('seller_id')
+            .select('seller_id, status, order_type, payment_method, payment_captured, escrow_status')
             .eq('id', orderId)
-            .single();
+            .maybeSingle();
 
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.seller_id !== userId) return res.status(403).json({ error: 'Only seller can mark shipped' });
+        if (order.order_type !== 'shipping') return res.status(400).json({ error: 'Not a shipping order' });
+        if (!['paid', 'escrow_held'].includes(order.status) || !isPaymentSettled(order)) {
+            return res.status(400).json({ error: `Order cannot be shipped in status "${order.status}"` });
+        }
 
         const { error } = await supabase
             .from('orders')
@@ -305,12 +310,31 @@ export const confirmOrder = async (req: Request, res: Response) => {
         const blocked = confirmBlockReason(order);
         if (blocked) return res.status(400).json({ error: blocked });
 
+        // Take the release lock: only the first confirm claims confirmed_at. A concurrent or
+        // repeated request sees 0 rows and stops here, so a transfer can never run twice.
+        const lockedAt = new Date().toISOString();
+        const { data: locked, error: lockError } = await supabase
+            .from('orders')
+            .update({ confirmed_at: lockedAt })
+            .eq('id', orderId)
+            .eq('status', order.status)
+            .is('confirmed_at', null)
+            .select('id');
+        if (lockError) throw lockError;
+        if (!locked || locked.length === 0) {
+            return res.status(409).json({ error: 'This order is already being confirmed' });
+        }
+        const releaseLock = async () => {
+            await supabase.from('orders').update({ confirmed_at: null }).eq('id', orderId).eq('confirmed_at', lockedAt);
+        };
+
         // 2. Get Seller's Stripe Account
-        const { data: seller } = await supabase
+        const { data: seller, error: sellerError } = await supabase
             .from('sellers')
             .select('stripe_connect_id')
             .eq('user_id', order.seller_id)
-            .single();
+            .maybeSingle();
+        if (sellerError) { await releaseLock(); throw sellerError; }
 
         let newStatus = 'completed';
         let transferId: string | null = null;
@@ -348,7 +372,7 @@ export const confirmOrder = async (req: Request, res: Response) => {
                         original_amount: amountInCents
                     },
                     description: `DESCU Order ${orderId} - Escrow Release`
-                });
+                }, { idempotencyKey: `escrow_release_${orderId}` });
 
                 transferId = transfer.id;
                 console.log(`[Escrow Release] Transfer created: ${transfer.id}`);
@@ -380,7 +404,6 @@ export const confirmOrder = async (req: Request, res: Response) => {
         // 4. Update Order Status and Transfer Info
         const updateData: any = {
             status: newStatus,
-            confirmed_at: new Date(),
             updated_at: new Date(),
             escrow_status: transferId ? 'released' : 'pending_release'
         };
@@ -392,10 +415,20 @@ export const confirmOrder = async (req: Request, res: Response) => {
             updateData.platform_fee_collected = platformFeeCollected / 100;
         }
 
-        await supabase
+        const { error: finalizeError } = await supabase
             .from('orders')
             .update(updateData)
             .eq('id', orderId);
+        if (finalizeError) {
+            // Money may already have moved: never release the lock here, surface loudly instead.
+            console.error('[Escrow Release] CRITICAL: transfer done but order update failed', { orderId, transferId, finalizeError });
+            await supabase.from('order_timeline').insert({
+                order_id: orderId, event_type: 'finalize_failed',
+                description: 'Order status update failed after escrow release — needs manual reconciliation',
+                metadata: { transfer_id: transferId, error: finalizeError.message }
+            });
+            return res.status(500).json({ error: 'Order was released but could not be finalised; support has been notified' });
+        }
 
         // 5. Update Product status to sold (if not already)
         await supabase
@@ -456,6 +489,14 @@ export const createDispute = async (req: Request, res: Response) => {
         if (order.buyer_id !== userId && order.seller_id !== userId) {
             return res.status(403).json({ error: 'Not authorized for this order' });
         }
+        // Disputes only make sense while money/goods are in flight.
+        if (!['paid', 'escrow_held', 'meetup_arranged', 'shipped', 'delivered'].includes(order.status)) {
+            return res.status(400).json({ error: `Order cannot be disputed in status "${order.status}"` });
+        }
+        if (typeof reason !== 'string' || !reason.trim()) return res.status(400).json({ error: 'reason is required' });
+        const { data: existingDispute } = await supabase
+            .from('disputes').select('id').eq('order_id', orderId).in('status', ['open', 'resolving']).maybeSingle();
+        if (existingDispute) return res.status(409).json({ error: 'An open dispute already exists for this order' });
 
         // 2. Create Dispute
         const { data: dispute, error: disputeError } = await supabase
@@ -640,73 +681,11 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    if (event.type === 'account.updated') {
-        const account = event.data.object as Stripe.Account;
-        if (account.charges_enabled && account.payouts_enabled) {
-            await supabase
-                .from('sellers')
-                .update({ onboarding_complete: true })
-                .eq('stripe_connect_id', account.id);
-        }
+    try {
+        const outcome = await processStripeEvent(event, 'legacy');
+        res.json({ received: true, outcome });
+    } catch (error: any) {
+        console.error('[Webhook] Error processing event:', error);
+        res.status(500).json({ error: 'Webhook handler failed' });
     }
-
-    // Handle payments
-    if (event.type === 'payment_intent.succeeded') {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const { productId } = paymentIntent.metadata;
-
-        console.log('Payment succeeded for product:', productId);
-
-        // Mark as PAID (Escrowed)
-        await supabase
-            .from('orders')
-            .update({ status: 'paid', updated_at: new Date() })
-            .eq('payment_intent_id', paymentIntent.id);
-
-        await supabase
-            .from('products')
-            .update({ status: 'sold' })
-            .eq('id', productId);
-    }
-
-    // Handle Checkout Session Completed - 担保付款完成
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object as any;
-        console.log('[Webhook] Checkout completed (escrow):', session.id);
-
-        const orderId = session.metadata?.order_id;
-        const isEscrow = session.metadata?.escrow === 'true';
-        const platformFee = session.metadata?.platform_fee;
-        const sellerStripeId = session.metadata?.seller_stripe_id;
-
-        if (orderId) {
-            // Update order to escrow_held status - funds are in platform account
-            await supabase.from('orders').update({
-                status: isEscrow ? 'escrow_held' : 'paid',
-                payment_captured: true,
-                stripe_payment_intent_id: session.payment_intent,
-                escrow_status: isEscrow ? 'held' : 'none',
-                platform_fee: platformFee ? parseFloat(platformFee) / 100 : null,
-                updated_at: new Date()
-            }).eq('id', orderId);
-
-            await supabase.from('order_timeline').insert({
-                order_id: orderId,
-                event_type: isEscrow ? 'escrow_payment_received' : 'payment_completed',
-                description: isEscrow
-                    ? '付款成功，资金已进入担保账户，等待买家确认收货后释放'
-                    : 'Payment completed via Stripe Checkout',
-                metadata: {
-                    session_id: session.id,
-                    payment_intent: session.payment_intent,
-                    escrow: isEscrow,
-                    seller_stripe_id: sellerStripeId
-                }
-            });
-
-            console.log(`[Webhook] Order ${orderId} updated to ${isEscrow ? 'escrow_held' : 'paid'}`);
-        }
-    }
-
-    res.send();
 };

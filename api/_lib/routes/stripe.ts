@@ -3,6 +3,7 @@ import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/userAuth.js';
 import { getStripe } from '../lib/stripe.js';
 import { toCents } from '../domain/orders.js';
+import { processStripeEvent } from '../services/stripeWebhookService.js';
 import {
     createPaymentIntent,
     handleStripeWebhook,
@@ -524,90 +525,9 @@ router.post('/api/stripe/v2/webhook', async (req, res) => {
         return res.status(400).json({ error: 'Webhook signature verification failed' });
     }
 
-    console.log('[StripeV2 Webhook] Received event:', event.type);
-
     try {
-        switch (event.type) {
-            // Account events
-            case 'account.updated': {
-                const account = event.data.object as any;
-                console.log('[StripeV2 Webhook] Account updated:', account.id);
-
-                // Update seller status in database
-                await supabase.from('sellers')
-                    .update({
-                        onboarding_complete: account.details_submitted,
-                        stripe_account_status: account.payouts_enabled ? 'active' : 'pending'
-                    })
-                    .eq('stripe_connect_id', account.id);
-                break;
-            }
-
-            // Payment events - Escrow Pattern
-            case 'checkout.session.completed': {
-                const session = event.data.object as any;
-                console.log('[StripeV2 Webhook] Checkout completed (escrow):', session.id);
-
-                const orderId = session.metadata?.order_id;
-                const isEscrow = session.metadata?.escrow === 'true';
-                const platformFee = session.metadata?.platform_fee;
-                const sellerStripeId = session.metadata?.seller_stripe_id;
-
-                if (orderId) {
-                    // Update order to escrow_held status - funds are in platform account
-                    await supabase.from('orders').update({
-                        status: isEscrow ? 'escrow_held' : 'paid',
-                        payment_captured: true,
-                        stripe_payment_intent_id: session.payment_intent,
-                        escrow_status: isEscrow ? 'held' : 'none',
-                        platform_fee: platformFee ? parseFloat(platformFee) / 100 : null
-                    }).eq('id', orderId);
-
-                    await supabase.from('order_timeline').insert({
-                        order_id: orderId,
-                        event_type: isEscrow ? 'escrow_payment_received' : 'payment_completed',
-                        description: isEscrow
-                            ? '付款成功，资金已进入担保账户，等待买家确认收货后释放'
-                            : 'Payment completed via Stripe Checkout',
-                        metadata: {
-                            session_id: session.id,
-                            payment_intent: session.payment_intent,
-                            escrow: isEscrow,
-                            seller_stripe_id: sellerStripeId
-                        }
-                    });
-
-                    // 🔔 发送担保支付通知
-                    if (isEscrow) {
-                        import('../services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
-                            notifyOrderStatus(orderId, 'escrow_held', {
-                                message: '买家已付款，资金在担保中'
-                            }).catch(console.error);
-                        }).catch(console.error);
-                    }
-                }
-                break;
-            }
-
-
-            case 'payment_intent.succeeded': {
-                const paymentIntent = event.data.object as any;
-                console.log('[StripeV2 Webhook] Payment succeeded:', paymentIntent.id);
-                break;
-            }
-
-            case 'transfer.created': {
-                const transfer = event.data.object as any;
-                console.log('[StripeV2 Webhook] Transfer created:', transfer.id,
-                    'to', transfer.destination, 'amount:', transfer.amount);
-                break;
-            }
-
-            default:
-                console.log('[StripeV2 Webhook] Unhandled event type:', event.type);
-        }
-
-        res.json({ received: true });
+        const outcome = await processStripeEvent(event, 'v2');
+        res.json({ received: true, outcome });
     } catch (error: any) {
         console.error('[StripeV2 Webhook] Error processing event:', error);
         res.status(500).json({ error: 'Webhook handler failed' });
@@ -852,10 +772,12 @@ router.post('/api/stripe/create-payment-intent', requireAuth, async (req: any, r
         const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.buyer_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
-        if (order.status !== 'pending_payment') return res.status(400).json({ error: 'Invalid order status' });
+        if (order.payment_captured === true || !['pending_payment', 'meetup_arranged'].includes(order.status)) {
+            return res.status(400).json({ error: 'Invalid order status' });
+        }
 
         const paymentIntent = await getStripe().paymentIntents.create({
-            amount: Math.round(order.total_amount * 100),
+            amount: toCents(Number(order.total_amount)),
             currency: 'mxn',
             payment_method_types: ['card'],
             metadata: { order_id: order.id, buyer_id: order.buyer_id, seller_id: order.seller_id },

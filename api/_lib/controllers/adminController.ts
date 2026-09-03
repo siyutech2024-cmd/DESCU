@@ -613,79 +613,105 @@ export const getAdminDisputes = async (req: AdminRequest, res: Response) => {
  */
 export const resolveDispute = async (req: AdminRequest, res: Response) => {
     try {
-        const { disputeId, action, adminNote } = req.body;
+        const { disputeId, action, adminNote } = req.body ?? {};
+        if (typeof disputeId !== 'string' || !disputeId) return res.status(400).json({ error: 'disputeId is required' });
+        if (action !== 'refund' && action !== 'release') return res.status(400).json({ error: 'Invalid action' });
 
         // 1. Fetch Dispute & Order
-        const { data: dispute } = await supabase
+        const { data: dispute, error: disputeError } = await supabase
             .from('disputes')
             .select('*, order:order_id(*)')
             .eq('id', disputeId)
-            .single();
-
+            .maybeSingle();
+        if (disputeError) throw disputeError;
         if (!dispute || !dispute.order) {
             return res.status(404).json({ error: 'Dispute or Order not found' });
         }
-
-        const order = dispute.order;
-        const paymentIntentId = order.payment_intent_id;
-
-        if (action === 'refund') {
-            // A. Refund to Buyer
-            // Assume full refund for simplicity
-            await getStripe().refunds.create({
-                payment_intent: paymentIntentId,
-            });
-
-            // Update DB
-            await supabase.from('orders').update({ status: 'refunded' }).eq('id', order.id);
-            await supabase.from('disputes').update({ status: 'resolved_refund', description: adminNote }).eq('id', disputeId);
-
-        } else if (action === 'release') {
-            // B. Release to Seller
-            // Similar logic to confirmOrder in paymentController
-
-            // Fetch seller connect ID
-            const { data: seller } = await supabase
-                .from('sellers')
-                .select('stripe_connect_id')
-                .eq('user_id', order.seller_id)
-                .single();
-
-            if (seller?.stripe_connect_id) {
-                const amount = Math.round(order.amount * 100);
-                const platformFee = Math.round(amount * 0.05);
-                const transferAmount = amount - platformFee;
-
-                await getStripe().transfers.create({
-                    amount: transferAmount,
-                    currency: order.currency.toLowerCase(),
-                    destination: seller.stripe_connect_id,
-                    metadata: { orderId: order.id, disputeId }
-                });
-            }
-
-            // Update DB
-            await supabase.from('orders').update({ status: 'completed' }).eq('id', order.id);
-            await supabase.from('disputes').update({ status: 'resolved_release', description: adminNote }).eq('id', disputeId);
-
-        } else {
-            return res.status(400).json({ error: 'Invalid action' });
+        if (dispute.status !== 'open') {
+            return res.status(409).json({ error: `Dispute already ${dispute.status}` });
         }
 
-        // Log Action
+        // 2. Claim the dispute first so a double click / concurrent admin cannot move money twice.
+        const resolvedStatus = action === 'refund' ? 'resolved_refund' : 'resolved_release';
+        const { data: claimed, error: claimError } = await supabase
+            .from('disputes')
+            .update({ status: 'resolving', admin_note: adminNote ?? null })
+            .eq('id', disputeId)
+            .eq('status', 'open')
+            .select('id');
+        if (claimError) throw claimError;
+        if (!claimed || claimed.length === 0) {
+            return res.status(409).json({ error: 'Dispute is already being resolved' });
+        }
+
+        const order = dispute.order;
+        // Current schema: stripe_payment_intent_id / total_amount (legacy rows may still carry the old names)
+        const paymentIntentId: string | null = order.stripe_payment_intent_id || order.payment_intent_id || null;
+        const totalAmount = Number(order.total_amount ?? order.amount);
+        const platformFee = Number(order.platform_fee ?? 0);
+        const currency = String(order.currency || 'mxn').toLowerCase();
+        const isOnline = order.payment_method === 'online' && order.payment_captured === true;
+
+        try {
+            if (action === 'refund') {
+                if (isOnline) {
+                    if (!paymentIntentId) throw new Error('Order has no payment intent to refund');
+                    await getStripe().refunds.create(
+                        { payment_intent: paymentIntentId, metadata: { order_id: order.id, dispute_id: disputeId } },
+                        { idempotencyKey: `dispute_refund_${disputeId}` }
+                    );
+                }
+                await supabase.from('orders').update({ status: 'refunded', escrow_status: isOnline ? 'refunded' : order.escrow_status, updated_at: new Date().toISOString() }).eq('id', order.id);
+            } else {
+                if (isOnline) {
+                    const { data: seller } = await supabase
+                        .from('sellers')
+                        .select('stripe_connect_id')
+                        .eq('user_id', order.seller_id)
+                        .maybeSingle();
+                    if (seller?.stripe_connect_id && !order.transferred_to_seller) {
+                        const transferAmount = Math.round((totalAmount - platformFee) * 100);
+                        if (!Number.isFinite(transferAmount) || transferAmount <= 0) throw new Error('Invalid transfer amount');
+                        await getStripe().transfers.create(
+                            {
+                                amount: transferAmount,
+                                currency,
+                                destination: seller.stripe_connect_id,
+                                metadata: { order_id: order.id, dispute_id: disputeId },
+                            },
+                            { idempotencyKey: `dispute_release_${disputeId}` }
+                        );
+                        await supabase.from('orders').update({ transferred_to_seller: true, transfer_amount: transferAmount / 100, escrow_status: 'released' }).eq('id', order.id);
+                    } else if (!seller?.stripe_connect_id) {
+                        // No Stripe account: goes to the manual payout queue like a normal completion.
+                        await supabase.from('orders').update({ status: 'completed_pending_payout' }).eq('id', order.id);
+                    }
+                }
+                await supabase.from('orders').update({ status: order.payment_method === 'online' && !order.transferred_to_seller ? 'completed_pending_payout' : 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', order.id);
+            }
+        } catch (moneyError: any) {
+            // Money movement failed: reopen the dispute so it can be retried.
+            await supabase.from('disputes').update({ status: 'open' }).eq('id', disputeId).eq('status', 'resolving');
+            throw moneyError;
+        }
+
+        await supabase.from('disputes').update({ status: resolvedStatus }).eq('id', disputeId);
+        await supabase.from('order_timeline').insert({
+            order_id: order.id,
+            event_type: action === 'refund' ? 'dispute_refunded' : 'dispute_released',
+            description: adminNote || `Dispute resolved: ${action}`,
+            created_by: req.admin?.id ?? null,
+            metadata: { dispute_id: disputeId, action },
+        });
+
         if (req.admin) {
-            await logAdminAction(
-                req.admin.id, req.admin.email,
-                'resolve_dispute', 'dispute', disputeId,
-                { action, adminNote }
-            );
+            await logAdminAction(req.admin.id, req.admin.email, 'resolve_dispute', 'dispute', disputeId, { action, adminNote });
         }
 
         res.json({ success: true, action });
-
     } catch (error: any) {
         console.error('裁决失败:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Failed to resolve dispute' });
     }
 };
 

@@ -76,24 +76,25 @@ export async function notifyOrderStatus(orderId: string, status: string, extraDa
         // 获取或创建对话
         let conversationId: string;
 
+        // conversations rows are keyed by user1_id/user2_id (either seat may be the buyer)
         const { data: existingConv } = await supabase
             .from('conversations')
             .select('id')
             .eq('product_id', order.product_id)
-            .eq('buyer_id', order.buyer_id)
-            .eq('seller_id', order.seller_id)
-            .single();
+            .or(`and(user1_id.eq.${order.buyer_id},user2_id.eq.${order.seller_id}),and(user1_id.eq.${order.seller_id},user2_id.eq.${order.buyer_id})`)
+            .limit(1)
+            .maybeSingle();
 
         if (existingConv) {
             conversationId = existingConv.id;
         } else {
-            // 创建新对话
+            // 创建新对话（买家为 user1，卖家为 user2）
             const { data: newConv, error: convError } = await supabase
                 .from('conversations')
                 .insert({
                     product_id: order.product_id,
-                    buyer_id: order.buyer_id,
-                    seller_id: order.seller_id
+                    user1_id: order.buyer_id,
+                    user2_id: order.seller_id
                 })
                 .select('id')
                 .single();

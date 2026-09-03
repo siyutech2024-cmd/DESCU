@@ -304,7 +304,7 @@ router.get('/api/negotiations/product/:productId', requireAuth, async (req: any,
 
         // 只返回用户参与的议价
         const filtered = negotiations?.filter(n =>
-            n.conversation.buyer_id === userId || n.conversation.seller_id === userId
+            n.conversation && (n.conversation.user1_id === userId || n.conversation.user2_id === userId)
         );
 
         res.json({ negotiations: filtered || [] });
