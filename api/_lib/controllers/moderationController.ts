@@ -43,7 +43,7 @@ export const createReport = async (req: AuthenticatedRequest, res: Response) => 
             .eq('reporter_id', reporterId)
             .eq('target_type', type)
             .eq('target_id', target_id)
-            .in('status', ['open', 'reviewing'])
+            .in('status', ['open', 'pending', 'reviewing'])
             .maybeSingle();
         if (existingError) throw existingError;
         if (existing) return res.json({ id: existing.id, status: existing.status, duplicate: true });

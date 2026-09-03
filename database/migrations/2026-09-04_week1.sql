@@ -37,30 +37,44 @@ CREATE INDEX IF NOT EXISTS idx_stripe_events_processed_at ON public.stripe_event
 
 -- -----------------------------------------------------------------------------
 -- 3. reports: "Report user / listing / message" from the app.
---    Written through the API (service role). Admins read it through the API too.
+--    The live DB already has an (empty) reports table from an earlier script:
+--      id uuid, reporter_id text, target_type text, target_id text, reason text,
+--      status text default 'pending', admin_notes text, resolved_by text,
+--      resolved_at timestamptz, created_at timestamptz
+--    with two client policies. We keep its shape, add what the API needs, and make
+--    writes API-only (service role) so validation cannot be bypassed.
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.reports (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  reporter_id  uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  target_type  text NOT NULL CHECK (target_type IN ('user', 'product', 'message', 'conversation')),
-  target_id    uuid NOT NULL,
-  reason       text NOT NULL CHECK (reason IN ('misinfo', 'hate', 'scam', 'prohibited', 'sensitive', 'harassment', 'spam', 'other')),
-  description  text,
-  status       text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewing', 'resolved', 'dismissed')),
-  admin_note   text,
-  resolved_by  uuid,
+  reporter_id  text NOT NULL,
+  target_type  text NOT NULL,
+  target_id    text NOT NULL,
+  reason       text NOT NULL,
+  status       text DEFAULT 'pending',
+  admin_notes  text,
+  resolved_by  text,
   resolved_at  timestamptz,
-  created_at   timestamptz NOT NULL DEFAULT now()
+  created_at   timestamptz DEFAULT now()
 );
+ALTER TABLE public.reports ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE public.reports ALTER COLUMN status SET DEFAULT 'open';
+UPDATE public.reports SET status = 'open' WHERE status = 'pending';
+ALTER TABLE public.reports DROP CONSTRAINT IF EXISTS reports_target_type_check;
+ALTER TABLE public.reports ADD CONSTRAINT reports_target_type_check
+  CHECK (target_type IN ('user', 'product', 'message', 'conversation'));
+ALTER TABLE public.reports DROP CONSTRAINT IF EXISTS reports_status_check;
+ALTER TABLE public.reports ADD CONSTRAINT reports_status_check
+  CHECK (status IN ('open', 'reviewing', 'resolved', 'dismissed'));
 CREATE INDEX IF NOT EXISTS idx_reports_target ON public.reports (target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status_created ON public.reports (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_reports_reporter ON public.reports (reporter_id);
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.reports FROM anon;
--- A user may see (only) the reports they filed; creation goes through the API.
+DROP POLICY IF EXISTS "Users can create reports"  ON public.reports;  -- creation goes through the API
+DROP POLICY IF EXISTS "Admins can manage reports" ON public.reports;  -- admins use the API (service role)
 DROP POLICY IF EXISTS reports_reporter_select ON public.reports;
 CREATE POLICY reports_reporter_select ON public.reports
-  FOR SELECT TO authenticated USING (auth.uid() = reporter_id);
+  FOR SELECT TO authenticated USING (auth.uid()::text = reporter_id);
 
 -- -----------------------------------------------------------------------------
 -- 4. blocks: directional user blocks; the API treats them symmetrically.
