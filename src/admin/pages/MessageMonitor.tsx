@@ -107,7 +107,7 @@ export const MessageMonitor: React.FC = () => {
                 // 使用真实的用户ID，避免违反外键约束
                 sender_id: currentAdminId || 'system',
                 text: `【系统消息】${adminMessage}`,
-            });
+            }, { auth: 'required' });
 
             showToast.success('系统消息已发送');
             setAdminMessage('');

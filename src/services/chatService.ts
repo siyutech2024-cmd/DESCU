@@ -12,7 +12,7 @@ export const createOrGetConversation = async (
             product_id: productId,
             user1_id: user1Id,
             user2_id: user2Id,
-        });
+        }, { auth: 'required' });
     } catch (error) {
         console.error('Error creating conversation:', error);
         throw error;
@@ -22,7 +22,7 @@ export const createOrGetConversation = async (
 // 获取用户所有对话
 export const getUserConversations = async (userId: string): Promise<any[]> => {
     try {
-        return await api.get<any[]>(`/api/users/${userId}/conversations`);
+        return await api.get<any[]>(`/api/users/${userId}/conversations`, { auth: 'required' });
     } catch (error) {
         console.error('Error fetching conversations:', error);
         return [];
@@ -38,9 +38,9 @@ export const sendMessage = async (
     try {
         return await api.post<any>('/api/messages', {
             conversation_id: conversationId,
-            sender_id: senderId,
+            sender_id: senderId, // ignored server-side: sender is always the authenticated user
             text,
-        });
+        }, { auth: 'required' });
     } catch (error) {
         console.error('Error sending message:', error);
         throw error;
@@ -54,7 +54,7 @@ export const getMessages = async (
     offset = 0
 ): Promise<any[]> => {
     try {
-        return await api.get<any[]>(`/api/messages/${conversationId}`, { params: { limit, offset } });
+        return await api.get<any[]>(`/api/messages/${conversationId}`, { params: { limit, offset }, auth: 'required' });
     } catch (error) {
         console.error('Error fetching messages:', error);
         return [];
@@ -67,7 +67,7 @@ export const markMessagesAsRead = async (
     userId: string
 ): Promise<void> => {
     try {
-        await api.put(`/api/messages/${conversationId}/read`, { userId });
+        await api.put(`/api/messages/${conversationId}/read`, { userId }, { auth: 'required' });
     } catch (error) {
         console.error('Error marking messages as read:', error);
     }
@@ -134,7 +134,7 @@ export const deleteConversation = async (
     userId: string
 ): Promise<{ success: boolean }> => {
     try {
-        return await api.delete<{ success: boolean }>(`/api/conversations/${conversationId}`, { body: { userId } });
+        return await api.delete<{ success: boolean }>(`/api/conversations/${conversationId}`, { body: { userId }, auth: 'required' });
     } catch (error) {
         console.error('Error deleting conversation:', error);
         throw error;
