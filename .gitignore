@@ -51,3 +51,19 @@ coverage
 *.swp
 *.swo
 *~
+
+# Android signing (NEVER commit) 
+android/keystore.properties
+android/app/*.jks
+android/app/*.keystore
+*.jks
+*.keystore
+
+# Capacitor / build
+android/app/build
+android/.gradle
+ios/App/Pods
+ios/App/build
+
+# Misc
+*.tsbuildinfo
