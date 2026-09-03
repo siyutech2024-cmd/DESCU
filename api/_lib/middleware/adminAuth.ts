@@ -43,9 +43,11 @@ export const requireAdmin = async (
             });
         }
 
-        // 检查用户是否具有管理员角色
-        const userMetadata = user.user_metadata || {};
-        const role = userMetadata.role;
+        // 检查用户是否具有管理员角色。
+        // 角色必须来自 app_metadata：它只能由 service role / SQL 写入，
+        // 而 user_metadata 任何登录用户都能用 anon key 自行修改（提权漏洞）。
+        const appMetadata = user.app_metadata || {};
+        const role = appMetadata.role;
 
         if (role !== 'admin' && role !== 'super_admin') {
             return res.status(403).json({
@@ -59,7 +61,7 @@ export const requireAdmin = async (
             id: user.id,
             email: user.email || '',
             role: role,
-            permissions: userMetadata.permissions || []
+            permissions: Array.isArray(appMetadata.permissions) ? appMetadata.permissions : []
         };
 
         next();
@@ -123,12 +125,13 @@ export const optionalAdmin = async (
         const token = authHeader.replace('Bearer ', '');
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
-        if (!error && user && user.user_metadata?.role === 'admin') {
+        const role = user?.app_metadata?.role;
+        if (!error && user && (role === 'admin' || role === 'super_admin')) {
             req.admin = {
                 id: user.id,
                 email: user.email || '',
-                role: user.user_metadata.role,
-                permissions: user.user_metadata.permissions || []
+                role,
+                permissions: Array.isArray(user.app_metadata?.permissions) ? user.app_metadata.permissions : []
             };
         }
 

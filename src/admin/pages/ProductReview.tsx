@@ -99,23 +99,14 @@ export const ProductReview: React.FC = () => {
             // 使用与 adminApi 相同的方式获取 token
             const token = await getAccessToken();
 
-            // 检查是否是开发模式
-            const isDevMode = localStorage.getItem('descu_admin_dev_mode') === 'true';
-
-            if (!token && !isDevMode) {
+            if (!token) {
                 throw new Error('登录已过期，请重新登录');
             }
 
             // 调用后端 AI 审核 API
             let data: any;
             try {
-                data = await api.post<any>('/api/admin/trigger-review', undefined, {
-                    auth: 'optional',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(isDevMode && { 'X-Dev-Mode': 'true' })
-                    }
-                });
+                data = await api.post<any>('/api/admin/trigger-review', undefined, { auth: 'required' });
             } catch (err) {
                 if (err instanceof ApiError) {
                     const body = err.body as any;

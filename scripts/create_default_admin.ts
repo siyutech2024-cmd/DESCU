@@ -47,7 +47,7 @@ async function createDefaultAdmin() {
             {
                 password: password,
                 email_confirm: true,
-                user_metadata: {
+                app_metadata: {
                     role: 'admin',
                     permissions: ['all']
                 }
@@ -65,7 +65,7 @@ async function createDefaultAdmin() {
             email: email,
             password: password,
             email_confirm: true,
-            user_metadata: {
+            app_metadata: {
                 role: 'admin',
                 permissions: ['all']
             }

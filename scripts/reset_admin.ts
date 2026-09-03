@@ -53,7 +53,7 @@ async function resetAdmin() {
         {
             password: newPassword,
             email_confirm: true,
-            user_metadata: {
+            app_metadata: {
                 role: 'admin',
                 permissions: ['all']
             }

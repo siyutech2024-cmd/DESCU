@@ -49,12 +49,6 @@ export const AdminLogin: React.FC = () => {
             setLoading(true);
             setError('');
 
-            if (email === 'admin@local.com' && password === '123456') {
-                localStorage.setItem('descu_admin_dev_mode', 'true');
-                navigate('/admin/dashboard');
-                return;
-            }
-
             const { data, error: signInError } = await supabase.auth.signInWithPassword({
                 email,
                 password,
@@ -63,7 +57,9 @@ export const AdminLogin: React.FC = () => {
             if (signInError) throw signInError;
 
             // 检查管理员权限
-            if (data.user?.user_metadata?.role !== 'admin' && data.user?.user_metadata?.role !== 'super_admin') {
+            // 角色只信 app_metadata（服务端写入）；user_metadata 用户可自改，不能作为依据
+            const role = data.user?.app_metadata?.role;
+            if (role !== 'admin' && role !== 'super_admin') {
                 await supabase.auth.signOut();
                 throw new Error('您没有管理员权限');
             }

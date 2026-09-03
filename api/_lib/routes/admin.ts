@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { supabase, getSupabase } from '../db/supabase.js';
+import { supabase } from '../db/supabase.js';
 import { requireAdmin } from '../middleware/adminAuth.js';
 import {
     getDashboardStats,
@@ -91,24 +91,9 @@ router.post('/api/admin/settings/batch', requireAdmin, batchUpdateSettings);
 // ==================================================================
 
 /**
- * 管理员手动触发AI审核
- * 在后台可以直接触发，无需等待定时任务
- * 支持开发模式 (X-Dev-Mode header)
+ * 管理员手动触发AI审核（需管理员身份；不再支持任何 dev-mode 绕过）
  */
-router.post('/api/admin/trigger-review', async (req: any, res, next) => {
-    // 检查是否是开发模式
-    const isDevMode = req.headers['x-dev-mode'] === 'true';
-
-    if (isDevMode) {
-        // 开发模式：跳过认证，直接执行
-        console.log('[Admin] Dev mode AI review triggered');
-        req.admin = { id: 'dev-admin', email: 'admin@local.com', role: 'admin' };
-        return handleTriggerReview(req, res);
-    }
-
-    // 正常模式：需要认证
-    return requireAdmin(req, res, () => handleTriggerReview(req, res));
-});
+router.post('/api/admin/trigger-review', requireAdmin, (req: any, res) => handleTriggerReview(req, res));
 
 // 抽取处理逻辑为单独函数
 async function handleTriggerReview(req: any, res: any) {
@@ -168,185 +153,6 @@ router.get('/api/admin/ai-status', requireAdmin, async (req: any, res) => {
     });
 });
 
-/**
- * 诊断端点：测试数据库更新权限
- */
-router.get('/api/admin/db-test', async (req: any, res) => {
-    // 开发模式检查
-    const isDevMode = req.headers['x-dev-mode'] === 'true';
-    if (!isDevMode) {
-        return res.status(403).json({ error: 'Dev mode required' });
-    }
-
-    try {
-        const sb = getSupabase();
-
-        // 1. 测试读取
-        const { data: products, error: readError } = await sb
-            .from('products')
-            .select('id, title, status, review_note')
-            .eq('status', 'pending_review')
-            .limit(1);
-
-        if (readError) {
-            return res.json({
-                success: false,
-                stage: 'read',
-                error: readError.message,
-                hint: readError.hint
-            });
-        }
-
-        if (!products || products.length === 0) {
-            return res.json({
-                success: true,
-                stage: 'read',
-                message: 'No pending products to test update'
-            });
-        }
-
-        const testProduct = products[0];
-
-        // 2. 测试更新 (只更新 review_note 不改变 status)
-        const testNote = `[DB Test] ${new Date().toISOString()}`;
-        const { error: updateError } = await sb
-            .from('products')
-            .update({ review_note: testNote })
-            .eq('id', testProduct.id);
-
-        if (updateError) {
-            return res.json({
-                success: false,
-                stage: 'update',
-                productId: testProduct.id,
-                error: updateError.message,
-                hint: updateError.hint,
-                code: updateError.code
-            });
-        }
-
-        // 3. 验证更新成功
-        const { data: updated } = await sb
-            .from('products')
-            .select('id, review_note')
-            .eq('id', testProduct.id)
-            .single();
-
-        res.json({
-            success: true,
-            stage: 'complete',
-            productId: testProduct.id,
-            originalNote: testProduct.review_note,
-            updatedNote: updated?.review_note,
-            updateWorked: updated?.review_note === testNote
-        });
-
-    } catch (err: any) {
-        res.status(500).json({
-            success: false,
-            stage: 'exception',
-            error: err.message
-        });
-    }
-});
-
-/**
- * AI 测试端点：使用真实待审核产品测试完整审核流程
- */
-router.get('/api/admin/ai-test', async (req: any, res) => {
-    const isDevMode = req.headers['x-dev-mode'] === 'true';
-    if (!isDevMode) {
-        return res.status(403).json({ error: 'Dev mode required' });
-    }
-
-    try {
-        const { auditProduct } = await import('../services/auditService.js');
-        const sb = getSupabase();
-
-        // 获取一个真实的待审核产品
-        const { data: products, error: queryError } = await sb
-            .from('products')
-            .select('id, title, description, category')
-            .eq('status', 'pending_review')
-            .limit(1);
-
-        if (queryError) {
-            return res.json({
-                success: false,
-                stage: 'query',
-                error: queryError.message
-            });
-        }
-
-        if (!products || products.length === 0) {
-            return res.json({
-                success: false,
-                stage: 'query',
-                error: 'No pending products found'
-            });
-        }
-
-        const product = products[0];
-        console.log('[AI-Test] Testing with real product:', product.id, product.title);
-
-        // 调用审核
-        const auditResult = await auditProduct({
-            title: product.title,
-            description: product.description || '',
-            category: product.category || 'other'
-        });
-
-        if (!auditResult) {
-            return res.json({
-                success: false,
-                stage: 'audit',
-                product: { id: product.id, title: product.title },
-                error: 'auditProduct returned null'
-            });
-        }
-
-        // 尝试更新产品
-        const updateData: any = {
-            status: 'active',
-            review_note: `[AI-Test] isSafe=${auditResult.isSafe}, confidence=${auditResult.confidence}`
-        };
-
-        const { error: updateError } = await sb
-            .from('products')
-            .update(updateData)
-            .eq('id', product.id);
-
-        if (updateError) {
-            return res.json({
-                success: false,
-                stage: 'update',
-                product: { id: product.id, title: product.title },
-                auditResult,
-                updateData,
-                error: updateError.message,
-                hint: updateError.hint,
-                code: updateError.code
-            });
-        }
-
-        res.json({
-            success: true,
-            product: { id: product.id, title: product.title },
-            auditResult,
-            updateData,
-            message: 'Product updated successfully!'
-        });
-
-    } catch (err: any) {
-        res.status(500).json({
-            success: false,
-            stage: 'exception',
-            error: err.message,
-            stack: err.stack?.split('\n').slice(0, 5)
-        });
-    }
-});
-
 // 批量翻译现有产品 (管理员可调用)
 router.post('/api/admin/batch-translate', requireAdmin, batchTranslateProducts);
 
@@ -382,7 +188,10 @@ router.get('/api/admin/payouts', requireAdmin, async (req: any, res) => {
                     sellers(bank_clabe, bank_name, bank_holder_name)
                 )
             `)
-            .in('status', ['completed', 'delivered']);
+            .in('status', ['completed', 'delivered'])
+            // Only money the platform actually collected can be paid out
+            .eq('payment_method', 'online')
+            .eq('payment_captured', true);
 
         // 根据状态筛选 - 修复NULL值匹配问题
         if (status === 'pending') {

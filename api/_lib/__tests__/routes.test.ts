@@ -53,7 +53,7 @@ const EXPECTED_ROUTES = [
     'GET /api/admin/users', 'GET /api/admin/users/:id', 'PATCH /api/admin/users/:id/verify', 'DELETE /api/admin/users/:id',
     'GET /api/admin/conversations', 'GET /api/admin/conversations/:id', 'DELETE /api/admin/conversations/:id', 'DELETE /api/admin/messages/:id', 'PATCH /api/admin/messages/:id/flag',
     'GET /api/admin/reports', 'GET /api/admin/settings', 'PUT /api/admin/settings', 'POST /api/admin/settings/batch',
-    'POST /api/admin/trigger-review', 'GET /api/admin/ai-status', 'GET /api/admin/db-test', 'GET /api/admin/ai-test', 'POST /api/admin/batch-translate',
+    'POST /api/admin/trigger-review', 'GET /api/admin/ai-status', 'POST /api/admin/batch-translate',
     'GET /api/admin/payouts', 'POST /api/admin/payouts/:orderId/complete', 'POST /api/admin/payouts/:orderId/processing',
 ];
 

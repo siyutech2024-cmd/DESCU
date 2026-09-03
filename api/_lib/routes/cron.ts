@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { timingSafeEqual } from 'node:crypto';
 import { autoReviewPendingProducts } from '../services/auditService.js';
 
 /**
@@ -8,12 +9,17 @@ import { autoReviewPendingProducts } from '../services/auditService.js';
  */
 export const cronRouter = Router();
 
+/**
+ * Only a caller holding CRON_SECRET may run the job. The `x-vercel-cron` header is
+ * NOT trusted: vercel.json defines no crons, and any client can set that header.
+ */
 const isAuthorizedCron = (req: Request): boolean => {
-    const authHeader = req.headers.authorization;
     const cronSecret = process.env.CRON_SECRET;
-    const isVercelCron = req.headers['x-vercel-cron'] === '1';
-    const isAuthorized = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
-    return isVercelCron || isAuthorized;
+    if (!cronSecret) return false;
+    const authHeader = req.headers.authorization ?? '';
+    const expected = `Bearer ${cronSecret}`;
+    if (authHeader.length !== expected.length) return false;
+    return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
 };
 
 /**

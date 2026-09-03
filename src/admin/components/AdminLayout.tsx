@@ -17,17 +17,6 @@ export const AdminLayout: React.FC = () => {
 
     const checkAdminAccess = async () => {
         try {
-            // 检查 Dev Mode
-            if (localStorage.getItem('descu_admin_dev_mode') === 'true') {
-                setAdminInfo({
-                    email: 'admin@local.com',
-                    role: 'admin',
-                    user_metadata: { role: 'admin' }
-                });
-                setLoading(false);
-                return;
-            }
-
             const result = await adminApi.getAdminInfo();
 
             if (result.error) {
@@ -48,7 +37,6 @@ export const AdminLayout: React.FC = () => {
 
     const handleLogout = async () => {
         if (confirm('确定要退出登录吗？')) {
-            localStorage.removeItem('descu_admin_dev_mode');
             await supabase.auth.signOut();
             navigate('/admin/login');
         }
@@ -104,9 +92,6 @@ export const AdminLayout: React.FC = () => {
                                 </p>
                                 <p className="text-xs text-gray-500">
                                     {adminInfo?.role === 'super_admin' ? '超级管理员' : '管理员'}
-                                    {localStorage.getItem('descu_admin_dev_mode') === 'true' && (
-                                        <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded">DEV</span>
-                                    )}
                                 </p>
                             </div>
                             <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center">
