@@ -1335,7 +1335,7 @@ app.post('/api/orders/:id/arrange-meetup', requireAuth, async (req: any, res) =>
         });
 
         // 🔔 发送见面安排通知
-        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+        import('./_lib/services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
             notifyOrderStatus(id, 'meetup_arranged', { location, time }).catch(console.error);
         }).catch(console.error);
         res.json({ order: updatedOrder });
@@ -1995,7 +1995,7 @@ app.post('/api/stripe/v2/webhook', express.raw({ type: 'application/json' }), as
 
                     // 🔔 发送担保支付通知
                     if (isEscrow) {
-                        import('../server/src/services/orderNotificationService').then(({ notifyOrderStatus }) => {
+                        import('./_lib/services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
                             notifyOrderStatus(orderId, 'escrow_held', {
                                 message: '买家已付款，资金在担保中'
                             }).catch(console.error);
