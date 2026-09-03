@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Share2, Facebook, Link as LinkIcon, AlertCircle } from 'lucide-react';
+import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '@/i18n';
 import { getOptimizedImageUrl } from '../services/imageOptimizer';

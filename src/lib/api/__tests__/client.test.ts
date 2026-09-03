@@ -63,7 +63,7 @@ describe('apiFetch', () => {
 
     it('surfaces server error messages via ApiError', async () => {
         fetchMock.mockResolvedValue(jsonResponse(400, { error: 'CLABE must be 18 digits' }));
-        const err = await apiFetch('/api/users/bank-info', { method: 'POST', body: {} }).catch(e => e);
+        const err = (await apiFetch('/api/users/bank-info', { method: 'POST', body: {} }).catch(e => e)) as ApiError;
         expect(err).toBeInstanceOf(ApiError);
         expect(err.status).toBe(400);
         expect(err.message).toBe('CLABE must be 18 digits');
@@ -72,7 +72,7 @@ describe('apiFetch', () => {
 
     it('falls back to a generic message for non-JSON error bodies', async () => {
         fetchMock.mockResolvedValue({ ok: false, status: 502, text: async () => '<html>Bad Gateway</html>' } as Response);
-        const err = await api.get('/api/x').catch(e => e);
+        const err = (await api.get('/api/x').catch(e => e)) as ApiError;
         expect(err.message).toBe('Request failed with status 502');
         expect(err.body).toBe('<html>Bad Gateway</html>');
     });

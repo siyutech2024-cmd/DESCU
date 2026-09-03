@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Star, User as UserIcon, Calendar, Shield, MessageCircle, ShoppingBag } from 'lucide-react';
+import { X, Star, Calendar, Shield, MessageCircle, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { api } from '@/lib/api/client';
 import { getUserRatingStats } from '@/services/ratingService';

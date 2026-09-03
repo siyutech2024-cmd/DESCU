@@ -5,7 +5,7 @@ import { UserDetailModal } from '../components/UserDetailModal';
 import { UserBatchOperationModal } from '../components/UserBatchOperationModal';
 import { showToast } from '../utils/toast';
 import { exportToCSV } from '../utils/export';
-import { Search, Download, Filter, CheckCircle, Trash2, X } from 'lucide-react';
+import { Search, Download, Filter, CheckCircle, Trash2 } from 'lucide-react';
 
 export const UserList: React.FC = () => {
     const [users, setUsers] = useState<AdminUserInfo[]>([]);

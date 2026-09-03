@@ -21,7 +21,7 @@ export const useCreateProduct = (user: User | null, { onCreated }: Options = {})
         mutationFn: async (input: NewProductInput) => {
             if (!user) throw new Error(t('toast.please_login'));
 
-            let detailed: Awaited<ReturnType<typeof getDetailedLocation>> = null;
+            let detailed: Awaited<ReturnType<typeof getDetailedLocation>> | null = null;
             try {
                 detailed = await getDetailedLocation(input.location.latitude, input.location.longitude);
             } catch (error) {

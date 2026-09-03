@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Star, X } from 'lucide-react';
 import { User } from '../types';
-import { useLanguage } from '@/i18n';
 
 interface RatingModalProps {
     isOpen: boolean;
@@ -15,7 +14,6 @@ export const RatingModal: React.FC<RatingModalProps> = ({ isOpen, onClose, targe
     const [score, setScore] = useState(0);
     const [hoverScore, setHoverScore] = useState(0);
     const [comment, setComment] = useState('');
-    const { t } = useLanguage();
 
     if (!isOpen) return null;
 

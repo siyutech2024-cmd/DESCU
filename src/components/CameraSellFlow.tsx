@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Camera, RefreshCw, Zap, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, RefreshCw, Zap, CheckCircle, AlertCircle } from 'lucide-react';
 import { Product, Category, DeliveryType } from '../types';
 import { analyzeImageWithGemini } from '../services/geminiService';
 import { useLanguage } from '@/i18n';

@@ -6,7 +6,7 @@ import { AdvancedFilters, FilterValues } from '../components/AdvancedFilters';
 import { BatchOperationModal } from '../components/BatchOperationModal';
 import { showToast } from '../utils/toast';
 import { exportToCSV } from '../utils/export';
-import { Search, Download, ChevronUp, ChevronDown, Star, Trash2, Eye, MoreVertical } from 'lucide-react';
+import { Search, Download, ChevronUp, ChevronDown, Star, Trash2, Eye } from 'lucide-react';
 
 export const ProductList: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);

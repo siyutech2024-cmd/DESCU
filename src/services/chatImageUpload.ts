@@ -44,7 +44,7 @@ export async function uploadChatImage(
         console.log('[ImageUpload] Uploading to:', filePath);
 
         // 上传到Supabase Storage
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
             .from('products') // 使用现有的products bucket
             .upload(filePath, file, {
                 cacheControl: '3600',

@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '@/i18n';
 import { deleteConversation } from '../services/chatService';
-import { MessageCircle, Clock, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
+import { MessageCircle, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
 
 interface ChatListProps {
   conversations: Conversation[];

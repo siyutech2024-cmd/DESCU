@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, X, Upload } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { api, ApiError } from '@/lib/api/client';
 
 interface DisputeModalProps {

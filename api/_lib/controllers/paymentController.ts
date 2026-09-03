@@ -48,7 +48,7 @@ export const createConnectAccount = async (req: Request, res: Response) => {
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         // 1. Check if seller record exists
-        let { data: seller, error: fetchError } = await supabase
+        let { data: seller } = await supabase
             .from('sellers')
             .select('*')
             .eq('user_id', userId)
@@ -291,7 +291,7 @@ export const confirmOrder = async (req: Request, res: Response) => {
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         // 1. Get Order & Verify Ownership (Must be BUYER)
-        const { data: order, error: orderError } = await supabase
+        const { data: order } = await supabase
             .from('orders')
             .select('*')
             .eq('id', orderId)

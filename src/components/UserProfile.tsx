@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import OrderList from './OrderList';
 import { SellerPayoutCard } from './SellerPayoutCard';
 import { CreditBadge } from './CreditBadge';
-import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart, Lock } from 'lucide-react';
+import { ArrowLeft, Camera, Save, Check, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, Star, Heart, Lock } from 'lucide-react';
 import { User, Product } from '../types';
 import { useLanguage } from '@/i18n';
 import { getFullDataUrl } from '../services/utils';
-import { api, ApiError, getAccessToken } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
 import { markProductAsSold, relistProduct } from '../services/supabase';
 
 interface UserProfileProps {
@@ -40,11 +40,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [isSaved, setIsSaved] = useState(false);
   const [isUploadingID, setIsUploadingID] = useState(false);
   const [activeTab, setActiveTab] = useState<'listings' | 'buying' | 'selling' | 'favorites'>('listings');
-  const [orders, setOrders] = useState<any[]>([]);
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
-  const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [listingsLimit, setListingsLimit] = useState(6); // 商品列表分页限制
-  // orders would be fetched based on tab. Simplification: fetching in useEffect when tab changes.
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
@@ -101,10 +98,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     }
   };
 
-  const [isPayoutLoading, setIsPayoutLoading] = useState(false);
-
-  const [bankDetails, setBankDetails] = useState({ bankName: '', accountNumber: '', holderName: '' });
-  const [isSavingBank, setIsSavingBank] = useState(false);
   const [ratingStats, setRatingStats] = useState({ total_reviews: 0, average_rating: 0 });
   const [creditScore, setCreditScore] = useState<number>(0);
 
@@ -126,81 +119,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     const favProds = allProducts.filter(p => favorites.has(p.id));
     setFavoriteProducts(favProds);
   }, [favorites, allProducts]);
-
-  const handleSaveBankDetails = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSavingBank(true);
-    try {
-      const token = await getAccessToken();
-      if (!token) {
-        alert('Please login first');
-        return;
-      }
-
-      // Save bank details directly to database (simplified flow)
-      try {
-        await api.post('/api/users/bank-info', {
-          bankName: bankDetails.bankName,
-          clabe: bankDetails.accountNumber,
-          holderName: bankDetails.holderName
-        }, { auth: 'required' });
-        alert(t('profile.bank_saved'));
-      } catch (err) {
-        if (!(err instanceof ApiError)) throw err;
-        alert("Error: " + (err.message || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error("Error saving bank details", error);
-      alert("Error saving details");
-    } finally {
-      setIsSavingBank(false);
-    }
-  };
-
-  const handleSetupPayouts = async () => {
-    setIsPayoutModalOpen(true);
-  };
-
-  const handleDashboard = async () => {
-    // For verified sellers to see their dashboard
-    try {
-      const data = await api.get<{ url?: string }>(`/api/payment/dashboard/${user.id}`, { auth: 'required' });
-      if (data?.url) {
-        window.open(data.url, '_blank');
-      }
-    } catch (error) {
-      console.error("Error fetching dashboard link", error);
-    }
-  };
-
-  const handleConnectStripe = async () => {
-    try {
-      const token = await getAccessToken();
-      if (!token) return;
-
-      // Call createConnectAccount
-      let data: { url?: string } | undefined;
-      try {
-        data = await api.post<{ url?: string }>('/api/payment/connect', {
-          country: 'MX' // Default to MX for now, or use user region
-        }, { auth: 'required' });
-      } catch (err) {
-        // Old code parsed the error body and fell through to the "no url" branch
-        if (!(err instanceof ApiError)) throw err;
-        data = undefined;
-      }
-
-      if (data?.url) {
-        // Redirect to Stripe Onboarding
-        window.location.href = data.url;
-      } else {
-        alert('Failed to get onboarding link');
-      }
-    } catch (error) {
-      console.error('Error connecting stripe:', error);
-      alert('Connection failed');
-    }
-  };
 
   // Check for onboarding params
   useEffect(() => {

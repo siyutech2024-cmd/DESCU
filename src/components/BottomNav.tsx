@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Home, PlusCircle, User as UserIcon, MessageCircle, MapPin, Bell, X, Globe, Check } from 'lucide-react';
+import { Home, PlusCircle, User as UserIcon, MapPin, Bell, X, Globe, Check } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { DetailedLocationInfo } from '../services/locationService';

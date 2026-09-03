@@ -1,6 +1,6 @@
 import React from 'react';
 import { Product, DeliveryType } from '../types';
-import { MapPin, ShoppingBag, Truck, Zap } from 'lucide-react';
+import { MapPin, Truck, Zap } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { getOptimizedImageUrl } from '../services/imageOptimizer';
@@ -20,8 +20,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
 
   // 根据用户语言读取翻译字段
   const localizedTitle = (product as any)[`title_${language}`] || product.title;
-
-  const isNearby = product.distance !== undefined && product.distance <= 5.0;
 
   const productCurrency = product.currency || 'MXN'; // Fallback
   const { price: convertedPrice, currency: targetCurrency } = convertPrice(product.price, productCurrency);

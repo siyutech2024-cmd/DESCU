@@ -8,7 +8,7 @@ import {
     useStripe,
     useElements,
 } from '@stripe/react-stripe-js';
-import { X, Lock, CreditCard, MapPin, Truck, Wallet, ArrowLeft, CheckCircle, Banknote } from 'lucide-react';
+import { X, Lock, MapPin, Truck, ArrowLeft, CheckCircle, Banknote } from 'lucide-react';
 import { Product, User } from '../types';
 import { api, ApiError } from '@/lib/api/client';
 import { supabase } from '../services/supabase';

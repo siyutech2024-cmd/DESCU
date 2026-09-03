@@ -11,7 +11,6 @@ export const getAdminConversations = async (req: AdminRequest, res: Response) =>
         const {
             page = 1,
             limit = 20,
-            search,
             product_id,
             user_id,
             include_deleted = 'false',

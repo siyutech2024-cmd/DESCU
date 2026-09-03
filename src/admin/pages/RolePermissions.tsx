@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Users, Lock, Eye } from 'lucide-react';
+import { Shield, Lock, Eye } from 'lucide-react';
 
 export const RolePermissions: React.FC = () => {
     const roles = [

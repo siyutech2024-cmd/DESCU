@@ -278,7 +278,7 @@ export const getReportsData = async (req: AdminRequest, res: Response) => {
         }
 
         // 获取销售趋势（按日期统计商品数量）
-        const { data: salesTrend, error: salesError } = await supabase
+        const { data: salesTrend } = await supabase
             .rpc('get_sales_trend', {
                 start_date: startDate.toISOString(),
                 end_date: now.toISOString()
@@ -286,7 +286,7 @@ export const getReportsData = async (req: AdminRequest, res: Response) => {
             .order('date', { ascending: true });
 
         // 获取用户增长趋势
-        const { data: userGrowth, error: userError } = await supabase
+        const { data: userGrowth } = await supabase
             .rpc('get_user_growth', {
                 start_date: startDate.toISOString(),
                 end_date: now.toISOString()
@@ -294,7 +294,7 @@ export const getReportsData = async (req: AdminRequest, res: Response) => {
             .order('date', { ascending: true });
 
         // 获取分类统计
-        const { data: categoryStats, error: categoryError } = await supabase
+        const { data: categoryStats } = await supabase
             .from('products')
             .select('category')
             .is('deleted_at', null);
@@ -313,7 +313,7 @@ export const getReportsData = async (req: AdminRequest, res: Response) => {
         }));
 
         // 获取热门商品 Top 10
-        const { data: topProducts, error: topError } = await supabase
+        const { data: topProducts } = await supabase
             .from('products')
             .select(`
                 id,
@@ -330,7 +330,7 @@ export const getReportsData = async (req: AdminRequest, res: Response) => {
             .limit(10);
 
         // 获取活跃用户 Top 10（按商品发布数量）
-        const { data: activeUsers, error: activeError } = await supabase
+        const { data: activeUsers } = await supabase
             .from('products')
             .select('seller_id, seller_name, seller_email')
             .is('deleted_at', null);

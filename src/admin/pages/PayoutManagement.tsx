@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
     Banknote,
     Search,
-    Filter,
     ChevronRight,
     Copy,
     Check,

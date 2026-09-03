@@ -73,9 +73,7 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
         // 不，有一个 is_verified 筛选依赖这些信息，所以必须先获取信息
 
         // 优化：批量查询所有相关用户的 stats
-        const userIds = processedUsers.map(u => u.id);
-
-        const { data: userStats, error: statsError } = await supabase
+        const { data: userStats } = await supabase
             .from('products')
             .select('seller_id, seller_verified, id');
 
@@ -161,27 +159,6 @@ export const getAdminUsers = async (req: AdminRequest, res: Response) => {
     } catch (error) {
         console.error('获取用户列表失败:', error);
         res.status(500).json({ error: '获取用户列表失败' });
-    }
-};
-
-// 辅助函数：格式化日期
-const formatISOStart = (dateStr: string) => {
-    try {
-        const d = new Date(dateStr);
-        d.setHours(0, 0, 0, 0);
-        return d.toISOString();
-    } catch (e) {
-        return dateStr;
-    }
-};
-
-const formatISOEnd = (dateStr: string) => {
-    try {
-        const d = new Date(dateStr);
-        d.setHours(23, 59, 59, 999);
-        return d.toISOString();
-    } catch (e) {
-        return dateStr;
     }
 };
 

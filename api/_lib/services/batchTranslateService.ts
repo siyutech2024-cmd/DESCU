@@ -119,7 +119,7 @@ export const batchTranslateProducts = async (req: Request, res: Response) => {
 
                 if (translations) {
                     // 使用与 auditService 相同的更新方式
-                    const { data, error: updateError } = await supabase
+                    const { error: updateError } = await supabase
                         .from('products')
                         .update({
                             title_zh: translations.zh.title,

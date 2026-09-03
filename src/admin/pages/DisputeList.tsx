@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from '../../services/supabase';
-import { AlertCircle, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle, Sparkles } from 'lucide-react';
 import { judgeDisputeWithGemini } from '../../services/geminiService';
 import { api, ApiError } from '@/lib/api/client';
 
@@ -46,7 +45,7 @@ const DisputeList = () => {
     };
 
     const handleAiJudge = async (dispute: any) => {
-        const toastId = alert('AI is analyzing... (Check console/wait for popup)');
+        alert('AI is analyzing... (Check console/wait for popup)');
 
         const verdict = await judgeDisputeWithGemini({
             reason: dispute.reason,

@@ -1,5 +1,4 @@
 
-import { Request, Response } from 'express';
 import { supabase } from '../db/supabase.js';
 
 export const generateSitemap = async (req: any, res: any) => {

@@ -60,7 +60,7 @@ export const Settings: React.FC = () => {
                 return {
                     setting_key: key,
                     setting_value: value,
-                    description: original?.description || null
+                    description: original?.description || undefined
                 };
             });
 

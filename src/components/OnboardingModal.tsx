@@ -1,13 +1,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRegion } from '../contexts/RegionContext';
-import { useLanguage } from '@/i18n';
 import { Check, Globe } from 'lucide-react';
 
 export const OnboardingModal: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
-    const { setRegion, region } = useRegion();
-    const { t } = useLanguage();
+    const { setRegion } = useRegion();
 
     useEffect(() => {
         // Check if this is the first launch

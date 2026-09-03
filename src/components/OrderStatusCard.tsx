@@ -3,11 +3,7 @@ import {
     Clock,
     CheckCircle,
     MapPin,
-    Truck,
-    AlertCircle,
     ChevronRight,
-    MessageCircle,
-    User as UserIcon,
     Package
 } from 'lucide-react';
 import { Order, User } from '../types';
@@ -24,7 +20,6 @@ interface OrderStatusCardProps {
 
 export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, currentUser, onStatusChange, className = '' }) => {
     const isBuyer = currentUser.id === order.buyer_id;
-    const isSeller = currentUser.id === order.seller_id;
     const [isLoading, setIsLoading] = useState(false);
     const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false);
 

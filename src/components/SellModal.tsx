@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Sparkles, MapPin, Loader2, Camera, DollarSign, Truck, Handshake, Info, AlertCircle, Plus, Star, Trash2, GripVertical } from 'lucide-react';
+import { X, Upload, Sparkles, MapPin, Loader2, Camera, Truck, Handshake, Info, AlertCircle, Plus, Star, GripVertical } from 'lucide-react';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
 import { analyzeImageWithGemini } from '../services/geminiService';

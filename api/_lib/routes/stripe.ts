@@ -372,7 +372,7 @@ router.get('/api/stripe/v2/dashboard-link', requireAuth, async (req: any, res) =
  */
 router.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) => {
     try {
-        const { orderId, productId, quantity = 1 } = req.body;
+        const { orderId, quantity = 1 } = req.body;
         const userId = req.user.id;
 
         // Get order details

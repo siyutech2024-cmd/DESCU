@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, MapPin, CheckCircle, X, Edit2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, CheckCircle, Edit2 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useLanguage } from '@/i18n';
 

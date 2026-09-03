@@ -3,7 +3,7 @@ import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { showToast } from '../utils/toast';
 import { api, ApiError, getAccessToken } from '@/lib/api/client';
-import { CheckCircle, XCircle, MessageSquare, Eye, Package, Sparkles, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Package, Sparkles, AlertTriangle } from 'lucide-react';
 
 export const ProductReview: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);

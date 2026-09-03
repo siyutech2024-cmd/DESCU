@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, TrendingDown, X, Loader2, Package } from 'lucide-react';
+import { DollarSign, TrendingDown, Loader2, Package } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useLanguage } from '@/i18n';
 import { api, ApiError, getAccessToken } from '@/lib/api/client';

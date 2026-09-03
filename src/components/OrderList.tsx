@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/lib/api/client';
 import { Order, User } from '../types';
 import { OrderStatusCard } from './OrderStatusCard';
@@ -12,7 +11,6 @@ interface OrderListProps {
 }
 
 const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
-    const navigate = useNavigate();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 

@@ -2,12 +2,6 @@ import { api } from '@/lib/api/client';
 
 // Service to handle location related operations
 
-interface GeocodeResult {
-    city: string;
-    country: string;
-    display_name: string;
-}
-
 export interface LocationInfo {
     country: string;       // e.g., "MX", "US", "CN"
     city: string;          // e.g., "Mexico City", "Los Angeles"

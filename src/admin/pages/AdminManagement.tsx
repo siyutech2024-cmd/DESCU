@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { adminApi } from '../services/adminApi'
 import { showToast } from '../utils/toast';
-import { Shield, UserPlus, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { UserPlus, Trash2, AlertCircle } from 'lucide-react';
 
 interface Admin {
     id: string;
@@ -17,7 +16,6 @@ export const AdminManagement: React.FC = () => {
     const [admins, setAdmins] = useState<Admin[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
     const [formData, setFormData] = useState({
         email: '',
         name: '',
@@ -54,7 +52,7 @@ export const AdminManagement: React.FC = () => {
         }
 
         try {
-            const { data, error } = await (window as any).supabaseClient
+            const { error } = await (window as any).supabaseClient
                 .from('admin_users')
                 .insert([{
                     id: `admin-${Date.now()}`,

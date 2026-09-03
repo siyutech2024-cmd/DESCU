@@ -9,8 +9,6 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import {
-    LineChart,
-    Line,
     AreaChart,
     Area,
     PieChart,
@@ -255,13 +253,13 @@ export const Dashboard: React.FC = () => {
                                         cy="50%"
                                         labelLine={false}
                                         label={({ name, percent }) =>
-                                            `${name} ${(percent * 100).toFixed(0)}%`
+                                            `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                                         }
                                         outerRadius={80}
                                         fill="#8884d8"
                                         dataKey="value"
                                     >
-                                        {categoryData.map((entry, index) => (
+                                        {categoryData.map((_entry: unknown, index: number) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>

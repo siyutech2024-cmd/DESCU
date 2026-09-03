@@ -18,7 +18,6 @@ import { ImageSender } from './chat/ImageSender';
 import { ImagesMessage } from './chat/ImagesMessage';
 import { MeetupTimeSender } from './chat/MeetupTimeSender';
 import { MeetupTimeMessage } from './chat/MeetupTimeMessage';
-import { UserProfileModal } from './UserProfileModal';
 
 interface ChatWindowProps {
   conversation: Conversation;
@@ -38,10 +37,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [activeOrder, setActiveOrder] = useState<any>(null); // Simplified Order type
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); // Placeholder for modal logic
+  const [activeOrder] = useState<any>(null); // Simplified Order type
   const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false); // New state
   const [showNegotiation, setShowNegotiation] = useState(false); // For price negotiation
   const [showLocation, setShowLocation] = useState(false); // For location sharing
@@ -53,10 +51,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
   const pendingMessageIds = useRef<Set<string>>(new Set()); // 跟踪正在发送的消息ID，防止重复
-  const [showUserProfile, setShowUserProfile] = useState(false);
 
   // Pagination states
-  const [messageOffset, setMessageOffset] = useState(0);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const MESSAGE_LIMIT = 50; // 加载足够多的消息以包含议价卡片

@@ -112,8 +112,6 @@ export const createProduct = async (req: any, res: Response) => {
     }
 };
 
-import { translateBatch } from '../services/translationService.js';
-
 // Health Check
 export const productsHealthCheck = (req: Request, res: Response) => {
     res.json({
@@ -221,7 +219,6 @@ export const getProducts = async (req: Request, res: Response) => {
 export const getProductById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { lang } = req.query;
 
         const { data: product, error } = await supabase
             .from('products')
