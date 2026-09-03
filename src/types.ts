@@ -125,7 +125,7 @@ export interface Order {
   seller_id: string;
   order_type: 'meetup' | 'shipping';
   payment_method: 'online' | 'cash';
-  status: 'pending_payment' | 'paid' | 'escrow_held' | 'meetup_arranged' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'disputed' | 'refunded';
+  status: 'pending_payment' | 'paid' | 'escrow_held' | 'meetup_arranged' | 'shipped' | 'delivered' | 'completed' | 'completed_pending_payout' | 'cancelled' | 'disputed' | 'refunded';
   product_amount: number;
   shipping_fee: number;
   platform_fee: number;

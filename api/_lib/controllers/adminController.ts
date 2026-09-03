@@ -3,6 +3,8 @@ import { AdminRequest } from '../middleware/adminAuth.js';
 import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { isPaymentSettled } from '../domain/orders.js';
+import { releaseEscrow } from '../services/escrowReleaseService.js';
 
 // --- LAZY STRIPE INIT ---
 let stripeInstance: Stripe | null = null;
@@ -645,49 +647,53 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
         }
 
         const order = dispute.order;
-        // Current schema: stripe_payment_intent_id / total_amount (legacy rows may still carry the old names)
+        // Current schema: stripe_payment_intent_id (legacy rows may still carry payment_intent_id)
         const paymentIntentId: string | null = order.stripe_payment_intent_id || order.payment_intent_id || null;
-        const totalAmount = Number(order.total_amount ?? order.amount);
-        const platformFee = Number(order.platform_fee ?? 0);
-        const currency = String(order.currency || 'mxn').toLowerCase();
-        const isOnline = order.payment_method === 'online' && order.payment_captured === true;
+        // Same settlement rule as every other endpoint (legacy rows have payment_captured = null).
+        const isOnline = order.payment_method === 'online' && isPaymentSettled(order);
 
         try {
             if (action === 'refund') {
                 if (isOnline) {
+                    if (order.transferred_to_seller) throw new Error('Funds were already transferred to the seller; refund manually');
                     if (!paymentIntentId) throw new Error('Order has no payment intent to refund');
-                    await getStripe().refunds.create(
-                        { payment_intent: paymentIntentId, metadata: { order_id: order.id, dispute_id: disputeId } },
-                        { idempotencyKey: `dispute_refund_${disputeId}` }
-                    );
-                }
-                await supabase.from('orders').update({ status: 'refunded', escrow_status: isOnline ? 'refunded' : order.escrow_status, updated_at: new Date().toISOString() }).eq('id', order.id);
-            } else {
-                if (isOnline) {
-                    const { data: seller } = await supabase
-                        .from('sellers')
-                        .select('stripe_connect_id')
-                        .eq('user_id', order.seller_id)
-                        .maybeSingle();
-                    if (seller?.stripe_connect_id && !order.transferred_to_seller) {
-                        const transferAmount = Math.round((totalAmount - platformFee) * 100);
-                        if (!Number.isFinite(transferAmount) || transferAmount <= 0) throw new Error('Invalid transfer amount');
-                        await getStripe().transfers.create(
-                            {
-                                amount: transferAmount,
-                                currency,
-                                destination: seller.stripe_connect_id,
-                                metadata: { order_id: order.id, dispute_id: disputeId },
-                            },
-                            { idempotencyKey: `dispute_release_${disputeId}` }
+                    // Stripe caches the *result* of an idempotency key (including failures) for 24h,
+                    // so each retry after a recorded failure gets a fresh key.
+                    const { count: failedAttempts } = await supabase
+                        .from('order_timeline')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('order_id', order.id)
+                        .eq('event_type', 'dispute_refund_failed');
+                    const attempt = failedAttempts ?? 0;
+                    try {
+                        await getStripe().refunds.create(
+                            { payment_intent: paymentIntentId, metadata: { order_id: order.id, dispute_id: disputeId } },
+                            { idempotencyKey: `dispute_refund_${disputeId}_${attempt}` }
                         );
-                        await supabase.from('orders').update({ transferred_to_seller: true, transfer_amount: transferAmount / 100, escrow_status: 'released' }).eq('id', order.id);
-                    } else if (!seller?.stripe_connect_id) {
-                        // No Stripe account: goes to the manual payout queue like a normal completion.
-                        await supabase.from('orders').update({ status: 'completed_pending_payout' }).eq('id', order.id);
+                    } catch (refundError: any) {
+                        await supabase.from('order_timeline').insert({
+                            order_id: order.id, event_type: 'dispute_refund_failed',
+                            description: `Refund failed: ${refundError?.message ?? 'unknown error'}`,
+                            created_by: req.admin?.id ?? null, metadata: { dispute_id: disputeId, attempt },
+                        });
+                        throw refundError;
                     }
                 }
-                await supabase.from('orders').update({ status: order.payment_method === 'online' && !order.transferred_to_seller ? 'completed_pending_payout' : 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', order.id);
+                const { data: refunded, error: refundUpdateError } = await supabase.from('orders')
+                    .update({ status: 'refunded', escrow_status: isOnline ? 'refunded' : order.escrow_status, updated_at: new Date().toISOString() })
+                    .eq('id', order.id)
+                    .eq('status', order.status)
+                    .select('id');
+                if (refundUpdateError) throw refundUpdateError;
+                if (!refunded?.length) throw new Error('Order changed state during refund; reconcile manually');
+            } else {
+                // Release to the seller through the shared escrow path (transfer / manual payout queue / cash).
+                const outcome = await releaseEscrow(order, {
+                    actorId: req.admin?.id ?? null,
+                    source: 'dispute',
+                    description: adminNote || 'Dispute resolved in favour of the seller',
+                });
+                if (!outcome.ok) throw new Error(outcome.error);
             }
         } catch (moneyError: any) {
             // Money movement failed: reopen the dispute so it can be retried.
@@ -737,18 +743,31 @@ export const markOrderAsPaid = async (req: AdminRequest, res: Response) => {
         if (order.status !== 'completed_pending_payout') {
             return res.status(400).json({ error: 'Order is not pending manual payout' });
         }
+        if (order.transferred_to_seller) {
+            return res.status(409).json({ error: 'Funds were already transferred to the seller via Stripe; nothing to pay out manually' });
+        }
 
-        // 2. Update Order Status
-        const { error: updateError } = await supabase
+        // 2. Update Order Status (conditional: a concurrent click cannot double-record the payout)
+        const { data: paid, error: updateError } = await supabase
             .from('orders')
             .update({
                 status: 'completed',
-                updated_at: new Date()
-                // We could add a 'payout_reference' column later if needed, strictly storing in logs for now.
+                escrow_status: order.payment_method === 'online' ? 'released' : order.escrow_status,
+                transferred_to_seller: true,
+                updated_at: new Date().toISOString(),
             })
-            .eq('id', id);
+            .eq('id', id)
+            .eq('status', 'completed_pending_payout')
+            .select('id');
 
         if (updateError) throw updateError;
+        if (!paid?.length) return res.status(409).json({ error: 'Order is no longer pending payout' });
+
+        await supabase.from('order_timeline').insert({
+            order_id: id, event_type: 'manual_payout_completed',
+            description: notes ? `Manual payout: ${notes}` : 'Manual payout completed',
+            created_by: req.admin?.id ?? null, metadata: { notes: notes ?? null },
+        });
 
         // 3. Log Admin Action
         if (req.admin) {

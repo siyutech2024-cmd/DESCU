@@ -28,7 +28,7 @@ interface OrderStatusCardProps {
 const MEETUP_PENDING_STATUSES: Order['status'][] = ['paid', 'escrow_held'];
 /** Statuses in which both parties can confirm completion. */
 const CONFIRMABLE_STATUSES: Order['status'][] = ['paid', 'escrow_held', 'meetup_arranged', 'shipped', 'delivered'];
-const CLOSED_STATUSES: Order['status'][] = ['completed', 'cancelled', 'disputed', 'refunded'];
+const CLOSED_STATUSES: Order['status'][] = ['completed', 'completed_pending_payout', 'cancelled', 'disputed', 'refunded'];
 
 export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, currentUser, onStatusChange, onOpenProduct, className = '' }) => {
     const navigate = useNavigate();
@@ -93,6 +93,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
             shipped: 'bg-indigo-100 text-indigo-700',
             delivered: 'bg-teal-100 text-teal-700',
             completed: 'bg-green-100 text-green-700',
+            completed_pending_payout: 'bg-green-100 text-green-700',
             cancelled: 'bg-gray-100 text-gray-700',
             disputed: 'bg-red-100 text-red-700',
             refunded: 'bg-gray-100 text-gray-500 line-through',
@@ -106,6 +107,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
             shipped: t('orders.status.shipped'),
             delivered: t('orders.status.delivered'),
             completed: t('orders.status.completed'),
+            completed_pending_payout: t('orders.status.completed'),
             cancelled: t('orders.status.cancelled'),
             disputed: t('orders.status.disputed'),
             refunded: t('orders.status.refunded'),
@@ -260,8 +262,10 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
             return order.meetup_location ? renderMeetupDetails() : null;
         }
 
-        // Shipping orders keep the existing flow.
-        if (CONFIRMABLE_STATUSES.includes(order.status)) {
+        // Shipping orders: the buyer confirms receipt once the item has shipped (single
+        // "Confirm receipt" action rendered by OrderList). The two-party block is only shown
+        // when a confirmation already exists on the row (legacy orders).
+        if (CONFIRMABLE_STATUSES.includes(order.status) && (order.buyer_confirmed_at || order.seller_confirmed_at)) {
             return renderConfirmation();
         }
 
@@ -333,7 +337,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
             {renderContent()}
 
             {/* Hint / Footer */}
-            {order.status === 'completed' && (
+            {(order.status === 'completed' || order.status === 'completed_pending_payout') && (
                 <div className="mt-4 flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded-xl text-sm font-medium">
                     <CheckCircle size={16} />
                     {t('orders.completed_message')}

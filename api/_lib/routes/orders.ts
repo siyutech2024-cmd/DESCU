@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { computeOrderAmounts, confirmBlockReason, isOrderType, isPaymentMethod } from '../domain/orders.js';
 import { requireAuth } from '../middleware/userAuth.js';
+import { releaseEscrow } from '../services/escrowReleaseService.js';
 import {
     markOrderAsShipped,
     confirmOrder,
@@ -147,15 +148,18 @@ router.post('/api/orders/:id/confirm', requireAuth, async (req: any, res) => {
         }).catch(console.error);
 
         if (updatedOrder.buyer_confirmed_at && updatedOrder.seller_confirmed_at) {
-            const { data: completedOrder } = await supabase.from('orders').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', id).select().single();
-            await supabase.from('order_timeline').insert({ order_id: id, event_type: 'completed', description: 'Order Completed', created_by: userId });
+            // Both parties confirmed: complete the order through the shared release path so an
+            // online payment is actually transferred (or queued for manual payout) — never
+            // just stamped 'completed' with the money still in escrow.
+            const outcome = await releaseEscrow(updatedOrder, {
+                actorId: userId,
+                source: 'dual_confirm',
+                description: 'Both parties confirmed — order completed',
+            });
+            if (!outcome.ok) return res.status(outcome.code).json({ error: outcome.error });
 
-            // 🔔 发送完成通知
-            import('../services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
-                notifyOrderStatus(id, 'completed').catch(console.error);
-            }).catch(console.error);
-
-            return res.json({ message: 'Order Completed', order: completedOrder, completed: true });
+            const { data: completedOrder } = await supabase.from('orders').select('*').eq('id', id).single();
+            return res.json({ message: 'Order Completed', order: completedOrder, completed: true, release: outcome });
         }
 
         res.json({ message: 'Confirmed, waiting for other party', order: updatedOrder, completed: false });

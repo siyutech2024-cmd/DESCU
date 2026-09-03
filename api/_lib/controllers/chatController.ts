@@ -18,6 +18,7 @@ export const isUuid = (value: unknown): value is string => typeof value === 'str
 
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_PAGE_SIZE = 100;
+const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:?\d{2})$/;
 
 interface ConversationRow {
     id: string;
@@ -120,6 +121,33 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
     }
 };
 
+interface LastMessageRow {
+    conversation_id: string;
+    text: string | null;
+    sender_id: string;
+    message_type: string | null;
+    created_at: string;
+    is_read: boolean | null;
+}
+
+/**
+ * Exactly one (the newest) message per conversation via the `conversation_last_messages`
+ * SQL function (DISTINCT ON). Before that migration exists we fall back to a bounded
+ * newest-first scan, where a very chatty thread can push others out of the window.
+ */
+const loadLastMessages = async (conversationIds: string[]): Promise<{ data: LastMessageRow[] | null; error: { message: string; code?: string } | null }> => {
+    const rpc = await supabase.rpc('conversation_last_messages', { p_conversation_ids: conversationIds });
+    if (!rpc.error) return { data: (rpc.data ?? []) as LastMessageRow[], error: null };
+    if (rpc.error.code !== '42883' && rpc.error.code !== 'PGRST202') return { data: null, error: rpc.error };
+
+    const fallback = await supabase.from('messages')
+        .select('conversation_id, text, sender_id, message_type, created_at, is_read')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false })
+        .limit(Math.min(conversationIds.length * 25, 5000));
+    return { data: (fallback.data ?? null) as LastMessageRow[] | null, error: fallback.error };
+};
+
 // 获取当前用户的所有对话（URL 中的 userId 必须等于登录用户）
 export const getUserConversations = async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -145,17 +173,10 @@ export const getUserConversations = async (req: AuthenticatedRequest, res: Respo
 
         const conversationIds = rows.map(c => c.id);
 
-        const [{ data: products }, { data: users }, { data: recentMessages }, { data: unreadRows }, { data: orders }] = await Promise.all([
+        const [productsRes, usersRes, recentRes, unreadRes, ordersRes] = await Promise.all([
             supabase.from('products').select('id, title, images, seller_id, seller_name, seller_avatar').in('id', productIds),
             supabase.from('users').select('id, name, avatar_url').in('id', userIds),
-            // Newest messages across all of the user's conversations; the first one seen per
-            // conversation is its last message. Bounded so a very chatty thread can't starve
-            // the others of a preview (they then fall back to no preview, never to an error).
-            supabase.from('messages')
-                .select('conversation_id, text, sender_id, message_type, created_at, is_read')
-                .in('conversation_id', conversationIds)
-                .order('created_at', { ascending: false })
-                .limit(Math.min(conversationIds.length * 25, 5000)),
+            loadLastMessages(conversationIds),
             // Unread = sent by the other party and not yet read.
             supabase.from('messages')
                 .select('conversation_id')
@@ -171,6 +192,11 @@ export const getUserConversations = async (req: AuthenticatedRequest, res: Respo
                 .order('created_at', { ascending: false })
                 .limit(500),
         ]);
+
+        for (const r of [productsRes, usersRes, recentRes, unreadRes, ordersRes]) {
+            if (r.error) throw r.error;
+        }
+        const products = productsRes.data, users = usersRes.data, recentMessages = recentRes.data, unreadRows = unreadRes.data, orders = ordersRes.data;
 
         const productById = new Map((products ?? []).map(p => [p.id, p]));
         const userById = new Map((users ?? []).map(u => [u.id, u]));
@@ -296,8 +322,10 @@ export const getMessages = async (req: AuthenticatedRequest, res: Response) => {
         // `order=desc` + `before=<ISO timestamp>` is the cursor API used by the chat window
         // (newest page first, "load earlier" walks backwards). Default stays asc + offset.
         const descending = req.query.order === 'desc';
-        const before = typeof req.query.before === 'string' ? new Date(req.query.before) : null;
-        if (before && Number.isNaN(before.getTime())) {
+        // Keep the client's original string: Postgres stores microseconds and `new Date()`
+        // would truncate to milliseconds, skipping rows that share the oldest millisecond.
+        const before = typeof req.query.before === 'string' && req.query.before ? req.query.before : null;
+        if (before && (Number.isNaN(new Date(before).getTime()) || !ISO_TIMESTAMP_RE.test(before))) {
             return res.status(400).json({ error: 'Invalid `before` cursor' });
         }
 
@@ -307,7 +335,7 @@ export const getMessages = async (req: AuthenticatedRequest, res: Response) => {
             .eq('conversation_id', conversation.id)
             .order('created_at', { ascending: !descending })
             .order('id', { ascending: !descending });
-        if (before) query = query.lt('created_at', before.toISOString());
+        if (before) query = query.lt('created_at', before);
         query = before ? query.limit(limit) : query.range(offset, offset + limit - 1);
 
         const { data, error } = await query;

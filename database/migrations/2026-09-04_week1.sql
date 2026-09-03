@@ -83,11 +83,35 @@ CREATE POLICY blocks_owner_all ON public.blocks
 
 -- -----------------------------------------------------------------------------
 -- 5. chat: the conversation list computes last message / unread per thread.
+--    The API calls conversation_last_messages() (one row per thread) and falls back
+--    to a bounded scan when the function does not exist yet.
 -- -----------------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS idx_messages_unread_by_conversation
   ON public.messages (conversation_id) WHERE is_read = false;
 CREATE INDEX IF NOT EXISTS idx_orders_product_buyer_created
   ON public.orders (product_id, buyer_id, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.conversation_last_messages(p_conversation_ids uuid[])
+RETURNS TABLE (
+  conversation_id uuid,
+  text            text,
+  sender_id       text,
+  message_type    text,
+  created_at      timestamptz,
+  is_read         boolean
+)
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT DISTINCT ON (m.conversation_id)
+         m.conversation_id::uuid, m.text::text, m.sender_id::text, m.message_type::text, m.created_at::timestamptz, COALESCE(m.is_read, false)::boolean
+  FROM public.messages m
+  WHERE m.conversation_id = ANY (p_conversation_ids)
+  ORDER BY m.conversation_id, m.created_at DESC, m.id DESC;
+$$;
+-- Only the API (service role) may call it; PostgREST clients get no access.
+REVOKE ALL ON FUNCTION public.conversation_last_messages(uuid[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.conversation_last_messages(uuid[]) TO service_role;
 
 COMMIT;
 

@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/queryClient';
 import { useAuth } from '@/features/auth';
 
 const ORDERS_POLL_MS = 30_000;
-const CLOSED_STATUSES: Order['status'][] = ['completed', 'cancelled'];
+const CLOSED_STATUSES: Order['status'][] = ['completed', 'completed_pending_payout', 'cancelled', 'refunded'];
 
 /** The signed-in user's orders (as buyer or seller), polled every 30 s. */
 export const useOrders = () => {

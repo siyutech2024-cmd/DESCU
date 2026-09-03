@@ -57,5 +57,31 @@ export const computeOrderAmounts = (price: number, orderType: OrderType, payment
     return { productAmount, shippingFee, platformFee, totalAmount: round2(productAmount + shippingFee + platformFee) };
 };
 
+export interface ReleaseAmounts {
+    totalCents: number;
+    platformFeeCents: number;
+    transferCents: number;
+}
+
+/**
+ * What the seller receives when escrow is released, in cents.
+ * Legacy rows may lack `platform_fee` (or use `amount` instead of `total_amount`);
+ * then the standard commission is applied so an admin release and a buyer confirm
+ * always pay out the same number.
+ */
+export const computeReleaseAmounts = (order: {
+    total_amount?: number | string | null;
+    amount?: number | string | null;
+    platform_fee?: number | string | null;
+}): ReleaseAmounts => {
+    const total = Number(order.total_amount ?? order.amount ?? 0);
+    const totalCents = toCents(Number.isFinite(total) ? total : 0);
+    const storedFee = order.platform_fee === null || order.platform_fee === undefined ? NaN : Number(order.platform_fee);
+    const platformFeeCents = Number.isFinite(storedFee) && storedFee > 0
+        ? toCents(storedFee)
+        : Math.round(totalCents * PLATFORM_FEE_RATE);
+    return { totalCents, platformFeeCents, transferCents: totalCents - platformFeeCents };
+};
+
 export const toCents = (amount: number): number => Math.round(amount * 100);
 const round2 = (n: number) => Math.round(n * 100) / 100;

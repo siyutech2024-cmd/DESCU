@@ -15,6 +15,9 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 
 type ReportTargetType = typeof REPORT_TARGET_TYPES[number];
 
+const isMissingTable = (error: unknown) => (error as { code?: string } | null)?.code === '42P01';
+const isForeignKeyViolation = (error: unknown) => (error as { code?: string } | null)?.code === '23503';
+
 // POST /api/reports  { target_type, target_id, reason, description? }
 export const createReport = async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -71,6 +74,7 @@ export const createReport = async (req: AuthenticatedRequest, res: Response) => 
 
         res.status(201).json({ id: report.id, status: report.status, duplicate: false });
     } catch (error) {
+        if (isMissingTable(error)) return res.status(503).json({ error: 'Reporting is temporarily unavailable' });
         console.error('Error creating report:', error);
         res.status(500).json({ error: 'Failed to submit report' });
     }
@@ -91,6 +95,8 @@ export const blockUser = async (req: AuthenticatedRequest, res: Response) => {
 
         res.status(201).json({ success: true, blocked_id });
     } catch (error) {
+        if (isMissingTable(error)) return res.status(503).json({ error: 'Blocking is temporarily unavailable' });
+        if (isForeignKeyViolation(error)) return res.status(404).json({ error: 'User not found' });
         console.error('Error blocking user:', error);
         res.status(500).json({ error: 'Failed to block user' });
     }

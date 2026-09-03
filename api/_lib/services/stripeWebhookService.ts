@@ -52,6 +52,16 @@ const markOrderPaid = async (params: {
     }
     if (order.payment_captured || !AWAITING_PAYMENT.includes(order.status)) {
         console.log(`[Stripe webhook] ${source}: order ${orderId} already ${order.status}; skipping`);
+        if (!order.payment_captured && amountReceivedCents) {
+            // Money was captured for an order that is no longer waiting for it (cancelled /
+            // edited meanwhile): leave a trail so support can refund it.
+            await supabase.from('order_timeline').insert({
+                order_id: orderId,
+                event_type: 'payment_orphaned',
+                description: `Stripe captured ${amountReceivedCents} cents but the order is in status "${order.status}"`,
+                metadata: { payment_intent: paymentIntentId, source },
+            });
+        }
         return;
     }
     if (amountReceivedCents !== null && amountReceivedCents < toCents(Number(order.total_amount))) {
@@ -80,7 +90,7 @@ const markOrderPaid = async (params: {
         .update(patch)
         .eq('id', orderId)
         .in('status', AWAITING_PAYMENT)
-        .eq('payment_captured', false)
+        .or('payment_captured.is.null,payment_captured.eq.false')
         .select('id');
     if (updateError) throw updateError;
     if (!updated || updated.length === 0) return; // lost the race to a concurrent event — fine
@@ -159,9 +169,25 @@ const handleAccountUpdated = async (account: Stripe.Account) => {
         .eq('stripe_connect_id', account.id);
 };
 
+/** Undo a claim so Stripe's retry of a failed delivery is processed instead of skipped. */
+const unclaimEvent = async (event: Stripe.Event) => {
+    const { error } = await supabase.from('stripe_events').delete().eq('event_id', event.id);
+    if (error && error.code !== '42P01') console.error('[Stripe webhook] could not unclaim event', event.id, error.message);
+};
+
 export const processStripeEvent = async (event: Stripe.Event, source: string): Promise<WebhookOutcome> => {
     if (!(await claimEvent(event))) return 'duplicate';
+    try {
+        return await dispatchEvent(event, source);
+    } catch (error) {
+        // The handler failed after the claim: release the claim, then let the endpoint
+        // return 500 so Stripe retries and the retry is actually processed.
+        await unclaimEvent(event);
+        throw error;
+    }
+};
 
+const dispatchEvent = async (event: Stripe.Event, source: string): Promise<WebhookOutcome> => {
     switch (event.type) {
         case 'account.updated':
             await handleAccountUpdated(event.data.object as Stripe.Account);

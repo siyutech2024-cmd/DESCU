@@ -45,3 +45,21 @@ describe('confirmBlockReason', () => {
         expect(isPaymentSettled({ status: 'paid', payment_method: 'online' })).toBe(false);
     });
 });
+
+describe('computeReleaseAmounts', () => {
+    const { computeReleaseAmounts } = require('../domain/orders');
+
+    it('uses the stored platform fee when present', () => {
+        expect(computeReleaseAmounts({ total_amount: 1050, platform_fee: 50 }))
+            .toEqual({ totalCents: 105000, platformFeeCents: 5000, transferCents: 100000 });
+    });
+    it('falls back to the standard commission for legacy rows without a fee', () => {
+        expect(computeReleaseAmounts({ total_amount: 200, platform_fee: null }))
+            .toEqual({ totalCents: 20000, platformFeeCents: 1000, transferCents: 19000 });
+        expect(computeReleaseAmounts({ amount: '200' }).transferCents).toBe(19000);
+    });
+    it('never pays out the full total for an online order', () => {
+        const r = computeReleaseAmounts({ total_amount: 99.99, platform_fee: 0 });
+        expect(r.transferCents).toBeLessThan(r.totalCents);
+    });
+});
