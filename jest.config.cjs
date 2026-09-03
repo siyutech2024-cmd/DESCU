@@ -7,6 +7,8 @@ module.exports = {
     testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
+        // api/_lib uses ESM-style `.js` extensions on relative imports
+        '^(\\.{1,2}/.*)\\.js$': '$1',
     },
     transform: {
         '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react-jsx', esModuleInterop: true } }],

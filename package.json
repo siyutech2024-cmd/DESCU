@@ -1,16 +1,19 @@
 {
-  "name": "venya-marketplace",
+  "name": "descu",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "server": "npx tsx server/src/index.ts",
-    "build": "tsc && vite build",
+    "server": "tsx watch server/dev.ts",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
+    "test": "jest",
     "android:sync": "npx cap sync android",
     "android:open": "npx cap open android",
     "android:build": "npm run build && npx cap sync android",
-    "test": "jest"
+    "ios:sync": "npx cap sync ios",
+    "ios:open": "npx cap open ios"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",
@@ -56,7 +59,9 @@
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.1",
     "ts-jest": "^29.1.1",
+    "tsx": "^4.23.13",
     "typescript": "^5.2.2",
     "vite": "^5.1.4"
-  }
+  },
+  "description": "DESCU — AI-powered second-hand marketplace (web + Capacitor mobile)"
 }
