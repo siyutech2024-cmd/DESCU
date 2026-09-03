@@ -10,6 +10,7 @@ import { seoLocationRouter } from './seoLocation.js';
 import { ratingsRouter } from './ratings.js';
 import { negotiationsRouter } from './negotiations.js';
 import { systemRouter } from './system.js';
+import { moderationRouter } from './moderation.js';
 
 /**
  * Mount every feature router. Order matters only where paths overlap:
@@ -26,5 +27,6 @@ export const registerRoutes = (app: Express): void => {
     app.use(seoLocationRouter);
     app.use(ratingsRouter);
     app.use(negotiationsRouter);
+    app.use(moderationRouter);
     app.use(systemRouter);
 };

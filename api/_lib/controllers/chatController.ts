@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { supabase } from '../db/supabase.js';
 import type { AuthenticatedRequest } from '../middleware/userAuth.js';
+import { isBlockedBetween } from '../services/moderationService.js';
 
 /**
  * Chat controller.
@@ -25,6 +26,14 @@ interface ConversationRow {
     user2_id: string;
     updated_at: string;
     [key: string]: unknown;
+}
+
+interface LastMessage {
+    text: string;
+    sender_id: string;
+    message_type: string;
+    created_at: string;
+    is_read: boolean;
 }
 
 export const isParticipant = (conversation: Pick<ConversationRow, 'user1_id' | 'user2_id'>, userId: string): boolean =>
@@ -82,6 +91,9 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
         if (product.seller_id !== userId && product.seller_id !== otherId) {
             return res.status(400).json({ error: 'Conversation must include the product seller' });
         }
+        if (await isBlockedBetween(userId, otherId)) {
+            return res.status(403).json({ error: 'You cannot message this user' });
+        }
 
         // ids are validated UUIDs above, so interpolation into the filter is safe
         const { data: existing, error: existingError } = await supabase
@@ -131,9 +143,33 @@ export const getUserConversations = async (req: AuthenticatedRequest, res: Respo
         const productIds = [...new Set(rows.map(c => c.product_id).filter(Boolean))];
         const userIds = [...new Set(rows.flatMap(c => [c.user1_id, c.user2_id]).filter(Boolean))];
 
-        const [{ data: products }, { data: users }] = await Promise.all([
+        const conversationIds = rows.map(c => c.id);
+
+        const [{ data: products }, { data: users }, { data: recentMessages }, { data: unreadRows }, { data: orders }] = await Promise.all([
             supabase.from('products').select('id, title, images, seller_id, seller_name, seller_avatar').in('id', productIds),
             supabase.from('users').select('id, name, avatar_url').in('id', userIds),
+            // Newest messages across all of the user's conversations; the first one seen per
+            // conversation is its last message. Bounded so a very chatty thread can't starve
+            // the others of a preview (they then fall back to no preview, never to an error).
+            supabase.from('messages')
+                .select('conversation_id, text, sender_id, message_type, created_at, is_read')
+                .in('conversation_id', conversationIds)
+                .order('created_at', { ascending: false })
+                .limit(Math.min(conversationIds.length * 25, 5000)),
+            // Unread = sent by the other party and not yet read.
+            supabase.from('messages')
+                .select('conversation_id')
+                .in('conversation_id', conversationIds)
+                .eq('is_read', false)
+                .neq('sender_id', userId)
+                .limit(5000),
+            // The most recent order per (product, buyer) drives the order badge in the chat list.
+            supabase.from('orders')
+                .select('id, status, product_id, buyer_id, seller_id, created_at')
+                .in('product_id', productIds)
+                .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+                .order('created_at', { ascending: false })
+                .limit(500),
         ]);
 
         const productById = new Map((products ?? []).map(p => [p.id, p]));
@@ -142,6 +178,31 @@ export const getUserConversations = async (req: AuthenticatedRequest, res: Respo
             const u = userById.get(id);
             return { id, name: u?.name || id.slice(0, 8), avatar: u?.avatar_url ?? null };
         };
+
+        const lastMessageByConversation = new Map<string, LastMessage>();
+        for (const m of recentMessages ?? []) {
+            if (!lastMessageByConversation.has(m.conversation_id)) {
+                lastMessageByConversation.set(m.conversation_id, {
+                    text: m.text ?? '',
+                    sender_id: m.sender_id,
+                    message_type: m.message_type ?? 'text',
+                    created_at: m.created_at,
+                    is_read: !!m.is_read,
+                });
+            }
+        }
+
+        const unreadByConversation = new Map<string, number>();
+        for (const m of unreadRows ?? []) {
+            unreadByConversation.set(m.conversation_id, (unreadByConversation.get(m.conversation_id) ?? 0) + 1);
+        }
+
+        // key: `${product_id}:${buyer_id}` → newest order
+        const orderByProductBuyer = new Map<string, { id: string; status: string }>();
+        for (const o of orders ?? []) {
+            const key = `${o.product_id}:${o.buyer_id}`;
+            if (!orderByProductBuyer.has(key)) orderByProductBuyer.set(key, { id: o.id, status: o.status });
+        }
 
         const result = rows.map(conversation => {
             const product = productById.get(conversation.product_id);
@@ -158,12 +219,20 @@ export const getUserConversations = async (req: AuthenticatedRequest, res: Respo
                 }
                 : null;
 
+            const order = orderByProductBuyer.get(`${conversation.product_id}:${buyerId}`) ?? null;
+
             return {
                 ...conversation,
                 productTitle: product?.title || '未知商品',
                 productImage: product?.images?.[0] || '',
                 sellerInfo,
                 buyerInfo: publicUser(buyerId),
+                buyer_id: buyerId,
+                seller_id: sellerId ?? null,
+                last_message: lastMessageByConversation.get(conversation.id) ?? null,
+                unread_count: unreadByConversation.get(conversation.id) ?? 0,
+                orderId: order?.id ?? null,
+                orderStatus: order?.status ?? null,
             };
         });
 
@@ -189,6 +258,11 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
 
         const conversation = await loadOwnConversation(conversation_id, userId, res);
         if (!conversation) return;
+
+        const otherId = conversation.user1_id === userId ? conversation.user2_id : conversation.user1_id;
+        if (isUuid(otherId) && await isBlockedBetween(userId, otherId)) {
+            return res.status(403).json({ error: 'You cannot message this user' });
+        }
 
         const { data: message, error: msgError } = await supabase
             .from('messages')
@@ -219,13 +293,24 @@ export const getMessages = async (req: AuthenticatedRequest, res: Response) => {
 
         const limit = Math.min(Math.max(parseInt(String(req.query.limit), 10) || 50, 1), MAX_PAGE_SIZE);
         const offset = Math.max(parseInt(String(req.query.offset), 10) || 0, 0);
+        // `order=desc` + `before=<ISO timestamp>` is the cursor API used by the chat window
+        // (newest page first, "load earlier" walks backwards). Default stays asc + offset.
+        const descending = req.query.order === 'desc';
+        const before = typeof req.query.before === 'string' ? new Date(req.query.before) : null;
+        if (before && Number.isNaN(before.getTime())) {
+            return res.status(400).json({ error: 'Invalid `before` cursor' });
+        }
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('messages')
             .select('*')
             .eq('conversation_id', conversation.id)
-            .order('created_at', { ascending: true })
-            .range(offset, offset + limit - 1);
+            .order('created_at', { ascending: !descending })
+            .order('id', { ascending: !descending });
+        if (before) query = query.lt('created_at', before.toISOString());
+        query = before ? query.limit(limit) : query.range(offset, offset + limit - 1);
+
+        const { data, error } = await query;
         if (error) throw error;
 
         res.json(data ?? []);
