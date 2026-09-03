@@ -7,8 +7,8 @@ import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Up
 import { User, Product } from '../types';
 import { useLanguage } from '@/i18n';
 import { getFullDataUrl } from '../services/utils';
-import { API_BASE_URL } from '../services/apiConfig';
-import { supabase, markProductAsSold, relistProduct } from '../services/supabase';
+import { api, ApiError, getAccessToken } from '@/lib/api/client';
+import { markProductAsSold, relistProduct } from '../services/supabase';
 
 interface UserProfileProps {
   user: User;
@@ -116,12 +116,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     });
 
     // Credit Score
-    import('../services/apiConfig').then(({ API_BASE_URL }) => {
-      fetch(`${API_BASE_URL}/api/users/${user.id}/credit`)
-        .then(res => res.json())
-        .then(data => setCreditScore(data.score || 0))
-        .catch(console.error);
-    });
+    api.get<{ score?: number }>(`/api/users/${user.id}/credit`)
+      .then(data => setCreditScore(data?.score || 0))
+      .catch(console.error);
   }, [user.id]);
 
   // Load Favorite Products
@@ -134,32 +131,23 @@ export const UserProfile: React.FC<UserProfileProps> = ({
     e.preventDefault();
     setIsSavingBank(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const token = await getAccessToken();
       if (!token) {
         alert('Please login first');
         return;
       }
 
       // Save bank details directly to database (simplified flow)
-      const response = await fetch(`${API_BASE_URL}/api/users/bank-info`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
+      try {
+        await api.post('/api/users/bank-info', {
           bankName: bankDetails.bankName,
           clabe: bankDetails.accountNumber,
           holderName: bankDetails.holderName
-        }),
-      });
-
-      if (response.ok) {
+        }, { auth: 'required' });
         alert(t('profile.bank_saved'));
-      } else {
-        const err = await response.json();
-        alert("Error: " + (err.error || 'Unknown error'));
+      } catch (err) {
+        if (!(err instanceof ApiError)) throw err;
+        alert("Error: " + (err.message || 'Unknown error'));
       }
     } catch (error) {
       console.error("Error saving bank details", error);
@@ -176,18 +164,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const handleDashboard = async () => {
     // For verified sellers to see their dashboard
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) return;
-
-      const response = await fetch(`${API_BASE_URL}/api/payment/dashboard/${user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (data.url) {
+      const data = await api.get<{ url?: string }>(`/api/payment/dashboard/${user.id}`, { auth: 'required' });
+      if (data?.url) {
         window.open(data.url, '_blank');
       }
     } catch (error) {
@@ -197,24 +175,22 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 
   const handleConnectStripe = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      const token = await getAccessToken();
       if (!token) return;
 
       // Call createConnectAccount
-      const response = await fetch(`${API_BASE_URL}/api/payment/connect`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      let data: { url?: string } | undefined;
+      try {
+        data = await api.post<{ url?: string }>('/api/payment/connect', {
           country: 'MX' // Default to MX for now, or use user region
-        })
-      });
+        }, { auth: 'required' });
+      } catch (err) {
+        // Old code parsed the error body and fell through to the "no url" branch
+        if (!(err instanceof ApiError)) throw err;
+        data = undefined;
+      }
 
-      const data = await response.json();
-      if (data.url) {
+      if (data?.url) {
         // Redirect to Stripe Onboarding
         window.location.href = data.url;
       } else {

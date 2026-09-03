@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Loader2, Truck, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { API_BASE_URL } from '../services/apiConfig';
-import { supabase } from '../services/supabase';
+import { api, ApiError } from '@/lib/api/client';
 
 interface ShipmentModalProps {
     isOpen: boolean;
@@ -23,30 +22,22 @@ export const ShipmentModal: React.FC<ShipmentModalProps> = ({ isOpen, onClose, o
         setLoading(true);
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const res = await fetch(`${API_BASE_URL}/api/orders/ship`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${session?.access_token}`
-                },
-                body: JSON.stringify({
-                    orderId,
-                    carrier,
-                    trackingNumber
-                })
-            });
+            await api.post('/api/orders/ship', {
+                orderId,
+                carrier,
+                trackingNumber
+            }, { auth: 'optional' });
 
-            if (res.ok) {
-                toast.success('Order marked as shipped!');
-                onSuccess();
-                onClose();
-            } else {
-                const err = await res.json();
-                toast.error(err.error || 'Failed to update shipment');
-            }
+            toast.success('Order marked as shipped!');
+            onSuccess();
+            onClose();
         } catch (error) {
-            toast.error('Network error');
+            if (error instanceof ApiError) {
+                const err = error.body as any;
+                toast.error(err?.error || 'Failed to update shipment');
+            } else {
+                toast.error('Network error');
+            }
         } finally {
             setLoading(false);
         }

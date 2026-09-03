@@ -10,7 +10,7 @@ import {
     Building2,
     Edit3
 } from 'lucide-react';
-import { API_BASE_URL } from '../services/apiConfig';
+import { api, ApiError } from '@/lib/api/client';
 import { supabase } from '../services/supabase';
 import { useLanguage } from '@/i18n';
 
@@ -60,17 +60,14 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
 
     const fetchData = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
             // Fetch payouts
-            const payoutsRes = await fetch(`${API_BASE_URL}/api/users/payouts`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
-            if (payoutsRes.ok) {
-                const data = await payoutsRes.json();
-                setPayouts(data.payouts || []);
-                setSummary(data.summary || { totalEarned: 0, pending: 0, completed: 0 });
+            try {
+                const data = await api.get<{ payouts?: PayoutItem[]; summary?: PayoutSummary }>('/api/users/payouts', { auth: 'required' });
+                setPayouts(data?.payouts || []);
+                setSummary(data?.summary || { totalEarned: 0, pending: 0, completed: 0 });
+            } catch (err) {
+                // Old code ignored non-2xx responses (and skipped the call without a session); keep that quiet
+                if (!(err instanceof ApiError)) throw err;
             }
 
             // Fetch bank info (may fail if sellers table doesn't exist yet)

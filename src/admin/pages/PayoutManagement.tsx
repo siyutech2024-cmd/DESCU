@@ -12,6 +12,7 @@ import {
     Loader2,
     AlertCircle
 } from 'lucide-react';
+import { api } from '@/lib/api/client';
 
 interface PayoutOrder {
     id: string;
@@ -71,16 +72,12 @@ const PayoutManagement: React.FC = () => {
     const fetchPayouts = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('admin_token');
-            const res = await fetch(`/api/admin/payouts?status=${statusFilter}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const data = await api.get<{ payouts?: PayoutOrder[]; stats?: PayoutStats }>('/api/admin/payouts', {
+                params: { status: statusFilter },
+                auth: 'required'
             });
-
-            if (res.ok) {
-                const data = await res.json();
-                setPayouts(data.payouts || []);
-                setStats(data.stats || { pending: 0, processing: 0, completed: 0, totalPendingAmount: 0 });
-            }
+            setPayouts(data.payouts || []);
+            setStats(data.stats || { pending: 0, processing: 0, completed: 0, totalPendingAmount: 0 });
         } catch (err) {
             console.error('Fetch payouts error:', err);
         } finally {
@@ -99,23 +96,10 @@ const PayoutManagement: React.FC = () => {
 
         setActionLoading(true);
         try {
-            const token = localStorage.getItem('admin_token');
-            const res = await fetch(`/api/admin/payouts/${orderId}/complete`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ reference: referenceInput })
-            });
-
-            if (res.ok) {
-                setSelectedPayout(null);
-                setReferenceInput('');
-                fetchPayouts();
-            } else {
-                alert('操作失败');
-            }
+            await api.post(`/api/admin/payouts/${orderId}/complete`, { reference: referenceInput }, { auth: 'required' });
+            setSelectedPayout(null);
+            setReferenceInput('');
+            fetchPayouts();
         } catch (err) {
             console.error('Complete payout error:', err);
             alert('操作失败');
@@ -127,15 +111,8 @@ const PayoutManagement: React.FC = () => {
     const handleMarkProcessing = async (orderId: string) => {
         setActionLoading(true);
         try {
-            const token = localStorage.getItem('admin_token');
-            const res = await fetch(`/api/admin/payouts/${orderId}/processing`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (res.ok) {
-                fetchPayouts();
-            }
+            await api.post(`/api/admin/payouts/${orderId}/processing`, undefined, { auth: 'required' });
+            fetchPayouts();
         } catch (err) {
             console.error(err);
         } finally {

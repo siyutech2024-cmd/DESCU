@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingDown, X, Loader2, Package } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { useLanguage } from '@/i18n';
-import { API_BASE_URL } from '../../services/apiConfig';
+import { api, ApiError, getAccessToken } from '@/lib/api/client';
 import toast from 'react-hot-toast';
 
 interface PriceNegotiationSenderProps {
@@ -64,8 +64,8 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
 
         setIsSending(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
+            const token = await getAccessToken();
+            if (!token) {
                 toast.error(t('negotiate.login_first'));
                 return;
             }
@@ -76,43 +76,36 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
                 proposedPrice: parseFloat(proposedPrice)
             });
 
-            const response = await fetch(`${API_BASE_URL}/api/negotiations/propose`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    conversationId,
-                    productId,
-                    proposedPrice: parseFloat(proposedPrice)
-                })
-            });
+            const result = await api.post('/api/negotiations/propose', {
+                conversationId,
+                productId,
+                proposedPrice: parseFloat(proposedPrice)
+            }, { auth: 'required' });
 
-            console.log('[Negotiation] Response status:', response.status);
-
-            if (!response.ok) {
-                const err = await response.json();
-                console.error('[Negotiation] Error response:', JSON.stringify(err, null, 2));
-
-                // 显示详细的错误信息
-                if (err.debug) {
-                    console.error('[Negotiation] Your role:', err.debug.yourRole);
-                    console.error('[Negotiation] Required role:', err.debug.requiredRole);
-                }
-
-                throw new Error(err.message || err.error || 'Failed to propose');
-            }
-
-            const result = await response.json();
             console.log('[Negotiation] Success:', result);
 
             setProposedPrice('');
             toast.success(t('negotiate.sent'));
             onSent?.();
         } catch (error: any) {
+            let message: string | undefined = error?.message;
+
+            if (error instanceof ApiError) {
+                const err = error.body as any;
+                console.log('[Negotiation] Response status:', error.status);
+                console.error('[Negotiation] Error response:', JSON.stringify(err, null, 2));
+
+                // 显示详细的错误信息
+                if (err?.debug) {
+                    console.error('[Negotiation] Your role:', err.debug.yourRole);
+                    console.error('[Negotiation] Required role:', err.debug.requiredRole);
+                }
+
+                message = err?.message || err?.error || 'Failed to propose';
+            }
+
             console.error('[Negotiation] Error proposing price:', error);
-            toast.error(error.message || t('negotiate.send_failed'));
+            toast.error(message || t('negotiate.send_failed'));
         } finally {
             setIsSending(false);
         }

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Star, User as UserIcon, Calendar, Shield, MessageCircle, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { API_BASE_URL } from '../services/apiConfig';
+import { api } from '@/lib/api/client';
+import { getUserRatingStats } from '@/services/ratingService';
 
 const localeMap: Record<string, string> = {
     zh: 'zh-CN',
@@ -46,8 +47,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         if (!isOpen || !userId) return;
 
         // 获取评分统计
-        fetch(`${API_BASE_URL}/api/ratings/${userId}/stats`)
-            .then(r => r.json())
+        getUserRatingStats(userId)
             .then(data => {
                 setRatingStats(data || { total_reviews: 0, average_rating: 0 });
             })
@@ -69,8 +69,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         });
 
         // 获取用户的产品列表
-        fetch(`${API_BASE_URL}/api/products?seller_id=${userId}&limit=6`)
-            .then(r => r.json())
+        api.get<any[]>('/api/products', { params: { seller_id: userId, limit: 6 } })
             .then(data => {
                 if (Array.isArray(data)) setUserProducts(data);
             })
@@ -82,30 +81,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         setIsSubmitting(true);
 
         try {
-            const { supabase } = await import('../services/supabase');
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('Auth required');
-
-            const res = await fetch(`${API_BASE_URL}/api/ratings`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    rater_id: currentUserId,
-                    target_user_id: userId,
-                    score: myRating,
-                    comment: comment.trim() || null
-                })
-            });
-
-            if (!res.ok) throw new Error('Failed to submit rating');
+            await api.post('/api/ratings', {
+                rater_id: currentUserId,
+                target_user_id: userId,
+                score: myRating,
+                comment: comment.trim() || null
+            }, { auth: 'required' });
 
             setHasRated(true);
             // 刷新统计
-            const statsRes = await fetch(`${API_BASE_URL}/api/ratings/${userId}/stats`);
-            const stats = await statsRes.json();
+            const stats = await getUserRatingStats(userId);
             setRatingStats(stats || { total_reviews: 0, average_rating: 0 });
         } catch (err) {
             console.error('Rating error:', err);

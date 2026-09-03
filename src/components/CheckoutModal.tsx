@@ -10,7 +10,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { X, Lock, CreditCard, MapPin, Truck, Wallet, ArrowLeft, CheckCircle, Banknote } from 'lucide-react';
 import { Product, User } from '../types';
-import { API_BASE_URL } from '../services/apiConfig';
+import { api, ApiError } from '@/lib/api/client';
 import { supabase } from '../services/supabase';
 import { createOrGetConversation } from '../services/chatService';
 import { useLanguage } from '@/i18n';
@@ -64,15 +64,13 @@ const CheckoutForm: React.FC<{
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
             // Confirm with backend
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                await fetch(`${API_BASE_URL}/api/stripe/confirm-payment`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session?.access_token}`
-                    },
-                    body: JSON.stringify({ orderId, paymentIntentId: paymentIntent.id })
-                });
+                try {
+                    await api.post('/api/stripe/confirm-payment', { orderId, paymentIntentId: paymentIntent.id }, { auth: 'optional' });
+                } catch (e) {
+                    // Old code never checked response.ok, so a non-2xx still counted as success
+                    if (!(e instanceof ApiError)) throw e;
+                    console.error("Backend confirmation returned an error", e);
+                }
                 onSuccess();
             } catch (e) {
                 console.error("Backend confirmation failed", e);
@@ -150,23 +148,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                 payload.shippingAddress = shippingAddress;
             }
 
-            const res = await fetch(`${API_BASE_URL}/api/orders/create`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
+            let data: { order: any; requiresPayment?: boolean };
+            try {
+                data = await api.post<{ order: any; requiresPayment?: boolean }>('/api/orders/create', payload, { auth: 'required' });
+            } catch (apiErr) {
+                if (!(apiErr instanceof ApiError)) throw apiErr;
+                const err: any = apiErr.body ?? {};
                 console.error("Order creation failed:", err);
                 // Throw the detailed message from backend if available
                 throw new Error(err.message || err.error || 'Failed to create order');
             }
 
-            const data = await res.json();
             setCreatedOrder(data.order);
 
             // 🔔 创建/获取对话，并发送订单通知给卖家
@@ -219,17 +211,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
 
             if (data.requiresPayment && payload.paymentMethod === 'online') {
                 // Now create Payment Intent
-                const piRes = await fetch(`${API_BASE_URL}/api/stripe/create-payment-intent`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`
-                    },
-                    body: JSON.stringify({ orderId: data.order.id })
-                });
-
-                if (!piRes.ok) throw new Error("Failed to init payment");
-                const piData = await piRes.json();
+                let piData: { clientSecret: string };
+                try {
+                    piData = await api.post<{ clientSecret: string }>('/api/stripe/create-payment-intent', { orderId: data.order.id }, { auth: 'required' });
+                } catch (piErr) {
+                    if (!(piErr instanceof ApiError)) throw piErr;
+                    throw new Error("Failed to init payment");
+                }
                 setClientSecret(piData.clientSecret);
                 setStep('payment');
             } else {

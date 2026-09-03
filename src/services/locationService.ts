@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './apiConfig';
+import { api } from '@/lib/api/client';
 
 // Service to handle location related operations
 
@@ -25,15 +25,7 @@ export interface DetailedLocationInfo {
 export const reverseGeocode = async (latitude: number, longitude: number): Promise<string> => {
     try {
         // Use our backend proxy to avoid CORS issues
-        const response = await fetch(
-            `${API_BASE_URL}/api/location/reverse?lat=${latitude}&lon=${longitude}`
-        );
-
-        if (!response.ok) {
-            throw new Error('Geocoding failed');
-        }
-
-        const data = await response.json();
+        const data = await api.get<{ address: Record<string, string> }>('/api/location/reverse', { params: { lat: latitude, lon: longitude } });
 
         // Extract the most relevant city/town name
         // Nominatim returns address object with varying keys depending on location type
@@ -58,10 +50,7 @@ export const reverseGeocode = async (latitude: number, longitude: number): Promi
 // IP Geolocation using backend proxy to avoid CORS
 export const getLocationFromIP = async (): Promise<LocationInfo | null> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/location/ip`);
-        if (!response.ok) throw new Error('IP API failed');
-
-        const data = await response.json();
+        const data = await api.get<Partial<LocationInfo>>('/api/location/ip');
 
         return {
             country: data.country || 'Unknown',
@@ -141,15 +130,7 @@ export const getDetailedLocation = async (
 
     try {
         // Use our backend proxy to avoid CORS issues
-        const response = await fetch(
-            `${API_BASE_URL}/api/location/reverse?lat=${latitude}&lon=${longitude}`
-        );
-
-        if (!response.ok) {
-            throw new Error('Geocoding failed');
-        }
-
-        const data = await response.json();
+        const data = await api.get<{ address: Record<string, string> }>('/api/location/reverse', { params: { lat: latitude, lon: longitude } });
         const address = data.address;
 
         // Extract location components with priority

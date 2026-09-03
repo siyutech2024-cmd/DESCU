@@ -5,6 +5,7 @@ import { User as UserType, Language, Region } from '../types';
 import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { supabase } from '../services/supabase';
+import { api, ApiError } from '@/lib/api/client';
 import { DetailedLocationInfo } from '../services/locationService';
 
 interface NavbarProps {
@@ -101,23 +102,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               try {
                 const res = await fetch('https://ipapi.co/json/');
                 const data = await res.json();
-                const { supabase } = await import('../services/supabase');
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
-                  const { API_BASE_URL } = await import('../services/apiConfig');
-                  await fetch(`${API_BASE_URL}/api/users/update-location`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${session.access_token}`
-                    },
-                    body: JSON.stringify({
+                  try {
+                    await api.post('/api/users/update-location', {
                       country: data.country_code,
                       city: data.city,
                       lat: data.latitude,
                       lng: data.longitude
-                    })
-                  });
+                    }, { auth: 'required' });
+                  } catch (err) {
+                    // Previous implementation ignored the response status and reloaded regardless
+                    if (!(err instanceof ApiError)) throw err;
+                  }
                   window.location.reload();
                 }
               } catch (err) {

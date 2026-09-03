@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, CheckCircle, XCircle, RefreshCw, Sparkles } from 'lucide-react';
-import { supabase } from '../../services/supabase';
-import { API_BASE_URL } from '../../services/apiConfig';
+import { api, ApiError, getAccessToken } from '@/lib/api/client';
 import { useLanguage } from '@/i18n';
 
 interface PriceNegotiationCardProps {
@@ -35,8 +34,8 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
     const handleRespond = async (action: 'accept' | 'reject' | 'counter') => {
         setIsResponding(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
+            const token = await getAccessToken();
+            if (!token) {
                 console.error('[Negotiation Response] No session');
                 return;
             }
@@ -48,32 +47,24 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
 
             console.log('[Negotiation Response] Sending:', { negotiationId, action, body });
 
-            const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/respond`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify(body)
-            });
-
-            console.log('[Negotiation Response] Status:', response.status);
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('[Negotiation Response] Error:', JSON.stringify(errorData, null, 2));
-                throw new Error(errorData.message || errorData.error || 'Failed to respond');
-            }
-
-            const result = await response.json();
+            const result = await api.post(`/api/negotiations/${negotiationId}/respond`, body, { auth: 'required' });
             console.log('[Negotiation Response] Success:', result);
 
             setShowCounterInput(false);
             setCounterInput('');
             onUpdate?.();
         } catch (error: any) {
+            let message: string | undefined = error?.message;
+
+            if (error instanceof ApiError) {
+                const errorData = error.body as any;
+                console.log('[Negotiation Response] Status:', error.status);
+                console.error('[Negotiation Response] Error:', JSON.stringify(errorData, null, 2));
+                message = errorData?.message || errorData?.error || 'Failed to respond';
+            }
+
             console.error('[Negotiation Response] Error:', error);
-            alert(error.message || t('nego.failed'));
+            alert(message || t('nego.failed'));
         } finally {
             setIsResponding(false);
         }

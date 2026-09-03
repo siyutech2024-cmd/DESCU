@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Calendar, Shield, MessageCircle, ShoppingBag, MapPin } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
+import { api } from '@/lib/api/client';
+import { getUserRatingStats } from '@/services/ratingService';
 
 const localeMap: Record<string, string> = {
     zh: 'zh-CN',
@@ -41,14 +42,12 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
             });
 
         // Fetch rating stats
-        fetch(`${API_BASE_URL}/api/ratings/${id}/stats`)
-            .then(r => r.json())
+        getUserRatingStats(id)
             .then(data => setRatingStats(data || { total_reviews: 0, average_rating: 0 }))
             .catch(console.error);
 
         // Fetch user products
-        fetch(`${API_BASE_URL}/api/products?seller_id=${id}&limit=20`)
-            .then(r => r.json())
+        api.get<any[]>('/api/products', { params: { seller_id: id, limit: 20 } })
             .then(data => {
                 if (Array.isArray(data)) setProducts(data);
             })
@@ -60,27 +59,15 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
         if (myRating === 0 || isSubmitting || !currentUserId || !id) return;
         setIsSubmitting(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) throw new Error('Auth required');
-
-            const res = await fetch(`${API_BASE_URL}/api/ratings`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                    rater_id: currentUserId,
-                    target_user_id: id,
-                    score: myRating,
-                    comment: comment.trim() || null
-                })
-            });
-            if (!res.ok) throw new Error('Failed');
+            await api.post('/api/ratings', {
+                rater_id: currentUserId,
+                target_user_id: id,
+                score: myRating,
+                comment: comment.trim() || null
+            }, { auth: 'required' });
             setHasRated(true);
             // Refresh stats
-            const statsRes = await fetch(`${API_BASE_URL}/api/ratings/${id}/stats`);
-            const stats = await statsRes.json();
+            const stats = await getUserRatingStats(id);
             setRatingStats(stats || { total_reviews: 0, average_rating: 0 });
         } catch (err) {
             console.error('Rating error:', err);

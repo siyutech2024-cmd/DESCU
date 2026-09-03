@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { showToast } from '../utils/toast';
+import { api, ApiError, getAccessToken } from '@/lib/api/client';
 import { CheckCircle, XCircle, MessageSquare, Eye, Package, Sparkles, AlertTriangle } from 'lucide-react';
 
 export const ProductReview: React.FC = () => {
@@ -96,9 +97,7 @@ export const ProductReview: React.FC = () => {
 
         try {
             // 使用与 adminApi 相同的方式获取 token
-            const { supabase } = await import('../../services/supabase');
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
+            const token = await getAccessToken();
 
             // 检查是否是开发模式
             const isDevMode = localStorage.getItem('descu_admin_dev_mode') === 'true';
@@ -108,19 +107,21 @@ export const ProductReview: React.FC = () => {
             }
 
             // 调用后端 AI 审核 API
-            const response = await fetch('/api/admin/trigger-review', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` }),
-                    ...(isDevMode && { 'X-Dev-Mode': 'true' })
+            let data: any;
+            try {
+                data = await api.post<any>('/api/admin/trigger-review', undefined, {
+                    auth: 'optional',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(isDevMode && { 'X-Dev-Mode': 'true' })
+                    }
+                });
+            } catch (err) {
+                if (err instanceof ApiError) {
+                    const body = err.body as any;
+                    throw new Error(body?.message || body?.error || 'AI审核失败');
                 }
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || data.error || 'AI审核失败');
+                throw err;
             }
 
             const { stats } = data;

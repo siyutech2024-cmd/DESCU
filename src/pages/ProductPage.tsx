@@ -5,7 +5,7 @@ import { Product, User } from '../types';
 import { ProductDetails } from '../components/ProductDetails';
 import { useSEO } from '../hooks/useSEO';
 import { useLanguage } from '@/i18n';
-import { API_BASE_URL } from '../services/apiConfig';
+import { api, ApiError } from '@/lib/api/client';
 
 interface ProductPageProps {
     products: Product[];
@@ -51,23 +51,17 @@ export const ProductPage: React.FC<ProductPageProps> = ({
         }
 
         const fetchProduct = async () => {
-            console.log('[ProductPage] Fetching product from API:', `${API_BASE_URL}/api/products/${id}`);
+            console.log('[ProductPage] Fetching product from API:', `/api/products/${id}`);
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/products/${id}?lang=${language}`);
+                const dbProduct = await api.get<any>(`/api/products/${id}`, { params: { lang: language } });
 
-                if (!response.ok) {
-                    setError(`Product not found (${response.status})`);
-                    return;
-                }
-
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
+                // Non-JSON body (client falls back to raw text) — previously rejected via content-type check
+                if (!dbProduct || typeof dbProduct !== 'object') {
                     setError('Unexpected server response');
                     return;
                 }
 
-                const dbProduct = await response.json();
                 console.log('[ProductPage] Product fetched:', dbProduct.title);
 
                 const transformed: Product = {
@@ -103,6 +97,10 @@ export const ProductPage: React.FC<ProductPageProps> = ({
                 };
                 setFetchedProduct(transformed);
             } catch (err: any) {
+                if (err instanceof ApiError) {
+                    setError(`Product not found (${err.status})`);
+                    return;
+                }
                 console.error("[ProductPage] Failed to fetch product:", err);
                 setError(err.message || 'Failed to load product');
             } finally {

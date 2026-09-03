@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabase';
-import { API_BASE_URL } from '../services/apiConfig';
+import { api, ApiError } from '@/lib/api/client';
 import { Order, User } from '../types';
 import { OrderStatusCard } from './OrderStatusCard';
 import { DisputeModal } from './DisputeModal';
@@ -30,24 +29,17 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
 
     const fetchOrders = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const url = `${API_BASE_URL}/api/orders?role=${role}`;
-            const res = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
+            const data = await api.get<{ orders?: Order[] }>('/api/orders', {
+                params: { role },
+                auth: 'required'
             });
-
-            const data = await res.json();
-            if (res.ok) {
-                setOrders(data.orders || []);
-            } else {
-                console.error("Orders Error:", data);
-            }
+            setOrders(data.orders || []);
         } catch (err) {
-            console.error("Fetch catch error:", err);
+            if (err instanceof ApiError) {
+                console.error("Orders Error:", err.body);
+            } else {
+                console.error("Fetch catch error:", err);
+            }
         } finally {
             setLoading(false);
         }
@@ -125,24 +117,16 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
                                         e.stopPropagation();
                                         if (!confirm('Have you received the item and are satisfied? This will release funds to the seller.')) return;
                                         try {
-                                            const { data: { session } } = await supabase.auth.getSession();
-                                            const res = await fetch(`${API_BASE_URL}/api/orders/confirm`, {
-                                                method: 'POST',
-                                                headers: {
-                                                    'Content-Type': 'application/json',
-                                                    Authorization: `Bearer ${session?.access_token}`
-                                                },
-                                                body: JSON.stringify({ orderId: order.id })
-                                            });
-                                            if (res.ok) {
-                                                alert('Order completed! Funds released.');
-                                                fetchOrders();
-                                            } else {
-                                                const err = await res.json();
-                                                alert(err.error || 'Failed to confirm');
-                                            }
+                                            await api.post('/api/orders/confirm', { orderId: order.id }, { auth: 'optional' });
+                                            alert('Order completed! Funds released.');
+                                            fetchOrders();
                                         } catch (e) {
-                                            console.error(e);
+                                            if (e instanceof ApiError) {
+                                                const err = e.body as any;
+                                                alert(err?.error || 'Failed to confirm');
+                                            } else {
+                                                console.error(e);
+                                            }
                                         }
                                     }}
                                     className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium"

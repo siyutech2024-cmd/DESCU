@@ -11,6 +11,7 @@ import { RatingModal } from './RatingModal';
 import { CreditBadge } from './CreditBadge';
 import { User } from '../types';
 import { canPurchaseProduct } from '../services/locationService';
+import { api } from '@/lib/api/client';
 
 interface ProductDetailsProps {
   product: Product;
@@ -60,12 +61,9 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
     // Fetch Seller Credit Score
     if (product.seller && product.seller.id) {
-      import('../services/apiConfig').then(({ API_BASE_URL }) => {
-        fetch(`${API_BASE_URL}/api/users/${product.seller.id}/credit`)
-          .then(res => res.json())
-          .then(data => setSellerScore(data.score || 0))
-          .catch(err => console.error("Failed to fetch seller credit", err));
-      });
+      api.get<{ score?: number }>(`/api/users/${product.seller.id}/credit`)
+        .then(data => setSellerScore(data.score || 0))
+        .catch(err => console.error("Failed to fetch seller credit", err));
     }
   }, [user, product, language]);
 

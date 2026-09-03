@@ -7,8 +7,7 @@ import {
     useElements,
 } from '@stripe/react-stripe-js';
 import { X, CreditCard, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { API_BASE_URL } from '../services/apiConfig';
-import { supabase } from '../services/supabase';
+import { api } from '@/lib/api/client';
 
 // Initialize Stripe (Replace with your Publishable Key)
 // Initialize Stripe
@@ -36,21 +35,10 @@ const PayoutForm = ({ userId, email, onSuccess, onClose }: { userId: string, ema
         setLoading(true);
         setError(null);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
+            // Non-2xx responses throw ApiError (message taken from `error`), matching the old `if (data.error) throw`
+            const data = await api.post<{ error?: string }>('/api/payment/connect', { userId, email, country }, { auth: 'optional' });
 
-            const response = await fetch(`${API_BASE_URL}/api/payment/connect`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ userId, email, country }),
-            });
-
-            const data = await response.json();
-
-            if (data.error) throw new Error(data.error);
+            if (data?.error) throw new Error(data.error);
 
             // Successfully created or retrieved account
             // Now move to add card step
@@ -85,20 +73,8 @@ const PayoutForm = ({ userId, email, onSuccess, onClose }: { userId: string, ema
             }
 
             // B. Send Token to Backend
-            const { data: { session } } = await supabase.auth.getSession();
-            const authToken = session?.access_token;
-
-            const response = await fetch(`${API_BASE_URL}/api/payment/payout-method`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: JSON.stringify({ token: token.id }),
-            });
-
-            const data = await response.json();
-            if (data.error) throw new Error(data.error);
+            const data = await api.post<{ error?: string }>('/api/payment/payout-method', { token: token.id }, { auth: 'optional' });
+            if (data?.error) throw new Error(data.error);
 
             setStep('success');
             setTimeout(() => {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
 import { AlertTriangle, X, Upload } from 'lucide-react';
-import { API_BASE_URL } from '../services/apiConfig';
+import { api, ApiError } from '@/lib/api/client';
 
 interface DisputeModalProps {
     isOpen: boolean;
@@ -22,31 +21,22 @@ export const DisputeModal: React.FC<DisputeModalProps> = ({ isOpen, onClose, ord
         setLoading(true);
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
+            await api.post('/api/disputes', {
+                orderId,
+                reason,
+                description
+            }, { auth: 'optional' });
 
-            const res = await fetch(`${API_BASE_URL}/api/disputes`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`
-                },
-                body: JSON.stringify({
-                    orderId,
-                    reason,
-                    description
-                })
-            });
-
-            if (res.ok) {
-                alert('Dispute submitted. Admin will review within 24 hours.');
-                onSuccess();
-                onClose();
-            } else {
-                throw new Error(await res.text());
-            }
+            alert('Dispute submitted. Admin will review within 24 hours.');
+            onSuccess();
+            onClose();
 
         } catch (error: any) {
-            alert(`Error: ${error.message}`);
+            // Old code surfaced the raw response body text for non-2xx responses
+            const message = error instanceof ApiError
+                ? (error.body === undefined ? '' : typeof error.body === 'string' ? error.body : JSON.stringify(error.body))
+                : error.message;
+            alert(`Error: ${message}`);
         } finally {
             setLoading(false);
         }

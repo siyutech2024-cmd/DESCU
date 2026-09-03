@@ -11,8 +11,7 @@ import {
     Package
 } from 'lucide-react';
 import { Order, User } from '../types';
-import { API_BASE_URL } from '../services/apiConfig';
-import { supabase } from '../services/supabase';
+import { api } from '@/lib/api/client';
 import toast from 'react-hot-toast';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
 
@@ -38,16 +37,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
 
         setIsLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const res = await fetch(`${API_BASE_URL}/api/orders/${order.id}/confirm`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`
-                }
-            });
-
-            if (!res.ok) throw new Error('Failed to confirm');
+            await api.post(`/api/orders/${order.id}/confirm`, undefined, { auth: 'optional' });
 
             toast.success('Confirmed successfully!');
             onStatusChange?.();

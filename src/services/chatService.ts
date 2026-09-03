@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { API_BASE_URL } from './apiConfig';
+import { api } from '@/lib/api/client';
 
 // 创建或获取对话
 export const createOrGetConversation = async (
@@ -8,18 +8,11 @@ export const createOrGetConversation = async (
     user2Id: string
 ): Promise<any> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/conversations`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                product_id: productId,
-                user1_id: user1Id,
-                user2_id: user2Id,
-            }),
+        return await api.post<any>('/api/conversations', {
+            product_id: productId,
+            user1_id: user1Id,
+            user2_id: user2Id,
         });
-
-        if (!response.ok) throw new Error('Failed to create conversation');
-        return await response.json();
     } catch (error) {
         console.error('Error creating conversation:', error);
         throw error;
@@ -29,9 +22,7 @@ export const createOrGetConversation = async (
 // 获取用户所有对话
 export const getUserConversations = async (userId: string): Promise<any[]> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/users/${userId}/conversations`);
-        if (!response.ok) throw new Error('Failed to fetch conversations');
-        return await response.json();
+        return await api.get<any[]>(`/api/users/${userId}/conversations`);
     } catch (error) {
         console.error('Error fetching conversations:', error);
         return [];
@@ -45,18 +36,11 @@ export const sendMessage = async (
     text: string
 ): Promise<any> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/messages`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                conversation_id: conversationId,
-                sender_id: senderId,
-                text,
-            }),
+        return await api.post<any>('/api/messages', {
+            conversation_id: conversationId,
+            sender_id: senderId,
+            text,
         });
-
-        if (!response.ok) throw new Error('Failed to send message');
-        return await response.json();
     } catch (error) {
         console.error('Error sending message:', error);
         throw error;
@@ -70,11 +54,7 @@ export const getMessages = async (
     offset = 0
 ): Promise<any[]> => {
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/api/messages/${conversationId}?limit=${limit}&offset=${offset}`
-        );
-        if (!response.ok) throw new Error('Failed to fetch messages');
-        return await response.json();
+        return await api.get<any[]>(`/api/messages/${conversationId}`, { params: { limit, offset } });
     } catch (error) {
         console.error('Error fetching messages:', error);
         return [];
@@ -87,13 +67,7 @@ export const markMessagesAsRead = async (
     userId: string
 ): Promise<void> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/messages/${conversationId}/read`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId }),
-        });
-
-        if (!response.ok) throw new Error('Failed to mark messages as read');
+        await api.put(`/api/messages/${conversationId}/read`, { userId });
     } catch (error) {
         console.error('Error marking messages as read:', error);
     }
@@ -160,14 +134,7 @@ export const deleteConversation = async (
     userId: string
 ): Promise<{ success: boolean }> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId }),
-        });
-
-        if (!response.ok) throw new Error('Failed to delete conversation');
-        return await response.json();
+        return await api.delete<{ success: boolean }>(`/api/conversations/${conversationId}`, { body: { userId } });
     } catch (error) {
         console.error('Error deleting conversation:', error);
         throw error;

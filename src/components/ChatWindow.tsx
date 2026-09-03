@@ -199,13 +199,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleMeetupSuccess = () => {
     // Re-fetch order
     if (activeOrder) {
-      import('../services/apiConfig').then(async ({ API_BASE_URL }) => {
-        // ... fetch logic similar to useEffect ...
-        // For simplicity, just reload page or trigger re-fetch.
-        // Let's trigger re-fetch by toggling a trigger or calling the fetch function if extracted.
-        // simplified:
-        window.location.reload();
-      });
+      // Simplest way to refresh order state after a meetup is arranged.
+      window.location.reload();
     }
   };
 

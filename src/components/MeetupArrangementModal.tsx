@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, MapPin, Clock, Calendar } from 'lucide-react';
 import { Order } from '../types';
 import { LocationPicker } from './LocationPicker';
-import { API_BASE_URL } from '../services/apiConfig';
-import { supabase } from '../services/supabase';
+import { api } from '@/lib/api/client';
 import toast from 'react-hot-toast';
 
 interface MeetupArrangementModalProps {
@@ -35,8 +34,6 @@ export const MeetupArrangementModal: React.FC<MeetupArrangementModalProps> = ({ 
 
         setIsLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-
             const payload = {
                 location,
                 time: new Date(time).toISOString(),
@@ -44,16 +41,7 @@ export const MeetupArrangementModal: React.FC<MeetupArrangementModalProps> = ({ 
                 lng: coords?.lng
             };
 
-            const res = await fetch(`${API_BASE_URL}/api/orders/${order.id}/arrange-meetup`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) throw new Error('Failed to update meetup details');
+            await api.post(`/api/orders/${order.id}/arrange-meetup`, payload, { auth: 'optional' });
 
             toast.success('Meetup arranged successfully!');
             onSuccess();

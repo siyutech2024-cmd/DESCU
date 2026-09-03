@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Loader2, ExternalLink, Check, AlertCircle, ChevronRight, ShieldCheck } from 'lucide-react';
-import { API_BASE_URL } from '../services/apiConfig';
-import { supabase } from '../services/supabase';
+import { api, ApiError, getAccessToken } from '@/lib/api/client';
 import { useLanguage } from '@/i18n';
 
 interface StripeExpressCardProps {
@@ -40,18 +39,10 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
 
     const fetchAccountStatus = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/stripe/v2/account-status`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setStatus(data);
-            }
+            const data = await api.get<AccountStatus>('/api/stripe/v2/account-status', { auth: 'required' });
+            setStatus(data);
         } catch (err) {
+            // Non-2xx (previously ignored) and missing session (previously an early return) both land here
             console.error('Error fetching status:', err);
         } finally {
             setLoading(false);
@@ -62,30 +53,33 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
         setActionLoading(true);
         setError(null);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
+            const token = await getAccessToken();
+            if (!token) {
                 setError('Please login first');
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/stripe/v2/create-account`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            });
+            type CreateAccountResponse = { onboardingUrl?: string; onboardingComplete?: boolean; error?: string };
 
-            const data = await response.json();
+            let ok = true;
+            let data: CreateAccountResponse | undefined;
+            try {
+                data = await api.post<CreateAccountResponse>('/api/stripe/v2/create-account', undefined, { auth: 'required' });
+            } catch (err) {
+                if (!(err instanceof ApiError)) throw err;
+                // Old code still inspected the error body on non-2xx
+                ok = false;
+                data = (err.body && typeof err.body === 'object' ? err.body : {}) as CreateAccountResponse;
+            }
 
-            if (response.ok && data.onboardingUrl) {
+            if (ok && data?.onboardingUrl) {
                 // Redirect to Stripe onboarding
                 window.location.href = data.onboardingUrl;
-            } else if (data.onboardingComplete) {
+            } else if (data?.onboardingComplete) {
                 // Already complete, refresh status
                 fetchAccountStatus();
             } else {
-                setError(data.error || 'Failed to create account');
+                setError(data?.error || 'Failed to create account');
             }
         } catch (err: any) {
             setError(err.message || 'Network error');
@@ -97,15 +91,8 @@ export const StripeExpressCard: React.FC<StripeExpressCardProps> = ({ userId }) 
     const handleViewDashboard = async () => {
         setActionLoading(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/stripe/v2/dashboard-link`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-            });
-
-            const data = await response.json();
-            if (data.dashboardUrl) {
+            const data = await api.get<{ dashboardUrl?: string }>('/api/stripe/v2/dashboard-link', { auth: 'required' });
+            if (data?.dashboardUrl) {
                 window.open(data.dashboardUrl, '_blank');
             }
         } catch (err) {

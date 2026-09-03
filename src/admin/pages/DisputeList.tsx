@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../services/supabase';
 import { AlertCircle, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import { judgeDisputeWithGemini } from '../../services/geminiService';
+import { api, ApiError } from '@/lib/api/client';
 
 const DisputeList = () => {
     const [disputes, setDisputes] = useState<any[]>([]);
@@ -13,16 +14,8 @@ const DisputeList = () => {
 
     const fetchDisputes = async () => {
         try {
-            const token = localStorage.getItem('adminToken');
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/disputes`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setDisputes(data.disputes || []);
-            } else {
-                console.error("Failed to fetch disputes:", data);
-            }
+            const data = await api.get<{ disputes?: any[] }>('/api/admin/disputes', { auth: 'required' });
+            setDisputes(data.disputes || []);
         } catch (error) {
             console.error("Error fetching disputes:", error);
         } finally {
@@ -37,27 +30,14 @@ const DisputeList = () => {
         const note = prompt('请输入裁决备注 (Admin Note):', '人工裁决');
         if (note === null) return; // Cancelled
 
-        const token = localStorage.getItem('adminToken');
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/disputes/resolve`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    disputeId,
-                    action,
-                    adminNote: note
-                })
-            });
-
-            if (res.ok) {
+            try {
+                await api.post('/api/admin/disputes/resolve', { disputeId, action, adminNote: note }, { auth: 'required' });
                 alert('裁决成功 (Resolved)');
                 fetchDisputes();
-            } else {
-                const err = await res.json();
-                alert(`失败: ${err.error}`);
+            } catch (err) {
+                if (!(err instanceof ApiError)) throw err;
+                alert(`失败: ${err.message}`);
             }
         } catch (e) {
             console.error(e);

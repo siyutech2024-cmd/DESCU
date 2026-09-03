@@ -1,41 +1,31 @@
 // 管理员后台API服务
 
-import { supabase } from '../../services/supabase';
+import { apiFetch, ApiError, type ApiRequestOptions } from '@/lib/api/client';
 import * as AdminTypes from '../types/admin';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
-
-// 获取认证Token
-const getAuthToken = async (): Promise<string | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
-};
-
-// 通用请求函数
+/**
+ * Admin request helper.
+ * Wraps the shared API client and normalises results into the
+ * `{ data } | { error }` envelope the admin pages expect.
+ * Call sites pass RequestInit-style options (`method`, JSON-string `body`, `headers`).
+ */
 async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<AdminTypes.ApiResponse<T>> {
     try {
-        const token = await getAuthToken();
-
-        const response = await fetch(`${API_URL}${endpoint}`, {
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` }),
-                ...options.headers,
-            },
+        const body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+        const data = await apiFetch<T>(endpoint, {
+            method: (options.method as ApiRequestOptions['method']) || 'GET',
+            body,
+            headers: options.headers as Record<string, string> | undefined,
+            auth: 'optional',
         });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            return { error: data.error || data.message || '请求失败' };
-        }
-
         return { data };
     } catch (error) {
+        if (error instanceof ApiError) {
+            return { error: error.message || '请求失败' };
+        }
         console.error('API请求错误:', error);
         return { error: '网络错误' };
     }

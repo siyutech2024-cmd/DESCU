@@ -3,6 +3,7 @@ import { adminApi } from '../services/adminApi';
 import { AdminConversation } from '../types/admin';
 import { showToast } from '../utils/toast';
 import { MessageSquare, Flag, Trash2, Send, AlertCircle } from 'lucide-react';
+import { api } from '@/lib/api/client';
 
 export const MessageMonitor: React.FC = () => {
     const [conversations, setConversations] = useState<AdminConversation[]>([]);
@@ -101,26 +102,16 @@ export const MessageMonitor: React.FC = () => {
         setSending(true);
         try {
             // 使用admin API发送系统消息
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://descu-production.up.railway.app'}/api/messages`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    conversation_id: selectedConv,
-                    // 使用真实的用户ID，避免违反外键约束
-                    sender_id: currentAdminId || 'system',
-                    text: `【系统消息】${adminMessage}`,
-                }),
+            await api.post('/api/messages', {
+                conversation_id: selectedConv,
+                // 使用真实的用户ID，避免违反外键约束
+                sender_id: currentAdminId || 'system',
+                text: `【系统消息】${adminMessage}`,
             });
 
-            if (response.ok) {
-                showToast.success('系统消息已发送');
-                setAdminMessage('');
-                loadConversationDetails(selectedConv);
-            } else {
-                throw new Error('发送失败');
-            }
+            showToast.success('系统消息已发送');
+            setAdminMessage('');
+            loadConversationDetails(selectedConv);
         } catch (error) {
             showToast.error('发送系统消息失败');
         } finally {

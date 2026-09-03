@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../services/supabase';
-import { API_BASE_URL } from '../services/apiConfig';
+import { api, ApiError } from '@/lib/api/client';
 import { AddressForm } from './AddressForm';
 import { Plus, Loader2, Trash2, Edit2, CheckCircle2, MapPin } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -35,24 +34,18 @@ export const AddressList: React.FC<AddressListProps> = ({ onSelect, selectedId, 
 
     const fetchAddresses = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const res = await fetch(`${API_BASE_URL}/api/users/addresses`, {
-                headers: { Authorization: `Bearer ${session.access_token}` }
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                setAddresses(data.addresses);
-                // Auto-select default if none selected and selectable mode
-                if (selectable && !selectedId && data.addresses.length > 0) {
-                    const def = data.addresses.find((a: Address) => a.is_default) || data.addresses[0];
-                    if (onSelect) onSelect(def);
-                }
+            const data = await api.get<{ addresses: Address[] }>('/api/users/addresses', { auth: 'required' });
+            setAddresses(data.addresses);
+            // Auto-select default if none selected and selectable mode
+            if (selectable && !selectedId && data.addresses.length > 0) {
+                const def = data.addresses.find((a: Address) => a.is_default) || data.addresses[0];
+                if (onSelect) onSelect(def);
             }
         } catch (error) {
-            console.error('Failed to load addresses', error);
+            // Non-2xx responses (and a missing session) were silently ignored before
+            if (!(error instanceof ApiError)) {
+                console.error('Failed to load addresses', error);
+            }
         } finally {
             setLoading(false);
         }
@@ -60,34 +53,25 @@ export const AddressList: React.FC<AddressListProps> = ({ onSelect, selectedId, 
 
     const handleSave = async (data: any) => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const method = editingAddress ? 'PUT' : 'POST';
-            const url = editingAddress
-                ? `${API_BASE_URL}/api/users/addresses/${editingAddress.id}`
-                : `${API_BASE_URL}/api/users/addresses`;
-
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${session?.access_token}`
-                },
-                body: JSON.stringify(data)
-            });
-
-            if (res.ok) {
-                fetchAddresses();
-                setIsAdding(false);
-                setEditingAddress(null);
-                toast.success(editingAddress ? 'Address updated' : 'Address added');
+            if (editingAddress) {
+                await api.put(`/api/users/addresses/${editingAddress.id}`, data, { auth: 'optional' });
             } else {
-                const err = await res.json();
-                console.error("Address save failed", err);
-                toast.error(err.error || 'Failed to save address');
+                await api.post('/api/users/addresses', data, { auth: 'optional' });
             }
+
+            fetchAddresses();
+            setIsAdding(false);
+            setEditingAddress(null);
+            toast.success(editingAddress ? 'Address updated' : 'Address added');
         } catch (error) {
-            console.error(error);
-            toast.error('Network error during save');
+            if (error instanceof ApiError) {
+                const err = error.body as any;
+                console.error("Address save failed", err);
+                toast.error(err?.error || 'Failed to save address');
+            } else {
+                console.error(error);
+                toast.error('Network error during save');
+            }
         }
     };
 
@@ -96,24 +80,20 @@ export const AddressList: React.FC<AddressListProps> = ({ onSelect, selectedId, 
         if (!confirm('Are you sure you want to delete this address?')) return;
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const res = await fetch(`${API_BASE_URL}/api/users/addresses/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${session?.access_token}` }
-            });
+            await api.delete(`/api/users/addresses/${id}`, { auth: 'optional' });
 
-            if (res.ok) {
-                setAddresses(prev => prev.filter(a => a.id !== id));
-                toast.success('Address deleted');
-                // Use functional update or re-fetch if currently selected deleted
-                if (selectedId === id && onSelect) {
-                    onSelect(null as any); // Or pick next available
-                }
-            } else {
-                toast.error('Failed to delete');
+            setAddresses(prev => prev.filter(a => a.id !== id));
+            toast.success('Address deleted');
+            // Use functional update or re-fetch if currently selected deleted
+            if (selectedId === id && onSelect) {
+                onSelect(null as any); // Or pick next available
             }
         } catch (error) {
-            toast.error('Network error');
+            if (error instanceof ApiError) {
+                toast.error('Failed to delete');
+            } else {
+                toast.error('Network error');
+            }
         }
     };
 
