@@ -114,7 +114,7 @@ WHERE email = 'your-email@gmail.com';
 
 - **Build 失败 (后端)**: 检查 Railway Root Directory 是否设置为 `server`。
 - **401 Unauthorized**: 检查 `SUPABASE_SERVICE_ROLE_KEY` 是否正确。
-- **跨域 (CORS) 错误**: 检查后端 `server/src/index.ts` 中的 `cors` 配置。我们已预设了 `descu.ai`，如果你使用其他域名，请手动添加。
+- **跨域 (CORS) 错误**: 检查后端 `api/_lib/app.ts` 中的 `cors` 配置。我们已预设了 `descu.ai`，如果你使用其他域名，请手动添加。
 
 ---
 **文档维护**: 请将过时的部署文档归档至 `docs/archive/`。

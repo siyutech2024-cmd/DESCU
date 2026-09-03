@@ -65,17 +65,18 @@
 
 ### 3️⃣ 在前端集成登录按钮
 
-已创建 `components/AuthButton.tsx` 组件，使用方法：
+登录逻辑集中在 `src/features/auth/`：
 
 ```tsx
-import { AuthButton } from './components/AuthButton';
+import { useAuth } from '@/features/auth';
 
-// 在 Navbar 或其他组件中使用
-<AuthButton onAuthChange={(user) => {
-  if (user) {
-    console.log('用户已登录:', user);
-  }
-}} />
+const { user, login, logout, requireUser } = useAuth();
+
+// 触发 Google 登录（Web 重定向 / 原生打开系统浏览器 + deep link 回调）
+<button onClick={login}>Google Login</button>
+
+// 需要登录才能执行的操作：未登录时自动弹出登录框
+<button onClick={() => requireUser(u => startSelling(u))}>卖闲置</button>
 ```
 
 ---

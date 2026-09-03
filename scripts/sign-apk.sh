@@ -3,8 +3,8 @@
 
 set -e
 
-PROJECT_ROOT="/Users/ishak/Downloads/descu---二手智选"
-KEYSTORE_FILE="$PROJECT_ROOT/descu-release.jks"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+KEYSTORE_FILE="$PROJECT_ROOT/android/app/descu-release.jks"
 KEYSTORE_PROPS="$PROJECT_ROOT/android/keystore.properties"
 
 echo "🔐 DESCU APK 签名工具"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Android构建辅助工具脚本
 
-PROJECT_ROOT="/Users/ishak/Downloads/descu---二手智选"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ANDROID_DIR="$PROJECT_ROOT/android"
 
 # 显示帮助信息
