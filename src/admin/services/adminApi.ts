@@ -3,32 +3,66 @@
 import { apiFetch, ApiError, type ApiRequestOptions } from '@/lib/api/client';
 import * as AdminTypes from '../types/admin';
 
+/** Error thrown by every `adminApi` call that fails (non-2xx, `{ error }` body, or network failure). */
+export class AdminApiError extends Error {
+    readonly status: number;
+    readonly body: unknown;
+
+    constructor(status: number, message: string, body?: unknown) {
+        super(message);
+        this.name = 'AdminApiError';
+        this.status = status;
+        this.body = body;
+    }
+}
+
+/** Human-readable message for any error thrown by `adminApi`. */
+export const getAdminErrorMessage = (error: unknown, fallback = '请求失败'): string => {
+    if (error instanceof Error && error.message.trim()) return error.message;
+    if (typeof error === 'string' && error.trim()) return error;
+    return fallback;
+};
+
+const hasErrorField = (value: unknown): value is { error: string } =>
+    !!value && typeof value === 'object' && typeof (value as Record<string, unknown>).error === 'string'
+    && ((value as Record<string, unknown>).error as string).trim() !== '';
+
 /**
  * Admin request helper.
- * Wraps the shared API client and normalises results into the
- * `{ data } | { error }` envelope the admin pages expect.
+ * Wraps the shared API client and resolves to the `{ data }` envelope the admin pages expect.
+ * Any failure (non-2xx response, a 2xx body carrying `{ error }`, or a network error)
+ * is THROWN as an `AdminApiError` — callers must `try/catch` and never treat a resolved
+ * promise as anything other than success.
  * Call sites pass RequestInit-style options (`method`, JSON-string `body`, `headers`).
  */
 async function apiRequest<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<AdminTypes.ApiResponse<T>> {
+    let data: T;
     try {
         const body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
-        const data = await apiFetch<T>(endpoint, {
+        data = await apiFetch<T>(endpoint, {
             method: (options.method as ApiRequestOptions['method']) || 'GET',
             body,
             headers: options.headers as Record<string, string> | undefined,
             auth: 'optional',
         });
-        return { data };
     } catch (error) {
+        if (error instanceof AdminApiError) throw error;
         if (error instanceof ApiError) {
-            return { error: error.message || '请求失败' };
+            throw new AdminApiError(error.status, error.message || '请求失败', error.body);
         }
         console.error('API请求错误:', error);
-        return { error: '网络错误' };
+        throw new AdminApiError(0, error instanceof Error && error.message ? `网络错误: ${error.message}` : '网络错误');
     }
+
+    // Some endpoints report failures with a 2xx status and an `{ error }` body.
+    if (hasErrorField(data)) {
+        throw new AdminApiError(200, data.error, data);
+    }
+
+    return { data };
 }
 
 // ==================== 认证 ====================

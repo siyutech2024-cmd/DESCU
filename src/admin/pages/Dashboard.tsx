@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 import {
     Package,
     Users,
@@ -77,16 +77,11 @@ export const Dashboard: React.FC = () => {
     const loadDashboardData = async () => {
         try {
             setLoading(true);
+            setError('');
             const result = await adminApi.getDashboardStats();
-
-            if (result.error) {
-                setError(result.error);
-                return;
-            }
-
             setStats(result.data);
         } catch (err) {
-            setError('加载数据失败');
+            setError(getAdminErrorMessage(err, '加载数据失败'));
             console.error(err);
         } finally {
             setLoading(false);

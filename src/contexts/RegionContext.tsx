@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Region, Currency } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { Region, Currency, Language } from '../types';
 
 interface RegionContextType {
     region: Region;
@@ -33,32 +33,33 @@ const REGION_CONFIG: Record<Region, { currency: Currency; flag: string; label: s
 
 import { useLanguage } from '@/i18n';
 
+/** Language a region maps to when the user actively switches region. */
+const REGION_LANGUAGE: Record<Region, Language> = {
+    CN: 'zh',
+    US: 'en',
+    EU: 'en',
+    JP: 'en',
+    Global: 'en',
+    MX: 'es',
+};
+
 export const RegionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { setLanguage } = useLanguage();
-    const [region, setRegion] = useState<Region>(() => {
+    const [region, setRegionState] = useState<Region>(() => {
         const saved = localStorage.getItem('app_region') as Region;
         return (saved && REGION_CONFIG[saved]) ? saved : 'MX';
     });
 
     useEffect(() => {
         localStorage.setItem('app_region', region);
-
-        // Auto-sync Language with Region
-        switch (region) {
-            case 'CN':
-                setLanguage('zh');
-                break;
-            case 'US':
-            case 'EU':
-            case 'JP':
-            case 'Global':
-                setLanguage('en');
-                break;
-            case 'MX':
-                setLanguage('es');
-                break;
-        }
     }, [region]);
+
+    // Only sync language when the user actively changes the region.
+    // The initial mount/hydration must NOT override the persisted `app_language`.
+    const setRegion = useCallback((next: Region) => {
+        setRegionState(next);
+        setLanguage(REGION_LANGUAGE[next]);
+    }, [setLanguage]);
 
     const currency = REGION_CONFIG[region].currency;
 

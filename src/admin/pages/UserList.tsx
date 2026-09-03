@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 import { AdminUserInfo } from '../types/admin';
 import { UserDetailModal } from '../components/UserDetailModal';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { UserBatchOperationModal } from '../components/UserBatchOperationModal';
 import { showToast } from '../utils/toast';
 import { exportToCSV } from '../utils/export';
@@ -10,6 +11,7 @@ import { Search, Download, Filter, CheckCircle, Trash2 } from 'lucide-react';
 export const UserList: React.FC = () => {
     const [users, setUsers] = useState<AdminUserInfo[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -23,6 +25,7 @@ export const UserList: React.FC = () => {
 
     const fetchUsers = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             const res = await adminApi.getUsers({
                 page,
@@ -32,13 +35,13 @@ export const UserList: React.FC = () => {
                 start_date: startDate || undefined,
                 end_date: endDate || undefined
             });
-            if (res.data) {
-                setUsers(res.data.users);
-                setTotalPages(res.data.pagination.totalPages);
-            }
+            setUsers(res.data?.users ?? []);
+            setTotalPages(res.data?.pagination?.totalPages ?? 1);
         } catch (error) {
             console.error(error);
-            showToast.error('加载用户失败');
+            const message = getAdminErrorMessage(error, '加载用户失败');
+            setLoadError(message);
+            showToast.error(`加载用户失败: ${message}`);
         } finally {
             setLoading(false);
         }
@@ -68,16 +71,20 @@ export const UserList: React.FC = () => {
         }
 
         try {
-            if (operation === 'verify') {
-                for (const id of selectedIds) {
-                    await adminApi.updateUserVerification(id, true);
+            if (operation === 'verify' || operation === 'unverify') {
+                const verified = operation === 'verify';
+                const results = await Promise.allSettled(
+                    selectedIds.map(id => adminApi.updateUserVerification(id, verified))
+                );
+                const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+                const succeeded = results.length - failed.length;
+                if (failed.length > 0) {
+                    console.error('部分用户操作失败:', failed.map(f => f.reason));
+                    showToast.error(`${failed.length} 个用户操作失败: ${getAdminErrorMessage(failed[0].reason)}`);
                 }
-                showToast.success(`已认证 ${selectedIds.length} 个用户`);
-            } else if (operation === 'unverify') {
-                for (const id of selectedIds) {
-                    await adminApi.updateUserVerification(id, false);
+                if (succeeded > 0) {
+                    showToast.success(verified ? `已认证 ${succeeded} 个用户` : `已取消 ${succeeded} 个用户的认证`);
                 }
-                showToast.success(`已取消 ${selectedIds.length} 个用户的认证`);
             } else if (operation === 'export') {
                 const exportUsers = users.filter(u => selectedIds.includes(u.id));
                 exportToCSV(exportUsers as any, '用户列表');
@@ -88,7 +95,7 @@ export const UserList: React.FC = () => {
             setSelectedIds([]);
             fetchUsers();
         } catch (error) {
-            showToast.error('批量操作失败');
+            showToast.error(`批量操作失败: ${getAdminErrorMessage(error)}`);
         }
     };
 
@@ -98,7 +105,7 @@ export const UserList: React.FC = () => {
             showToast.success(currentStatus ? '已取消认证' : '认证成功');
             fetchUsers();
         } catch (error) {
-            showToast.error('操作失败');
+            showToast.error(`操作失败: ${getAdminErrorMessage(error)}`);
         }
     };
 
@@ -109,7 +116,7 @@ export const UserList: React.FC = () => {
                 showToast.success('用户已删除');
                 fetchUsers();
             } catch (error) {
-                showToast.error('删除失败');
+                showToast.error(`删除失败: ${getAdminErrorMessage(error)}`);
             }
         }
     };
@@ -266,6 +273,12 @@ export const UserList: React.FC = () => {
                                             <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
                                             <p className="text-sm">加载数据中...</p>
                                         </div>
+                                    </td>
+                                </tr>
+                            ) : loadError ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-8">
+                                        <ErrorBanner message={loadError} onRetry={fetchUsers} />
                                     </td>
                                 </tr>
                             ) : users.length === 0 ? (

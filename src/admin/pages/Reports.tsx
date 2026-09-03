@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 import {
     BarChart3,
     Users,
@@ -34,17 +34,11 @@ export const Reports: React.FC = () => {
     const loadReportsData = async () => {
         try {
             setLoading(true);
-            const result = await adminApi.getReports({ timeRange });
-
-            if (result.error) {
-                setError(result.error);
-                return;
-            }
-
-            setReports(result.data);
             setError('');
+            const result = await adminApi.getReports({ timeRange });
+            setReports(result.data);
         } catch (err) {
-            setError('加载报表数据失败');
+            setError(getAdminErrorMessage(err, '加载报表数据失败'));
             console.error(err);
         } finally {
             setLoading(false);

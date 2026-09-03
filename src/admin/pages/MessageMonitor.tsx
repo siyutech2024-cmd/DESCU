@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 import { AdminConversation } from '../types/admin';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { showToast } from '../utils/toast';
 import { MessageSquare, Flag, Trash2, Send, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api/client';
@@ -8,6 +9,7 @@ import { api } from '@/lib/api/client';
 export const MessageMonitor: React.FC = () => {
     const [conversations, setConversations] = useState<AdminConversation[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [filterDeleted, setFilterDeleted] = useState(false);
@@ -17,19 +19,20 @@ export const MessageMonitor: React.FC = () => {
     const [sending, setSending] = useState(false);
     const fetchConversations = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             const res = await adminApi.getConversations({
                 page,
                 limit: 20,
                 include_deleted: filterDeleted ? 'true' : 'false'
             });
-            if (res.data) {
-                setConversations(res.data.conversations);
-                setTotalPages(res.data.pagination.totalPages);
-            }
+            setConversations(res.data?.conversations ?? []);
+            setTotalPages(res.data?.pagination?.totalPages ?? 1);
         } catch (error) {
             console.error(error);
-            showToast.error('加载对话失败');
+            const message = getAdminErrorMessage(error, '加载对话失败');
+            setLoadError(message);
+            showToast.error(`加载对话失败: ${message}`);
         } finally {
             setLoading(false);
         }
@@ -38,12 +41,11 @@ export const MessageMonitor: React.FC = () => {
     const loadConversationDetails = async (convId: string) => {
         try {
             const res = await adminApi.getConversation(convId);
-            if (res.data) {
-                setMessages(res.data.messages);
-                setSelectedConv(convId);
-            }
+            setMessages(res.data?.messages ?? []);
+            setSelectedConv(convId);
         } catch (error) {
-            showToast.error('加载消息失败');
+            console.error(error);
+            showToast.error(`加载消息失败: ${getAdminErrorMessage(error)}`);
         }
     };
 
@@ -62,7 +64,7 @@ export const MessageMonitor: React.FC = () => {
                     setMessages([]);
                 }
             } catch (error) {
-                showToast.error('删除失败');
+                showToast.error(`删除失败: ${getAdminErrorMessage(error)}`);
             }
         }
     };
@@ -76,7 +78,7 @@ export const MessageMonitor: React.FC = () => {
                 loadConversationDetails(selectedConv);
             }
         } catch (error) {
-            showToast.error('操作失败');
+            showToast.error(`操作失败: ${getAdminErrorMessage(error)}`);
         }
     };
 
@@ -99,7 +101,7 @@ export const MessageMonitor: React.FC = () => {
             setAdminMessage('');
             loadConversationDetails(selectedConv);
         } catch (error) {
-            showToast.error('发送系统消息失败');
+            showToast.error(`发送系统消息失败: ${getAdminErrorMessage(error)}`);
         } finally {
             setSending(false);
         }
@@ -150,6 +152,10 @@ export const MessageMonitor: React.FC = () => {
                                     <div className="h-3 w-1/2 bg-gray-200 rounded"></div>
                                 </div>
                             ))
+                        ) : loadError ? (
+                            <div className="p-4">
+                                <ErrorBanner message={loadError} onRetry={fetchConversations} />
+                            </div>
                         ) : conversations.length === 0 ? (
                             <div className="p-8 text-center text-gray-500">
                                 暂无对话数据

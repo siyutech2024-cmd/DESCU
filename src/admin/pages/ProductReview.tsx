@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { showToast } from '../utils/toast';
 import { api, ApiError, getAccessToken } from '@/lib/api/client';
 import { CheckCircle, XCircle, Eye, Package, Sparkles, AlertTriangle } from 'lucide-react';
@@ -8,6 +9,7 @@ import { CheckCircle, XCircle, Eye, Package, Sparkles, AlertTriangle } from 'luc
 export const ProductReview: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [selectedProduct, setSelectedProduct] = useState<AdminProduct | null>(null);
@@ -16,18 +18,20 @@ export const ProductReview: React.FC = () => {
 
     const fetchPendingProducts = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             const res = await adminApi.getProducts({
                 page,
                 limit: 20,
                 status: 'pending_review'
             });
-            if (res.data) {
-                setProducts(res.data.products);
-                setTotalPages(res.data.pagination.totalPages);
-            }
+            setProducts(res.data?.products ?? []);
+            setTotalPages(res.data?.pagination?.totalPages ?? 1);
         } catch (error) {
-            showToast.error('加载待审核商品失败');
+            console.error(error);
+            const message = getAdminErrorMessage(error, '加载待审核商品失败');
+            setLoadError(message);
+            showToast.error(`加载待审核商品失败: ${message}`);
         } finally {
             setLoading(false);
         }
@@ -41,14 +45,11 @@ export const ProductReview: React.FC = () => {
         setProcessing(true);
         try {
             // 更新商品状态
-            const res = await adminApi.updateProduct(productId, {
+            // adminApi throws on failure, so reaching the next line means success.
+            await adminApi.updateProduct(productId, {
                 status: approve ? 'active' : 'inactive',
                 review_note: reviewNote || (approve ? '审核通过' : '审核未通过')
             });
-
-            if (res.error) {
-                throw new Error(res.error);
-            }
 
             showToast.success(approve ? '商品已通过审核' : '商品已拒绝');
             setReviewNote('');
@@ -56,7 +57,7 @@ export const ProductReview: React.FC = () => {
             fetchPendingProducts();
         } catch (error: any) {
             console.error('审核失败:', error);
-            showToast.error(error.message || '审核操作失败');
+            showToast.error(getAdminErrorMessage(error, '审核操作失败'));
         } finally {
             setProcessing(false);
         }
@@ -67,24 +68,26 @@ export const ProductReview: React.FC = () => {
 
         setProcessing(true);
         try {
-            // 使用 Promise.all 并行处理，且检查每个结果
-            const results = await Promise.all(products.map(product =>
+            // 并行处理，并逐个检查结果（adminApi 失败时会抛出）
+            const results = await Promise.allSettled(products.map(product =>
                 adminApi.updateProduct(product.id, {
                     status: 'active',
                     review_note: '批量审核通过'
                 })
             ));
 
-            const errors = results.filter(r => r.error);
-            if (errors.length > 0) {
-                console.error('部分审核失败:', errors);
-                throw new Error(`有 ${errors.length} 个商品审核失败`);
+            const failed = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+            const succeeded = results.length - failed.length;
+            if (failed.length > 0) {
+                console.error('部分审核失败:', failed.map(f => f.reason));
+                showToast.error(`有 ${failed.length} 个商品审核失败: ${getAdminErrorMessage(failed[0].reason)}`);
             }
-
-            showToast.success(`已批量通过 ${products.length} 个商品`);
+            if (succeeded > 0) {
+                showToast.success(`已批量通过 ${succeeded} 个商品`);
+            }
             fetchPendingProducts();
         } catch (error: any) {
-            showToast.error(error.message || '批量审核失败');
+            showToast.error(getAdminErrorMessage(error, '批量审核失败'));
         } finally {
             setProcessing(false);
         }
@@ -194,6 +197,10 @@ export const ProductReview: React.FC = () => {
             <div className="bg-white rounded-xl shadow-sm border">
                 {loading ? (
                     <div className="p-12 text-center text-gray-500">加载中...</div>
+                ) : loadError ? (
+                    <div className="p-6">
+                        <ErrorBanner message={loadError} onRetry={fetchPendingProducts} />
+                    </div>
                 ) : products.length === 0 ? (
                     <div className="p-12 text-center">
                         <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4 opacity-50" />

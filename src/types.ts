@@ -86,6 +86,14 @@ export interface Message {
   isRead: boolean;
 }
 
+/** Preview of the most recent message in a conversation (from the conversations list API). */
+export interface ConversationLastMessage {
+  text: string;
+  senderId: string;
+  messageType: string;
+  createdAt: number;
+}
+
 export interface Conversation {
   id: string;
   otherUser: User;
@@ -96,6 +104,9 @@ export interface Conversation {
   sellerId?: string;
   messages: Message[];
   lastMessageTime: number;
+  lastMessage?: ConversationLastMessage | null;
+  /** Messages from the other party that the current user has not read yet. */
+  unreadCount?: number;
   orderId?: string;
   orderStatus?: string;
 }
@@ -114,7 +125,7 @@ export interface Order {
   seller_id: string;
   order_type: 'meetup' | 'shipping';
   payment_method: 'online' | 'cash';
-  status: 'pending_payment' | 'paid' | 'meetup_arranged' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'disputed' | 'refunded';
+  status: 'pending_payment' | 'paid' | 'escrow_held' | 'meetup_arranged' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'disputed' | 'refunded';
   product_amount: number;
   shipping_fee: number;
   platform_fee: number;

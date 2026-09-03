@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AdminProduct } from '../types/admin';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 
 interface ProductEditModalProps {
     product: AdminProduct;
@@ -51,15 +51,12 @@ export const ProductEditModal: React.FC<ProductEditModalProps> = ({ product, isO
         setError('');
 
         try {
-            const result = await adminApi.updateProduct(product.id, formData as any);
-            if (result.error) {
-                setError(result.error);
-            } else {
-                onSaved();
-                onClose();
-            }
+            // adminApi throws on failure, so reaching the next line means success.
+            await adminApi.updateProduct(product.id, formData as any);
+            onSaved();
+            onClose();
         } catch (err) {
-            setError('保存失败，请重试');
+            setError(getAdminErrorMessage(err, '保存失败，请重试'));
         } finally {
             setSaving(false);
         }

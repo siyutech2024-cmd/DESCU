@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Conversation, Product } from '@/types';
@@ -11,6 +11,7 @@ import {
     sendMessage as sendMessageApi,
 } from '@/services/chatService';
 import { queryKeys } from '@/lib/queryClient';
+import { ApiError } from '@/lib/api/client';
 import { notify } from '@/lib/toast';
 import { useAuth } from '@/features/auth';
 import { mapApiConversation, type ApiConversation } from './conversationMapper';
@@ -47,23 +48,40 @@ export const useConversations = () => {
         return subscribeToConversations(userId, invalidate);
     }, [userId, invalidate]);
 
-    // Realtime: new messages addressed to this user → refresh unread state
+    const conversations = useMemo<Conversation[]>(() => (userId ? query.data ?? [] : []), [query.data, userId]);
+
+    // Ids of the conversations we currently know about, readable from the realtime callback
+    // without re-subscribing every time the list changes.
+    const knownIdsRef = useRef<Set<string>>(new Set());
+    useEffect(() => {
+        knownIdsRef.current = new Set(conversations.map(c => c.id));
+    }, [conversations]);
+
+    // Realtime: new messages addressed to this user → refresh unread state.
+    // The channel receives every `messages` INSERT, so we decide locally (no DB round-trip):
+    //  - conversation id is one of ours → invalidate (badge / preview / ordering changed)
+    //  - unknown id → invalidate at most once per conversation id, in case a brand-new
+    //    conversation was just opened with us. If the refetch still doesn't include it, the id
+    //    belongs to someone else and is ignored from then on.
     useEffect(() => {
         if (!userId) return;
 
+        const checkedUnknownIds = new Set<string>();
+
         const channel = supabase
             .channel(`global-messages:${userId}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async payload => {
-                const msg = payload.new as { sender_id: string; conversation_id: string };
-                if (msg.sender_id === userId) return;
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+                const msg = payload.new as { sender_id?: string; conversation_id?: string };
+                if (!msg.conversation_id || msg.sender_id === userId) return;
 
-                const { data: conv } = await supabase
-                    .from('conversations')
-                    .select('user1_id, user2_id')
-                    .eq('id', msg.conversation_id)
-                    .single();
+                if (knownIdsRef.current.has(msg.conversation_id)) {
+                    invalidate();
+                    return;
+                }
 
-                if (conv && (conv.user1_id === userId || conv.user2_id === userId)) invalidate();
+                if (checkedUnknownIds.has(msg.conversation_id)) return;
+                checkedUnknownIds.add(msg.conversation_id);
+                invalidate();
             })
             .subscribe();
 
@@ -72,11 +90,9 @@ export const useConversations = () => {
         };
     }, [userId, invalidate]);
 
-    const conversations = useMemo<Conversation[]>(() => (userId ? query.data ?? [] : []), [query.data, userId]);
-
     const unreadCount = useMemo(
-        () => conversations.reduce((acc, c) => acc + c.messages.filter(m => !m.isRead && m.senderId !== userId).length, 0),
-        [conversations, userId]
+        () => conversations.reduce((acc, c) => acc + (c.unreadCount ?? 0), 0),
+        [conversations]
     );
 
     /** Open (or create) the chat with a product's seller. */
@@ -126,7 +142,7 @@ export const useConversations = () => {
                 invalidate();
             } catch (error) {
                 console.error('[chat] send failed:', error);
-                notify.error(t('toast.message_send_failed'));
+                notify.error(t(error instanceof ApiError && error.status === 403 ? 'chat.blocked_cannot_send' : 'toast.message_send_failed'));
             }
         },
         [user, invalidate, t]

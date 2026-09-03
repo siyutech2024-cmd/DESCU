@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
+import { ErrorBanner } from '../components/ErrorBanner';
+import { showToast } from '../utils/toast';
 import {
     ShoppingBag,
     Search,
@@ -36,6 +38,7 @@ interface Order {
 const OrderList: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [statusFilter, setStatusFilter] = useState<string>('');
@@ -48,6 +51,7 @@ const OrderList: React.FC = () => {
 
     const fetchOrders = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             const res = await adminApi.getOrders({
                 page,
@@ -55,15 +59,14 @@ const OrderList: React.FC = () => {
                 status: statusFilter || undefined
             });
 
-            if (res.data) {
-                const data = res.data as any;
-                setOrders(data.orders || []);
-                setTotalPages(data.totalPages || 1);
-            } else if (res.error) {
-                console.error("Fetch orders failed:", res.error);
-            }
+            const data = (res.data ?? {}) as any;
+            setOrders(data.orders || []);
+            setTotalPages(data.totalPages || 1);
         } catch (err) {
-            console.error(err);
+            console.error("Fetch orders failed:", err);
+            const message = getAdminErrorMessage(err, '加载订单失败');
+            setLoadError(message);
+            showToast.error(`加载订单失败: ${message}`);
         } finally {
             setLoading(false);
         }
@@ -175,6 +178,12 @@ const OrderList: React.FC = () => {
                             {loading ? (
                                 <tr>
                                     <td colSpan={6} className="py-12 text-center text-gray-400">Loading...</td>
+                                </tr>
+                            ) : loadError ? (
+                                <tr>
+                                    <td colSpan={6} className="py-8 px-6">
+                                        <ErrorBanner message={loadError} onRetry={fetchOrders} />
+                                    </td>
                                 </tr>
                             ) : displayedOrders.length === 0 ? (
                                 <tr>
@@ -343,12 +352,12 @@ const OrderList: React.FC = () => {
                                         if (confirm('确认已向卖家人工打款？订单状态将更为“已完成”。')) {
                                             try {
                                                 await adminApi.markOrderAsPaid(selectedOrder.id);
-                                                alert('操作成功');
+                                                showToast.success('操作成功');
                                                 setSelectedOrder(null);
                                                 fetchOrders(); // refresh list
                                             } catch (e) {
                                                 console.error(e);
-                                                alert('操作失败');
+                                                showToast.error(`操作失败: ${getAdminErrorMessage(e)}`);
                                             }
                                         }
                                     }}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 import { Settings as SettingsIcon, Save, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import { SystemSetting } from '../types/admin';
 
@@ -18,13 +18,8 @@ export const Settings: React.FC = () => {
     const loadSettings = async () => {
         try {
             setLoading(true);
+            setError('');
             const result = await adminApi.getSettings();
-
-            if (result.error) {
-                setError(result.error);
-                return;
-            }
-
             setSettings(result.data?.settings || []);
 
             // Initialize edited settings
@@ -34,7 +29,7 @@ export const Settings: React.FC = () => {
             });
             setEditedSettings(initialValues);
         } catch (err) {
-            setError('加载设置失败');
+            setError(getAdminErrorMessage(err, '加载设置失败'));
             console.error(err);
         } finally {
             setLoading(false);
@@ -64,12 +59,8 @@ export const Settings: React.FC = () => {
                 };
             });
 
-            const result = await adminApi.batchUpdateSettings(settingsToUpdate);
-
-            if (result.error) {
-                setError(result.error);
-                return;
-            }
+            // adminApi throws on failure, so reaching the next line means success.
+            await adminApi.batchUpdateSettings(settingsToUpdate);
 
             setSuccess('设置已成功保存！');
             setTimeout(() => setSuccess(''), 3000);
@@ -77,7 +68,7 @@ export const Settings: React.FC = () => {
             // Reload settings to get updated values
             loadSettings();
         } catch (err) {
-            setError('保存设置失败');
+            setError(getAdminErrorMessage(err, '保存设置失败'));
             console.error(err);
         } finally {
             setSaving(false);

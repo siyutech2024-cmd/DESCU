@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminUserInfo, AdminProduct } from '../types/admin';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
+import { ErrorBanner } from './ErrorBanner';
 
 interface UserDetailModalProps {
     user: AdminUserInfo;
@@ -18,6 +19,7 @@ const XIcon = () => (
 export const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, onClose }) => {
     const [userProducts, setUserProducts] = useState<AdminProduct[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen && user) {
@@ -27,14 +29,14 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, 
 
     const loadUserProducts = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             // 获取用户的所有商品
             const res = await adminApi.getProducts({ search: user.email, limit: 100 });
-            if (res.data) {
-                setUserProducts(res.data.products);
-            }
+            setUserProducts(res.data?.products ?? []);
         } catch (error) {
             console.error('加载用户商品失败:', error);
+            setLoadError(getAdminErrorMessage(error, '加载用户商品失败'));
         } finally {
             setLoading(false);
         }
@@ -136,6 +138,10 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, isOpen, 
                                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                                     <div className="w-8 h-8 border-4 border-gray-200 border-t-brand-500 rounded-full animate-spin mb-3"></div>
                                     <span className="text-sm">加载商品数据...</span>
+                                </div>
+                            ) : loadError ? (
+                                <div className="p-4">
+                                    <ErrorBanner message={loadError} onRetry={loadUserProducts} />
                                 </div>
                             ) : userProducts.length === 0 ? (
                                 <div className="text-center py-12 text-gray-400">

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { AdminSidebar } from '../components/AdminSidebar';
 import { supabase } from '../../services/supabase';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
+import { showToast } from '../utils/toast';
 import { Bell, Search, User } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
@@ -17,20 +18,14 @@ export const AdminLayout: React.FC = () => {
 
     const checkAdminAccess = async () => {
         try {
+            // adminApi throws on any failure (401/403 = not an admin, or network error).
             const result = await adminApi.getAdminInfo();
-
-            if (result.error) {
-                console.error('不是管理员:', result.error);
-                alert('您没有管理员权限，请使用管理员账号登录');
-                await supabase.auth.signOut();
-                navigate('/admin/login');
-                return;
-            }
-
             setAdminInfo(result.data);
             setLoading(false);
         } catch (error) {
             console.error('验证管理员权限失败:', error);
+            showToast.error(`您没有管理员权限，请使用管理员账号登录 (${getAdminErrorMessage(error)})`);
+            await supabase.auth.signOut();
             navigate('/admin/login');
         }
     };

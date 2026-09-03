@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle, Star } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '@/i18n';
 import { getOptimizedImageUrl } from '../services/imageOptimizer';
@@ -12,6 +13,10 @@ import { CreditBadge } from './CreditBadge';
 import { User } from '../types';
 import { canPurchaseProduct } from '../services/locationService';
 import { api } from '@/lib/api/client';
+import { notify } from '@/lib/toast';
+import { queryKeys } from '@/lib/queryClient';
+import { useAuth } from '@/features/auth';
+import { submitRating, getUserRatingStats, EMPTY_RATING_STATS } from '../services/ratingService';
 
 interface ProductDetailsProps {
   product: Product;
@@ -26,6 +31,18 @@ interface ProductDetailsProps {
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onContactSeller, onRequireLogin, isInCart, user }) => {
   const { t, language } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
+  const { openLoginModal } = useAuth();
+  const queryClient = useQueryClient();
+
+  const sellerId = product.seller?.id ?? '';
+  const isOwnListing = !!user && user.id === sellerId;
+
+  // Seller rating stats (refreshed after the current user submits a rating).
+  const { data: sellerRatingStats = EMPTY_RATING_STATS } = useQuery({
+    queryKey: queryKeys.ratings(sellerId),
+    queryFn: () => getUserRatingStats(sellerId),
+    enabled: !!sellerId,
+  });
 
   // 根据用户语言读取翻译字段
   const localizedTitle = (product as any)[`title_${language}`] || product.title;
@@ -66,6 +83,38 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
         .catch(err => console.error("Failed to fetch seller credit", err));
     }
   }, [user, product, language]);
+
+  const handleOpenRating = () => {
+    if (!user) {
+      openLoginModal();
+      return;
+    }
+    if (isOwnListing) {
+      notify.warning(t('rating.cannot_rate_self'));
+      return;
+    }
+    setIsRatingOpen(true);
+  };
+
+  /** Submits the rating; throws on failure so the modal stays open for retry. */
+  const handleSubmitRating = async (score: number, comment: string) => {
+    if (!user) {
+      openLoginModal();
+      throw new Error('login required');
+    }
+    if (isOwnListing || !sellerId) {
+      notify.warning(t('rating.cannot_rate_self'));
+      throw new Error('cannot rate self');
+    }
+    try {
+      await submitRating(user.id, sellerId, score, comment);
+    } catch (err) {
+      notify.fromError(err, t('rating.submit_failed'));
+      throw err;
+    }
+    notify.success(t('profile.rated_success'));
+    await queryClient.invalidateQueries({ queryKey: queryKeys.ratings(sellerId) });
+  };
 
   const getRelativeTime = (timestamp: number) => {
     const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
@@ -359,9 +408,23 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 <CreditBadge score={sellerScore} size="sm" />
               </div>
               <div className="text-sm text-gray-500 font-medium">{product.seller.email}</div>
-              <button onClick={() => setIsRatingOpen(true)} className="mt-2 text-xs font-bold text-brand-600 border border-brand-200 px-3 py-1 rounded-full hover:bg-brand-50 transition-colors">
-                {t('product.rate_seller')}
-              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-600">
+                  <Star size={14} className="fill-yellow-400 text-yellow-400" />
+                  {sellerRatingStats.total_reviews > 0
+                    ? `${Number(sellerRatingStats.average_rating).toFixed(1)} (${sellerRatingStats.total_reviews})`
+                    : t('rating.no_reviews')}
+                </span>
+                {!isOwnListing && (
+                  <button
+                    type="button"
+                    onClick={handleOpenRating}
+                    className="text-xs font-bold text-brand-600 border border-brand-200 px-3 py-1 rounded-full hover:bg-brand-50 transition-colors"
+                  >
+                    {t('product.rate_seller')}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -380,7 +443,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           </div>
         </div>
       </div>
-      <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} targetId={product.id} />
+      <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} targetType="product" targetId={product.id} />
       {user && (
         <CheckoutModal
           isOpen={isCheckoutOpen}
@@ -389,16 +452,14 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           user={user}
         />
       )}
-      <RatingModal
-        isOpen={isRatingOpen}
-        onClose={() => setIsRatingOpen(false)}
-        targetUser={product.seller}
-        onSubmit={(score, comment) => {
-          console.log('Rating submitted:', score, comment);
-          setIsRatingOpen(false);
-          // showToast('Thanks for your feedback!', 'success'); // If showToast was available
-        }}
-      />
+      {user && !isOwnListing && (
+        <RatingModal
+          isOpen={isRatingOpen}
+          onClose={() => setIsRatingOpen(false)}
+          targetUser={product.seller}
+          onSubmit={handleSubmitRating}
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Conversation, User } from '../types';
+import { Conversation, ConversationLastMessage, User } from '../types';
 import { useLanguage } from '@/i18n';
 import { deleteConversation } from '../services/chatService';
 import { MessageCircle, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
@@ -22,6 +22,52 @@ interface ProductGroup {
   totalUnread: number;
   latestMessageTime: number;
 }
+
+/** Static Tailwind classes per tab (dynamic `bg-${color}-100` strings get purged by the JIT compiler). */
+const TAB_ACTIVE_CLASSES: Record<TabType, string> = {
+  all: 'bg-brand-100 text-brand-700 shadow-sm',
+  active: 'bg-blue-100 text-blue-700 shadow-sm',
+  inquiry: 'bg-orange-100 text-orange-700 shadow-sm',
+  completed: 'bg-green-100 text-green-700 shadow-sm',
+};
+
+const COMPLETED_ORDER_STATUSES = new Set(['completed', 'completed_pending_payout']);
+const CLOSED_ORDER_STATUSES = new Set(['cancelled', 'refunded']);
+
+/**
+ * Bucket a conversation by its newest order:
+ *  - completed: order finished (payout may still be pending)
+ *  - active:    an order exists and is neither finished nor cancelled/refunded
+ *  - inquiry:   no order yet, or the order fell through
+ */
+const categorizeConversation = (conv: Conversation): Exclude<TabType, 'all'> => {
+  const status = conv.orderStatus;
+  if (!status) return 'inquiry';
+  if (COMPLETED_ORDER_STATUSES.has(status)) return 'completed';
+  if (CLOSED_ORDER_STATUSES.has(status)) return 'inquiry';
+  return 'active';
+};
+
+/** Preview label for the last message (rich message types get a short i18n placeholder). */
+const previewText = (msg: ConversationLastMessage, t: (key: string) => string): string => {
+  switch (msg.messageType) {
+    case 'image':
+    case 'images':
+      return t('chat.preview.image');
+    case 'location':
+      return t('chat.preview.location');
+    case 'price_negotiation':
+    case 'price_negotiation_response':
+      return t('chat.preview.offer');
+    case 'order_status':
+      return t('chat.preview.order_update');
+    case 'meetup_time':
+    case 'meetup':
+      return t('chat.preview.meetup');
+    default:
+      return msg.text || t('chat.no_msgs');
+  }
+};
 
 export const ChatList: React.FC<ChatListProps> = ({
   conversations,
@@ -46,25 +92,11 @@ export const ChatList: React.FC<ChatListProps> = ({
   const touchCurrentX = useRef<number>(0);
   const [deletedConversations, setDeletedConversations] = useState<Set<string>>(new Set());
 
-  // 分类对话
-  const categorizedConversations = useMemo(() => {
-    return conversations.map(conv => {
-      const hasOrder = !!(conv as any).orderId || !!(conv as any).order_id;
-      const orderStatus = (conv as any).orderStatus || (conv as any).order_status;
-
-      let category: 'all' | 'active' | 'inquiry' | 'completed' = 'inquiry';
-
-      if (orderStatus === 'completed' || orderStatus === 'confirmed' || orderStatus === 'delivered') {
-        category = 'completed';
-      } else if (hasOrder || orderStatus) {
-        category = 'active';
-      } else {
-        category = 'inquiry';
-      }
-
-      return { ...conv, category };
-    });
-  }, [conversations]);
+  // 分类对话（基于最新订单状态）
+  const categorizedConversations = useMemo(
+    () => conversations.map(conv => ({ ...conv, category: categorizeConversation(conv) })),
+    [conversations]
+  );
 
   // 根据标签筛选（排除隐藏的对话）
   const filteredConversations = useMemo(() => {
@@ -85,7 +117,7 @@ export const ChatList: React.FC<ChatListProps> = ({
       const productId = conv.productId || 'unknown';
       const existing = groups.get(productId);
 
-      const unreadCount = conv.messages?.filter(m => !m.isRead && m.senderId !== currentUser.id).length || 0;
+      const unreadCount = conv.unreadCount ?? 0;
       const latestTime = conv.lastMessageTime || 0;
 
       if (existing) {
@@ -106,7 +138,7 @@ export const ChatList: React.FC<ChatListProps> = ({
 
     // 按最新消息时间排序
     return Array.from(groups.values()).sort((a, b) => b.latestMessageTime - a.latestMessageTime);
-  }, [filteredConversations, currentUser.id]);
+  }, [filteredConversations, t]);
 
   // 统计各分类数量
   const counts = useMemo(() => ({
@@ -116,11 +148,11 @@ export const ChatList: React.FC<ChatListProps> = ({
     completed: categorizedConversations.filter(c => c.category === 'completed').length,
   }), [conversations, categorizedConversations]);
 
-  const tabs: { key: TabType; label: string; icon: React.ReactNode; color: string }[] = [
-    { key: 'all', label: t('chat.tab.all'), icon: <MessageCircle size={14} />, color: 'brand' },
-    { key: 'active', label: t('chat.tab.active'), icon: <ShoppingBag size={14} />, color: 'blue' },
-    { key: 'inquiry', label: t('chat.tab.inquiring'), icon: <MessageSquare size={14} />, color: 'orange' },
-    { key: 'completed', label: t('chat.tab.completed'), icon: <CheckCircle size={14} />, color: 'green' },
+  const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
+    { key: 'all', label: t('chat.tab.all'), icon: <MessageCircle size={14} /> },
+    { key: 'active', label: t('chat.tab.active'), icon: <ShoppingBag size={14} /> },
+    { key: 'inquiry', label: t('chat.tab.inquiring'), icon: <MessageSquare size={14} /> },
+    { key: 'completed', label: t('chat.tab.completed'), icon: <CheckCircle size={14} /> },
   ];
 
   const toggleProductExpand = (productId: string) => {
@@ -220,23 +252,9 @@ export const ChatList: React.FC<ChatListProps> = ({
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${activeTab === tab.key
-              ? `bg-${tab.color}-100 text-${tab.color}-700 shadow-sm`
+              ? TAB_ACTIVE_CLASSES[tab.key]
               : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
               }`}
-            style={{
-              backgroundColor: activeTab === tab.key
-                ? tab.color === 'brand' ? '#fce7f3'
-                  : tab.color === 'blue' ? '#dbeafe'
-                    : tab.color === 'orange' ? '#ffedd5'
-                      : '#dcfce7'
-                : undefined,
-              color: activeTab === tab.key
-                ? tab.color === 'brand' ? '#be185d'
-                  : tab.color === 'blue' ? '#1d4ed8'
-                    : tab.color === 'orange' ? '#c2410c'
-                      : '#166534'
-                : undefined
-            }}
           >
             {tab.icon}
             <span>{tab.label}</span>
@@ -310,8 +328,8 @@ export const ChatList: React.FC<ChatListProps> = ({
                 {isExpanded && (
                   <div className="mt-1 ml-2 pl-2 border-l-2 border-brand-100 space-y-2">
                     {group.conversations.map((conv, idx) => {
-                      const lastMsg = conv.messages?.[conv.messages.length - 1];
-                      const unreadCount = conv.messages?.filter(m => !m.isRead && m.senderId !== currentUser.id).length || 0;
+                      const lastMsg = conv.lastMessage;
+                      const unreadCount = conv.unreadCount ?? 0;
 
                       return (
                         <div key={conv.id} className="relative overflow-hidden rounded-xl">
@@ -384,13 +402,13 @@ export const ChatList: React.FC<ChatListProps> = ({
                                   {conv.otherUser.name}
                                 </h4>
                                 <span className="text-[10px] font-medium text-gray-400 flex-shrink-0">
-                                  {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
+                                  {lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
                                 </span>
                               </div>
 
                               <p className={`text-xs truncate leading-relaxed ${unreadCount > 0 ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>
                                 {lastMsg?.senderId === currentUser.id && <span className="text-gray-400 font-normal mr-1">{t('chat.you')}:</span>}
-                                {lastMsg?.text || t('chat.no_msgs')}
+                                {lastMsg ? previewText(lastMsg, t) : t('chat.no_msgs')}
                               </p>
                             </div>
 

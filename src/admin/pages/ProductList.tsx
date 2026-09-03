@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { adminApi } from '../services/adminApi';
+import { adminApi, getAdminErrorMessage } from '../services/adminApi';
 import { AdminProduct } from '../types/admin';
 import { ProductEditModal } from '../components/ProductEditModal';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { AdvancedFilters, FilterValues } from '../components/AdvancedFilters';
 import { BatchOperationModal } from '../components/BatchOperationModal';
 import { showToast } from '../utils/toast';
@@ -11,6 +12,7 @@ import { Search, Download, ChevronUp, ChevronDown, Star, Trash2, Eye } from 'luc
 export const ProductList: React.FC = () => {
     const [products, setProducts] = useState<AdminProduct[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -25,6 +27,7 @@ export const ProductList: React.FC = () => {
 
     const fetchProducts = async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             const res = await adminApi.getProducts({
                 page,
@@ -36,13 +39,13 @@ export const ProductList: React.FC = () => {
                 sort: sortBy,
                 order: sortOrder
             });
-            if (res.data) {
-                setProducts(res.data.products);
-                setTotalPages(res.data.pagination.totalPages);
-            }
+            setProducts(res.data?.products ?? []);
+            setTotalPages(res.data?.pagination?.totalPages ?? 1);
         } catch (error) {
             console.error(error);
-            showToast.error('加载商品失败');
+            const message = getAdminErrorMessage(error, '加载商品失败');
+            setLoadError(message);
+            showToast.error(`加载商品失败: ${message}`);
         } finally {
             setLoading(false);
         }
@@ -113,7 +116,7 @@ export const ProductList: React.FC = () => {
             setSelectedIds([]);
             fetchProducts();
         } catch (error) {
-            showToast.error('批量操作失败');
+            showToast.error(`批量操作失败: ${getAdminErrorMessage(error)}`);
         }
     };
 
@@ -123,7 +126,7 @@ export const ProductList: React.FC = () => {
             showToast.success(current ? '已取消推荐' : '已设为推荐');
             fetchProducts();
         } catch (error) {
-            showToast.error('操作失败');
+            showToast.error(`操作失败: ${getAdminErrorMessage(error)}`);
         }
     };
 
@@ -134,7 +137,7 @@ export const ProductList: React.FC = () => {
                 showToast.success('商品已删除');
                 fetchProducts();
             } catch (error) {
-                showToast.error('删除失败');
+                showToast.error(`删除失败: ${getAdminErrorMessage(error)}`);
             }
         }
     };
@@ -327,6 +330,12 @@ export const ProductList: React.FC = () => {
                                                 <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                                                 <span className="text-gray-500 font-medium">加载数据中...</span>
                                             </div>
+                                        </td>
+                                    </tr>
+                                ) : loadError ? (
+                                    <tr>
+                                        <td colSpan={9} className="px-6 py-10">
+                                            <ErrorBanner message={loadError} onRetry={fetchProducts} />
                                         </td>
                                     </tr>
                                 ) : products.length === 0 ? (

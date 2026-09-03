@@ -47,14 +47,40 @@ export const sendMessage = async (
     }
 };
 
-// 获取对话消息
+export interface GetMessagesOptions {
+    /** Page size (server caps at 100). Default 50. */
+    limit?: number;
+    /** `asc` (default, legacy offset paging) or `desc` (newest first, cursor paging). */
+    order?: 'asc' | 'desc';
+    /** ISO timestamp: only return messages strictly older than this. Use with `order: 'desc'`. */
+    before?: string;
+    /** Legacy offset paging (ascending order only). */
+    offset?: number;
+}
+
+/**
+ * 获取对话消息
+ *
+ * Accepts either the new options object `{ limit, order, before }` or the legacy
+ * positional `(limit, offset)` arguments.
+ */
 export const getMessages = async (
     conversationId: string,
-    limit = 50,
+    limitOrOptions: number | GetMessagesOptions = 50,
     offset = 0
 ): Promise<any[]> => {
+    const opts: GetMessagesOptions =
+        typeof limitOrOptions === 'number' ? { limit: limitOrOptions, offset } : limitOrOptions;
+    const limit = opts.limit ?? 50;
+    const params: Record<string, string | number | undefined> = { limit };
+    if (opts.order === 'desc') {
+        params.order = 'desc';
+        if (opts.before) params.before = opts.before;
+    } else {
+        params.offset = opts.offset ?? 0;
+    }
     try {
-        return await api.get<any[]>(`/api/messages/${conversationId}`, { params: { limit, offset }, auth: 'required' });
+        return await api.get<any[]>(`/api/messages/${conversationId}`, { params, auth: 'required' });
     } catch (error) {
         console.error('Error fetching messages:', error);
         return [];

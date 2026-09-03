@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Send, CheckCheck, Loader2, MoreVertical,
   Image as ImageIcon, Smile, MapPin, Clock, DollarSign
@@ -8,6 +9,12 @@ import { Conversation, User } from '../types';
 import { useLanguage } from '@/i18n';
 import { supabase } from '../services/supabase';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
+import { blockUser } from '@/services/moderationService';
+import { ApiError } from '@/lib/api/client';
+import { queryKeys } from '@/lib/queryClient';
+import { notify } from '@/lib/toast';
+import { useOrders } from '@/features/orders';
+import { ReportModal } from './ReportModal';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
 import { OrderStatusMessage } from './chat/OrderStatusMessage';
 import { PriceNegotiationCard } from './chat/PriceNegotiationCard';
@@ -26,6 +33,51 @@ interface ChatWindowProps {
   onSendMessage?: (conversationId: string, text: string) => void;
 }
 
+/** Realtime / REST message row (snake_case, as stored in the `messages` table). */
+interface ChatMessageRow {
+  id: string;
+  conversation_id?: string;
+  sender_id: string;
+  text?: string | null;
+  /** JSON string payload for rich message types. */
+  content?: string | null;
+  message_type?: string | null;
+  is_read?: boolean;
+  created_at: string;
+}
+
+const MESSAGE_LIMIT = 50; // 加载足够多的消息以包含议价卡片
+const OPEN_ORDER_STATUSES_EXCLUDED = new Set(['completed', 'completed_pending_payout', 'cancelled', 'refunded']);
+
+/** Parse a rich-message JSON payload; returns null (→ plain-text fallback) when it isn't valid JSON. */
+const safeParseContent = (raw: unknown): Record<string, any> | null => {
+  if (raw && typeof raw === 'object') return raw as Record<string, any>;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const messageTime = (msg: ChatMessageRow): number => {
+  const ms = new Date(msg.created_at).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+};
+
+/** Merge two id-deduplicated message lists in chronological order. */
+const mergeMessages = (a: ChatMessageRow[], b: ChatMessageRow[]): ChatMessageRow[] => {
+  const seen = new Set<string>();
+  const out: ChatMessageRow[] = [];
+  for (const m of [...a, ...b]) {
+    if (seen.has(m.id)) continue;
+    seen.add(m.id);
+    out.push(m);
+  }
+  return out.sort((x, y) => messageTime(x) - messageTime(y));
+};
+
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   conversation,
   currentUser,
@@ -34,13 +86,37 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 }) => {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<any[]>([]);
+  const queryClient = useQueryClient();
+  const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [, setIsLoading] = useState(true);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [activeOrder] = useState<any>(null); // Simplified Order type
   const [isMeetupModalOpen, setIsMeetupModalOpen] = useState(false); // New state
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isBlocking, setIsBlocking] = useState(false);
+
+  // The order attached to this conversation (newest order for product+buyer, resolved by the API).
+  // `useOrders` is read-only here: we only look the full row up by id.
+  const { orders } = useOrders();
+  const activeOrder = useMemo(
+    () => (conversation.orderId ? orders.find(o => o.id === conversation.orderId) ?? null : null),
+    [orders, conversation.orderId]
+  );
+  // Status label falls back to the conversation summary while the orders query is still loading.
+  const orderStatus: string | undefined = activeOrder?.status ?? conversation.orderStatus;
+  const hasOpenOrder = !!orderStatus && !OPEN_ORDER_STATUSES_EXCLUDED.has(orderStatus);
+
+  const invalidateConversations = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.conversations(currentUser.id) });
+  }, [queryClient, currentUser.id]);
+
+  /** Mark the thread as read server-side, then refresh the list so unread badges drop. */
+  const markRead = useCallback(() => {
+    markMessagesAsRead(conversation.id, currentUser.id)
+      .catch(console.error)
+      .finally(invalidateConversations);
+  }, [conversation.id, currentUser.id, invalidateConversations]);
   const [showNegotiation, setShowNegotiation] = useState(false); // For price negotiation
   const [showLocation, setShowLocation] = useState(false); // For location sharing
   const [showImages, setShowImages] = useState(false); // For image sharing
@@ -55,33 +131,42 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   // Pagination states
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const MESSAGE_LIMIT = 50; // 加载足够多的消息以包含议价卡片
+
+  /**
+   * Fetch the newest page (newest-first from the API, reversed for display) and merge it into
+   * the list. On first load this fills the window; later calls (after sending a rich message)
+   * pick up new rows without discarding pages that were already loaded via "load earlier".
+   */
+  const reloadLatest = useCallback(async () => {
+    const page = (await getMessages(conversation.id, { limit: MESSAGE_LIMIT, order: 'desc' })) as ChatMessageRow[];
+    const newestFirst = page ?? [];
+    // Fresh rows first so an updated payload (e.g. negotiation status) wins over the cached copy.
+    setMessages(prev => mergeMessages([...newestFirst].reverse(), prev));
+    setHasMoreMessages(prev => prev || newestFirst.length >= MESSAGE_LIMIT);
+    return newestFirst;
+  }, [conversation.id]);
 
   // Load messages on mount and subscribe to realtime updates
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
 
     const loadInitialMessages = async () => {
       setIsLoading(true);
       try {
-        const msgs = await getMessages(conversation.id, MESSAGE_LIMIT, 0);
-        if (msgs && msgs.length > 0) {
-          setMessages(msgs);
-          setHasMoreMessages(msgs.length === MESSAGE_LIMIT);
-          // Mark as read
-          markMessagesAsRead(conversation.id, currentUser.id).catch(console.error);
-        }
+        const page = await reloadLatest();
+        if (!cancelled && page.length > 0) markRead();
       } catch (err) {
         console.error('Error loading messages:', err);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     loadInitialMessages();
 
-    // Subscribe to new messages
-    unsubscribe = subscribeToMessages(conversation.id, (newMsg) => {
+    // Subscribe to new messages (rows arrive snake_case from Postgres)
+    const unsubscribe = subscribeToMessages(conversation.id, (row) => {
+      const newMsg = row as ChatMessageRow;
       setMessages(prev => {
         // 避免重复：检查已存在或正在发送中
         if (prev.some(m => m.id === newMsg.id) || pendingMessageIds.current.has(newMsg.id)) {
@@ -90,15 +175,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         return [...prev, newMsg];
       });
       // Mark as read if from other user
-      if (newMsg.senderId !== currentUser.id) {
-        markMessagesAsRead(conversation.id, currentUser.id).catch(console.error);
-      }
+      if (newMsg.sender_id !== currentUser.id) markRead();
     });
 
     return () => {
-      unsubscribe?.();
+      cancelled = true;
+      unsubscribe();
     };
-  }, [conversation.id, currentUser.id]);
+  }, [conversation.id, currentUser.id, reloadLatest, markRead]);
 
   // Fetch product info for negotiation
   useEffect(() => {
@@ -150,13 +234,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       pendingMessageIds.current.add(tempId);
 
       // Optimistic update
-      const tempMsg = {
+      const tempMsg: ChatMessageRow = {
         id: tempId,
         conversation_id: conversation.id,
         sender_id: currentUser.id,
-        senderId: currentUser.id,
-        text: text,
-        timestamp: new Date().toISOString(),
+        text,
+        message_type: 'text',
+        created_at: new Date().toISOString(),
         is_read: false
       };
 
@@ -167,10 +251,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       inputRef.current?.focus();
 
       try {
-        const sentMsg = await sendMessage(conversation.id, currentUser.id, text);
+        const sentMsg = (await sendMessage(conversation.id, currentUser.id, text)) as ChatMessageRow;
         // 添加真实消息ID到pending集合
         pendingMessageIds.current.add(sentMsg.id);
-        setMessages(prev => prev.map(m => m.id === tempId ? sentMsg : m));
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...tempMsg, ...sentMsg } : m));
+        invalidateConversations();
 
         // 延迟清除pending IDs，确保realtime事件已处理
         setTimeout(() => {
@@ -181,7 +266,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         console.error('Failed to send message:', error);
         pendingMessageIds.current.delete(tempId);
         setMessages(prev => prev.filter(m => m.id !== tempId));
-        alert(t('chat.send_failed'));
+        if (error instanceof ApiError && error.status === 403) {
+          notify.error(t('chat.blocked_cannot_send'));
+        } else {
+          notify.error(t('chat.send_failed'));
+        }
       } finally {
         setIsSending(false);
       }
@@ -190,41 +279,48 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
 
   // Reload order when meetup arranged
-
-  // Reload order when meetup arranged
   const handleMeetupSuccess = () => {
-    // Re-fetch order
-    if (activeOrder) {
-      // Simplest way to refresh order state after a meetup is arranged.
-      window.location.reload();
+    queryClient.invalidateQueries({ queryKey: queryKeys.orders(currentUser.id) });
+    invalidateConversations();
+  };
+
+  const handleBlockUser = async () => {
+    if (isBlocking) return;
+    setIsBlocking(true);
+    try {
+      await blockUser(conversation.otherUser.id);
+      notify.success(t('chat.user_blocked'));
+      invalidateConversations();
+    } catch (error) {
+      console.error('[chat] block failed:', error);
+      notify.error(t('chat.block_failed'));
+    } finally {
+      setIsBlocking(false);
     }
   };
 
-  // ... (handleSend, showMenu state) ...
-
-  // 加载更多消息
+  // 加载更早的消息（cursor: 当前最早一条的 created_at）
   const loadMoreMessages = async () => {
     if (isLoadingMore || !hasMoreMessages) return;
+    const oldest = messages.find(m => !m.id.startsWith('temp-'));
+    if (!oldest) {
+      setHasMoreMessages(false);
+      return;
+    }
 
     setIsLoadingMore(true);
     try {
-      const newOffset = messages.length;
-      console.log('[ChatWindow] Loading more messages, offset:', newOffset);
+      const olderNewestFirst = (await getMessages(conversation.id, {
+        limit: MESSAGE_LIMIT,
+        order: 'desc',
+        before: oldest.created_at,
+      })) as ChatMessageRow[];
+      const older = olderNewestFirst ?? [];
 
-      const olderMsgs = await getMessages(conversation.id, MESSAGE_LIMIT, newOffset);
-      console.log('[ChatWindow] Loaded', olderMsgs?.length || 0, 'older messages');
-
-      if (olderMsgs && olderMsgs.length > 0) {
-        const combined = [...olderMsgs, ...messages];
-        const sorted = combined.sort((a, b) =>
-          new Date(a.created_at || a.timestamp).getTime() -
-          new Date(b.created_at || b.timestamp).getTime()
-        );
-        setMessages(sorted);
-        setHasMoreMessages(olderMsgs.length === MESSAGE_LIMIT);
-      } else {
-        setHasMoreMessages(false);
+      if (older.length > 0) {
+        setMessages(prev => mergeMessages([...older].reverse(), prev));
       }
+      setHasMoreMessages(older.length >= MESSAGE_LIMIT);
     } catch (error) {
       console.error('[ChatWindow] Error loading more messages:', error);
     } finally {
@@ -265,7 +361,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         <div className="flex items-center gap-1 relative">
           {/* Meetup Button (Only if active meetup order exists) */}
-          {activeOrder && activeOrder.order_type === 'meetup' && activeOrder.status !== 'completed' && activeOrder.status !== 'cancelled' && (
+          {activeOrder && activeOrder.order_type === 'meetup' && hasOpenOrder && (
             <button
               onClick={() => setIsMeetupModalOpen(true)}
               className="p-2 text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors mr-1"
@@ -290,14 +386,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
               <div className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 z-40 overflow-hidden animate-fade-in-up origin-top-right">
                 <button
-                  onClick={() => { setShowMenu(false); alert(t('chat.user_reported')); }}
+                  onClick={() => { setShowMenu(false); setIsReportOpen(true); }}
                   className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-500 text-sm font-medium transition-colors border-b border-gray-100"
                 >
                   {t('chat.report_user')}
                 </button>
                 <button
-                  onClick={() => { setShowMenu(false); alert(t('chat.user_blocked')); }}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
+                  onClick={() => { setShowMenu(false); handleBlockUser(); }}
+                  disabled={isBlocking}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {t('chat.block_user')}
                 </button>
@@ -324,7 +421,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
 
           {/* 议价按钮 */}
-          {!activeOrder && productSellerId && productSellerId !== currentUser.id && (
+          {!hasOpenOrder && productSellerId && productSellerId !== currentUser.id && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -337,12 +434,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           )}
 
           {/* 订单状态标签 */}
-          {activeOrder && (
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${activeOrder.status === 'completed' ? 'bg-green-100 text-green-700' :
-              activeOrder.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                'bg-blue-100 text-blue-700'
-              }`}>
-              {activeOrder.status.replace('_', ' ')}
+          {orderStatus && (
+            <span
+              title={t('chat.order_status_label')}
+              className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 ${orderStatus.startsWith('completed') ? 'bg-green-100 text-green-700' :
+                orderStatus === 'cancelled' || orderStatus === 'refunded' ? 'bg-red-100 text-red-700' :
+                  'bg-blue-100 text-blue-700'
+                }`}>
+              {orderStatus.replace(/_/g, ' ')}
             </span>
           )}
         </div>
@@ -399,62 +498,52 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
 
         <div className="text-center text-xs text-gray-400 font-medium my-4">
-          <span className="bg-gray-100 px-3 py-1 rounded-full">{new Date(messages[0]?.timestamp || Date.now()).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+          <span className="bg-gray-100 px-3 py-1 rounded-full">{new Date(messages[0]?.created_at || Date.now()).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
         </div>
 
         {/* Messages List */}
         {messages.map((msg, index) => {
-          const senderId = msg.senderId || msg.sender_id;
+          const senderId = msg.sender_id;
           const isMe = senderId === currentUser.id;
-          const showAvatar = isMe ? false : (messages[index + 1]?.senderId || messages[index + 1]?.sender_id) !== senderId;
+          const showAvatar = isMe ? false : messages[index + 1]?.sender_id !== senderId;
           const messageType = msg.message_type || 'text';
+          // Rich payloads live in `content` (JSON string); some rows only carry a JSON `text`.
+          const richContent = messageType !== 'text' && messageType !== 'system'
+            ? safeParseContent(msg.content) ?? safeParseContent(msg.text)
+            : null;
 
-          // 系统消息（订单状态、议价等）- 居中显示
-          if (messageType !== 'text' && messageType !== 'system') {
+          // 系统消息（订单状态、议价等）- 居中显示。解析失败时退回普通文本渲染。
+          if (richContent) {
             return (
               <div key={msg.id} className="flex justify-center my-3">
                 <div className="max-w-md w-full px-2">
-                  {messageType === 'order_status' && msg.content && (
-                    <OrderStatusMessage content={JSON.parse(msg.content)} />
+                  {messageType === 'order_status' && (
+                    <OrderStatusMessage content={richContent as any} />
                   )}
-                  {messageType === 'price_negotiation' && msg.content && (
+                  {(messageType === 'price_negotiation' || messageType === 'price_negotiation_response') && (
                     <PriceNegotiationCard
-                      content={JSON.parse(msg.content)}
+                      content={richContent as any}
                       isSeller={productSellerId === currentUser.id}
-                      onUpdate={() => {
-                        // 重新加载消息
-                        getMessages(conversation.id).then(setMessages);
-                      }}
+                      onUpdate={() => { reloadLatest().catch(console.error); }}
                     />
                   )}
-                  {messageType === 'price_negotiation_response' && msg.content && (
-                    <PriceNegotiationCard
-                      content={JSON.parse(msg.content)}
-                      isSeller={productSellerId === currentUser.id}
-                      onUpdate={() => {
-                        getMessages(conversation.id).then(setMessages);
-                      }}
-                    />
-                  )}
-                  {messageType === 'location' && msg.content && (
+                  {messageType === 'location' && (
                     <LocationCard
-                      content={JSON.parse(msg.content)}
+                      content={richContent as any}
                       senderName={isMe ? currentUser.name : conversation.otherUser.name}
                       senderAvatar={isMe ? currentUser.avatar : conversation.otherUser.avatar}
                       isMe={isMe}
                     />
                   )}
-                  {messageType === 'images' && msg.content && (
-                    <ImagesMessage content={JSON.parse(msg.content)} />
+                  {(messageType === 'images' || messageType === 'image') && (
+                    <ImagesMessage content={richContent as any} />
                   )}
-                  {messageType === 'meetup_time' && msg.content && (
+                  {messageType === 'meetup_time' && (
                     <MeetupTimeMessage
-                      content={JSON.parse(msg.content)}
+                      content={richContent as any}
                       conversationId={conversation.id}
                       currentUserId={currentUser.id}
-                      onUpdate={() => {
-                        getMessages(conversation.id).then(setMessages);
-                      }}
+                      onUpdate={() => { reloadLatest().catch(console.error); }}
                     />
                   )}
                 </div>
@@ -467,7 +556,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <div
               key={msg.id}
               className={`flex ${isMe ? 'justify-end' : 'justify-start items-end'} gap-2.5 group animate-slide-in-right`}
-              style={{ animationDelay: `${index * 50}ms` }}
             >
               {!isMe && (
                 <div className={`flex flex-col space-y-1 ${!showAvatar && 'invisible'}`}>
@@ -483,12 +571,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                       : 'bg-white text-gray-800 border-none shadow-glass-sm rounded-2xl rounded-tl-sm'
                     }`}
                 >
-                  <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text || msg.content}</p>
+                  <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.text || (typeof msg.content === 'string' ? msg.content : '')}</p>
 
                   <div className={`flex items-center gap-1 text-[10px] mt-1 select-none ${isMe ? 'justify-end text-brand-100' : 'justify-end text-gray-400'
                     }`}>
                     <span>
-                      {new Date(msg.timestamp || msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isMe && (
                       <CheckCheck size={14} className={msg.is_read ? "text-white" : "text-brand-300/80"} />
@@ -537,7 +625,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               onSent={() => {
                 setShowNegotiation(false);
                 // Refresh messages to show the new negotiation card
-                getMessages(conversation.id).then(setMessages);
+                reloadLatest().catch(console.error);
               }}
             />
           </div>
@@ -550,7 +638,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               conversationId={conversation.id}
               onSent={() => {
                 setShowLocation(false);
-                getMessages(conversation.id).then(setMessages);
+                reloadLatest().catch(console.error);
               }}
               onClose={() => setShowLocation(false)}
             />
@@ -564,7 +652,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               conversationId={conversation.id}
               onSent={() => {
                 setShowImages(false);
-                getMessages(conversation.id).then(setMessages);
+                reloadLatest().catch(console.error);
               }}
               onClose={() => setShowImages(false)}
             />
@@ -579,7 +667,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               productTitle={conversation.productTitle}
               onSent={() => {
                 setShowMeetupTime(false);
-                getMessages(conversation.id).then(setMessages);
+                reloadLatest().catch(console.error);
               }}
               onClose={() => setShowMeetupTime(false)}
             />
@@ -684,6 +772,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </button>
         </form>
       </div>
+
+      <ReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        targetType="user"
+        targetId={conversation.otherUser.id}
+      />
 
     </div>
   );
