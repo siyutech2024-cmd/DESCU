@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { User, Conversation } from '../types';
 import { ChatList } from '../components/ChatList';
 import { ChatWindow } from '../components/ChatWindow';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface ChatPageProps {
     conversations: Conversation[];

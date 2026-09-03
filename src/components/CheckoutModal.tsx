@@ -13,7 +13,7 @@ import { Product, User } from '../types';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
 import { createOrGetConversation } from '../services/chatService';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { AddressList } from './AddressList';
 

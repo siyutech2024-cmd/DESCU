@@ -1,7 +1,7 @@
 import React from 'react';
 import { Product, DeliveryType } from '../types';
 import { MapPin, ShoppingBag, Truck, Zap } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { getOptimizedImageUrl } from '../services/imageOptimizer';
 

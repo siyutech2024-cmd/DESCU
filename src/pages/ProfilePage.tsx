@@ -2,7 +2,7 @@
 import React from 'react';
 import { User, Product } from '../types';
 import { UserProfile } from '../components/UserProfile';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { useNavigate } from 'react-router-dom';
 
 interface ProfilePageProps {

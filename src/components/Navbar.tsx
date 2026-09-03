@@ -2,7 +2,7 @@
 import React from 'react';
 import { Search, Globe, MapPin, Home, MessageCircle, LogOut } from 'lucide-react';
 import { User as UserType, Language, Region } from '../types';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { supabase } from '../services/supabase';
 import { DetailedLocationInfo } from '../services/locationService';

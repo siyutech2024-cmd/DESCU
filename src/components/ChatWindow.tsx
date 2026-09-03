@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Smile, MapPin, Clock, DollarSign
 } from 'lucide-react';
 import { Conversation, User } from '../types';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { supabase } from '../services/supabase';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 import { MeetupArrangementModal } from './MeetupArrangementModal';

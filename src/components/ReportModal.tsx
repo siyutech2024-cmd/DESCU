@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { X, Flag, AlertTriangle, ShieldAlert, Ban, Info, CheckCircle2 } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface ReportModalProps {
   isOpen: boolean;

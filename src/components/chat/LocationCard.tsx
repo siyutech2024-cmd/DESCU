@@ -1,6 +1,6 @@
 import React from 'react';
 import { MapPin, Navigation, Copy, ExternalLink, Sparkles } from 'lucide-react';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface LocationCardProps {
     content: {

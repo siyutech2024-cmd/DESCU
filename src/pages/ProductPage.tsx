@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Product, User } from '../types';
 import { ProductDetails } from '../components/ProductDetails';
 import { useSEO } from '../hooks/useSEO';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { API_BASE_URL } from '../services/apiConfig';
 
 interface ProductPageProps {

@@ -5,9 +5,9 @@ import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capa
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
 import { analyzeImageWithGemini } from '../services/geminiService';
 import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
-import { GlassToast, ToastType } from './GlassToast';
+import { showToast } from '@/lib/toast';
 import { uploadProductImage } from '../services/supabase';
 
 const MAX_IMAGES = 5;
@@ -71,17 +71,6 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
-  // Toast State
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: ToastType }>({
-    show: false,
-    message: '',
-    type: 'success'
-  });
-
-  const showToast = (message: string, type: ToastType = 'success') => {
-    setToast({ show: true, message, type });
-  };
-
   const [formData, setFormData] = useState<Partial<AISuggestion> & { price: string; currency: string; deliveryType: DeliveryType | null; subcategory?: string }>({
     title: '',
     description: '',
@@ -110,7 +99,6 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
       setAiStatus('idle');
       setIsUploading(false);
       setUploadProgress(0);
-      setToast(prev => ({ ...prev, show: false }));
     }
   }, [isOpen]);
 
@@ -306,13 +294,6 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center sm:p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      <GlassToast
-        isVisible={toast.show}
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast(prev => ({ ...prev, show: false }))}
-      />
 
       <div className="relative bg-white w-full max-w-lg h-[92vh] md:h-auto md:max-h-[85vh] md:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}

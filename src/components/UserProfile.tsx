@@ -5,7 +5,7 @@ import { SellerPayoutCard } from './SellerPayoutCard';
 import { CreditBadge } from './CreditBadge';
 import { ArrowLeft, Camera, Save, Check, Grid, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, FileText, Scale, ExternalLink, CreditCard, Star, Heart, Lock } from 'lucide-react';
 import { User, Product } from '../types';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { getFullDataUrl } from '../services/utils';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase, markProductAsSold, relistProduct } from '../services/supabase';

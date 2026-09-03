@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { X, LogIn } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface LoginModalProps {
     isOpen: boolean;

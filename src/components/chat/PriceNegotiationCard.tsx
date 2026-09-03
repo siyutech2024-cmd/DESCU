@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, CheckCircle, XCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { API_BASE_URL } from '../../services/apiConfig';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface PriceNegotiationCardProps {
     content: {

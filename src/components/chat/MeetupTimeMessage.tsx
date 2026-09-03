@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, MapPin, CheckCircle, X, Edit2 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface MeetupTimeMessageProps {
     content: {

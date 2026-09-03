@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRegion } from '../contexts/RegionContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { Check, Globe } from 'lucide-react';
 
 export const OnboardingModal: React.FC = () => {

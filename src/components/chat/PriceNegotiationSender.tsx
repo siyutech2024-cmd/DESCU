@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingDown, X, Loader2, Package } from 'lucide-react';
 import { supabase } from '../../services/supabase';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { API_BASE_URL } from '../../services/apiConfig';
 import toast from 'react-hot-toast';
 

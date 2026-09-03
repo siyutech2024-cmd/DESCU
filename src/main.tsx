@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import RootApp from './RootApp';
+import App from './App';
 import './index.css';
 
 // 部署后 chunk 文件名变化导致 404，自动刷新一次获取新版本
@@ -43,6 +43,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <RootApp />
+    <App />
   </React.StrictMode>
 );

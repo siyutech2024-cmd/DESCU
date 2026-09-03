@@ -31,7 +31,7 @@ const REGION_CONFIG: Record<Region, { currency: Currency; flag: string; label: s
     Global: { currency: 'USD', flag: '🌍', label: 'Global' },
 };
 
-import { useLanguage } from './LanguageContext';
+import { useLanguage } from '@/i18n';
 
 export const RegionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { setLanguage } = useLanguage();

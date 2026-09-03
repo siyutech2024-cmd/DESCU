@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { uploadChatImage, compressImage } from '../../services/chatImageUpload';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface ImageSenderProps {
     conversationId: string;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, Calendar, Shield, MessageCircle, ShoppingBag, MapPin } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
 

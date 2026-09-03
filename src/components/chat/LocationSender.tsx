@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, X, Loader2, Search } from 'lucide-react';
 import { supabase } from '../../services/supabase';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface LocationSenderProps {
     conversationId: string;

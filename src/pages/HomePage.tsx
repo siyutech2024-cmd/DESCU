@@ -2,7 +2,7 @@
 import React from 'react';
 import { ProductCard } from '../components/ProductCard';
 import { RefreshCw, MapPinOff, MapPin, SearchX, Package, Car, Home, Smartphone, Briefcase, Armchair, Shirt, Book, Trophy } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { Product, Category, Region } from '../types';
 import { useNavigate } from 'react-router-dom';

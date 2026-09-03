@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Star, X } from 'lucide-react';
 import { User } from '../types';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface RatingModalProps {
     isOpen: boolean;

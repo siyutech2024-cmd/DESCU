@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CreditCard, Loader2, ExternalLink, Check, AlertCircle, ChevronRight, ShieldCheck } from 'lucide-react';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface StripeExpressCardProps {
     userId: string;

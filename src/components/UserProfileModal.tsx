@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Star, User as UserIcon, Calendar, Shield, MessageCircle, ShoppingBag } from 'lucide-react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 import { API_BASE_URL } from '../services/apiConfig';
 
 const localeMap: Record<string, string> = {

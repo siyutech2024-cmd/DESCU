@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../services/apiConfig';
 import { supabase } from '../services/supabase';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useLanguage } from '@/i18n';
 
 interface SellerPayoutCardProps {
     userId: string;
