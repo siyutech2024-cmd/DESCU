@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/userAuth.js';
 import { getStripe } from '../lib/stripe.js';
+import { toCents } from '../domain/orders.js';
 import {
     createPaymentIntent,
     handleStripeWebhook,
@@ -372,18 +373,33 @@ router.get('/api/stripe/v2/dashboard-link', requireAuth, async (req: any, res) =
  */
 router.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res) => {
     try {
-        const { orderId, quantity = 1 } = req.body;
+        const { orderId } = req.body;
         const userId = req.user.id;
 
+        if (typeof orderId !== 'string' || !orderId) {
+            return res.status(400).json({ error: 'orderId is required' });
+        }
+
         // Get order details
-        const { data: order } = await supabase
+        const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('*, products(*), seller:seller_id(stripe_connect_id)')
+            .select('*, products(*)')
             .eq('id', orderId)
-            .single();
+            .maybeSingle();
+        if (orderError) throw orderError;
 
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
+        }
+        // Only the buyer may pay, and only while the order is awaiting payment.
+        if (order.buyer_id !== userId) {
+            return res.status(403).json({ error: 'Only the buyer can pay for this order' });
+        }
+        if (order.status !== 'pending_payment') {
+            return res.status(400).json({ error: `Order is not awaiting payment (status: ${order.status})` });
+        }
+        if (order.payment_method !== 'online') {
+            return res.status(400).json({ error: 'This order is not paid online' });
         }
 
         // Get seller info - Stripe Connect is optional, bank info (CLABE) is also valid
@@ -404,13 +420,14 @@ router.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res
             });
         }
 
-        // Calculate amounts
-        const productPrice = order.products?.price || order.total_amount;
-        const amountInCents = Math.round(productPrice * 100);
-
-        // Platform fee: 5% - will be deducted when transferring to seller
-        const platformFeePercent = 0.05;
-        const platformFeeAmount = Math.round(amountInCents * platformFeePercent);
+        // Charge exactly what the order says the buyer owes: product + shipping + platform fee.
+        // (Previously only products.price was charged, so the platform fee was never collected
+        //  and the shipping fee was paid out of the platform's own pocket.)
+        const amountInCents = toCents(Number(order.total_amount));
+        if (!Number.isFinite(amountInCents) || amountInCents <= 0) {
+            return res.status(400).json({ error: 'Order total is invalid' });
+        }
+        const platformFeeAmount = toCents(Number(order.platform_fee) || 0);
 
         const baseUrl = process.env.VITE_API_URL || 'https://www.descu.ai';
 
@@ -432,7 +449,7 @@ router.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res
                         },
                         unit_amount: amountInCents,
                     },
-                    quantity: quantity,
+                    quantity: 1,
                 },
             ],
             payment_intent_data: {
@@ -464,12 +481,11 @@ router.post('/api/stripe/v2/checkout-session', requireAuth, async (req: any, res
         });
 
         // Update order with checkout session and escrow info
-        await supabase.from('orders').update({
+        const { error: updateError } = await supabase.from('orders').update({
             stripe_checkout_session_id: session.id,
-            status: 'pending_payment',
-            platform_fee: platformFeeAmount / 100,  // Store in decimal
             escrow_status: 'pending'
-        }).eq('id', orderId);
+        }).eq('id', orderId).eq('status', 'pending_payment');
+        if (updateError) throw updateError;
 
         console.log('[StripeV2 Escrow] Created checkout session:', session.id, 'for order:', orderId, '(escrow mode)');
 
@@ -862,12 +878,44 @@ router.post('/api/stripe/confirm-payment', requireAuth, async (req: any, res) =>
     try {
         const { orderId, paymentIntentId } = req.body;
         const userId = req.user.id;
-        const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
 
+        if (typeof orderId !== 'string' || typeof paymentIntentId !== 'string' || !paymentIntentId.startsWith('pi_')) {
+            return res.status(400).json({ error: 'orderId and paymentIntentId are required' });
+        }
+
+        const { data: existing, error: loadError } = await supabase
+            .from('orders')
+            .select('id, buyer_id, status, total_amount, currency, stripe_payment_intent_id')
+            .eq('id', orderId)
+            .maybeSingle();
+        if (loadError) throw loadError;
+        if (!existing) return res.status(404).json({ error: 'Order not found' });
+        if (existing.buyer_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
+        if (existing.status !== 'pending_payment') {
+            return res.status(400).json({ error: `Order is not awaiting payment (status: ${existing.status})` });
+        }
+
+        const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
         if (paymentIntent.status !== 'succeeded') return res.status(400).json({ error: 'Payment not succeeded' });
 
-        const { data: order, error } = await supabase.from('orders').update({ status: 'paid', payment_captured: true })
-            .eq('id', orderId).eq('buyer_id', userId).select().single();
+        // The PaymentIntent must be the one created for THIS order, for the full amount, in the same currency.
+        const belongsToOrder =
+            existing.stripe_payment_intent_id === paymentIntent.id || paymentIntent.metadata?.order_id === orderId;
+        const expectedCents = toCents(Number(existing.total_amount));
+        const currencyMatches = paymentIntent.currency.toLowerCase() === (existing.currency || 'mxn').toLowerCase();
+        if (!belongsToOrder || paymentIntent.amount_received < expectedCents || !currencyMatches) {
+            console.warn('[confirm-payment] PaymentIntent does not match order', { orderId, paymentIntentId });
+            return res.status(400).json({ error: 'Payment does not match this order' });
+        }
+
+        const { data: order, error } = await supabase
+            .from('orders')
+            .update({ status: 'paid', payment_captured: true, stripe_payment_intent_id: paymentIntent.id })
+            .eq('id', orderId)
+            .eq('buyer_id', userId)
+            .eq('status', 'pending_payment')
+            .select()
+            .single();
 
         if (error) throw error;
 

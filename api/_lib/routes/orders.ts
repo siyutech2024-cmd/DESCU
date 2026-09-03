@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
+import { computeOrderAmounts, confirmBlockReason, isOrderType, isPaymentMethod } from '../domain/orders.js';
 import { requireAuth } from '../middleware/userAuth.js';
 import {
     markOrderAsShipped,
@@ -30,24 +31,29 @@ router.post('/api/orders/create', requireAuth, async (req: any, res) => {
         const { productId, orderType, paymentMethod, shippingAddress, meetupLocation, meetupTime } = req.body;
         const buyerId = req.user.id;
 
-        console.log(`[CreateOrder] Received request: productId=${productId}, buyerId=${buyerId}, type=${orderType}`);
-
-        const { data: product, error: pInfoError } = await supabase.from('products').select('*, seller:users!seller_id(*)').eq('id', productId).single();
-
-        if (pInfoError || !product) {
-            console.error('[CreateOrder] Product lookup failed:', pInfoError);
-            return res.status(404).json({ error: 'Product not found', debug_id: productId, db_error: pInfoError });
+        if (!isOrderType(orderType) || !isPaymentMethod(paymentMethod)) {
+            return res.status(400).json({ error: 'Invalid orderType or paymentMethod' });
+        }
+        if (typeof productId !== 'string' || !productId) {
+            return res.status(400).json({ error: 'productId is required' });
+        }
+        if (orderType === 'shipping' && !shippingAddress) {
+            return res.status(400).json({ error: 'Shipping address is required for shipping orders' });
         }
 
-        console.log(`[CreateOrder] Product found: ${product.id}, Seller: ${product.seller_id}`);
-
+        const { data: product, error: pInfoError } = await supabase
+            .from('products')
+            .select('id, seller_id, price, status, deleted_at')
+            .eq('id', productId)
+            .maybeSingle();
+        if (pInfoError) throw pInfoError;
+        if (!product) return res.status(404).json({ error: 'Product not found' });
+        if (product.status !== 'active' || product.deleted_at) {
+            return res.status(400).json({ error: 'Product is not available for purchase' });
+        }
         if (product.seller_id === buyerId) return res.status(400).json({ error: 'Cannot buy your own product' });
 
-        const productAmount = product.price;
-        const shippingFee = orderType === 'shipping' ? 50 : 0;
-        // 统一平台费率为5%，与 v2/checkout-session 和 confirmOrder 保持一致
-        const platformFee = paymentMethod === 'online' ? (productAmount * 0.05) : 0;
-        const totalAmount = productAmount + shippingFee + platformFee;
+        const { productAmount, shippingFee, platformFee, totalAmount } = computeOrderAmounts(Number(product.price), orderType, paymentMethod);
 
         const orderData: any = {
             product_id: productId, buyer_id: buyerId, seller_id: product.seller_id,
@@ -115,6 +121,10 @@ router.post('/api/orders/:id/confirm', requireAuth, async (req: any, res) => {
         const isBuyer = order.buyer_id === userId;
         const isSeller = order.seller_id === userId;
         if (!isBuyer && !isSeller) return res.status(403).json({ error: 'Unauthorized' });
+
+        // Never let an unpaid / cancelled / disputed order be "completed" by two confirmations.
+        const blocked = confirmBlockReason(order);
+        if (blocked) return res.status(400).json({ error: blocked });
 
         const updateData: any = {};
         if (isBuyer && !order.buyer_confirmed_at) updateData.buyer_confirmed_at = new Date().toISOString();

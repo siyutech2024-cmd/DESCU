@@ -47,6 +47,8 @@ router.get('/api/users/payouts', requireAuth, async (req: any, res) => {
             `)
             .eq('seller_id', userId)
             .in('status', ['completed', 'delivered'])
+            .eq('payment_method', 'online')
+            .eq('payment_captured', true)
             .order('completed_at', { ascending: false })
             .limit(50);
 

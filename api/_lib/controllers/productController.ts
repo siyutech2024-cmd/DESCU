@@ -14,9 +14,7 @@ export const createProduct = async (req: any, res: Response) => {
 
         const {
             seller_name,
-            seller_email,
             seller_avatar,
-            seller_verified,
             title,
             description,
             price,
@@ -37,19 +35,31 @@ export const createProduct = async (req: any, res: Response) => {
         } = req.body;
 
         // Validation
-        if (!title || price === undefined) {
+        if (typeof title !== 'string' || !title.trim() || price === undefined) {
             return res.status(400).json({ error: 'Missing required fields (title, price)' });
+        }
+        const numericPrice = Number(price);
+        if (!Number.isFinite(numericPrice) || numericPrice <= 0 || numericPrice > 100_000_000) {
+            return res.status(400).json({ error: 'Price must be a positive number' });
+        }
+        if (title.length > 200 || (typeof description === 'string' && description.length > 5000)) {
+            return res.status(400).json({ error: 'Title or description too long' });
+        }
+        if (images !== undefined && (!Array.isArray(images) || images.length > 10)) {
+            return res.status(400).json({ error: 'Images must be an array of at most 10 URLs' });
         }
 
         const productData = {
             seller_id: user.id, // Enforce authenticated user ID
-            seller_name: seller_name || 'Unknown',
-            seller_email: seller_email || '',
-            seller_avatar: seller_avatar || null,
-            seller_verified: seller_verified || false,
-            title,
+            seller_name: (typeof seller_name === 'string' && seller_name.trim()) || user.email?.split('@')[0] || 'Unknown',
+            // Email comes from the verified auth user, never from the request body
+            seller_email: user.email || '',
+            seller_avatar: typeof seller_avatar === 'string' ? seller_avatar.slice(0, 2000) : null,
+            // Verification is an admin-granted attribute; clients cannot self-award it
+            seller_verified: false,
+            title: title.trim(),
             description: description || '',
-            price: Number(price),
+            price: numericPrice,
             currency: currency || 'MXN',
             images: images || [],
             category: category || 'other',

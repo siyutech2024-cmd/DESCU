@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/userAuth.js';
+import { isUuid, isParticipant } from '../controllers/chatController.js';
 
 /**
  * Price negotiation routes (buyer proposes, seller accepts/rejects/counters).
@@ -17,76 +18,54 @@ router.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
         console.log('[Negotiation API] Received request:', { conversationId, productId, proposedPrice, userId });
 
         // 验证参数
-        if (!conversationId || !productId || !proposedPrice) {
-            console.error('[Negotiation API] Missing fields');
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!isUuid(conversationId) || !isUuid(productId)) {
+            return res.status(400).json({ error: 'Invalid ids' });
+        }
+        const offeredPrice = Number(proposedPrice);
+        if (!Number.isFinite(offeredPrice) || offeredPrice <= 0) {
+            return res.status(400).json({ error: 'Proposed price must be a positive number' });
         }
 
         // 获取对话信息
         const { data: conversation, error: convError } = await supabase
             .from('conversations')
-            .select('*')
+            .select('id, product_id, user1_id, user2_id')
             .eq('id', conversationId)
-            .single();
+            .maybeSingle();
+        if (convError) throw convError;
+        if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
 
-        console.log('[Negotiation API] Conversation query result:', { conversation, convError });
-
-        if (convError || !conversation) {
-            console.error('[Negotiation API] Conversation not found:', convError);
-            return res.status(404).json({ error: 'Conversation not found', details: convError?.message });
+        // 调用者必须是对话参与者，且对话必须属于该商品
+        if (!isParticipant(conversation, userId)) {
+            return res.status(403).json({ error: 'Not a participant of this conversation' });
+        }
+        if (conversation.product_id !== productId) {
+            return res.status(400).json({ error: 'Conversation does not belong to this product' });
         }
 
         // 获取产品信息
         const { data: product, error: productError } = await supabase
             .from('products')
-            .select('*')
+            .select('id, seller_id, price, title, status')
             .eq('id', productId)
-            .single();
-
-        console.log('[Negotiation API] Product query result:', { product, productError });
-
-        if (productError || !product) {
-            console.error('[Negotiation API] Product not found:', productError);
-            return res.status(404).json({ error: 'Product not found', details: productError?.message });
+            .maybeSingle();
+        if (productError) throw productError;
+        if (!product) return res.status(404).json({ error: 'Product not found' });
+        if (product.status !== 'active') {
+            return res.status(400).json({ error: 'Product is not available' });
         }
 
-        // 确定买家和卖家
-        // conversations表使用user1_id和user2_id，需要根据product.seller_id判断
-        const sellerId = product.seller_id;
+        // 卖家必须是对话的一方；另一方才是买家
+        const sellerId: string = product.seller_id;
+        if (!isParticipant(conversation, sellerId)) {
+            return res.status(400).json({ error: 'Conversation does not include the product seller' });
+        }
         const buyerId = conversation.user1_id === sellerId ? conversation.user2_id : conversation.user1_id;
-        const actualSellerId = conversation.user1_id === sellerId ? conversation.user1_id : conversation.user2_id;
+        const actualSellerId = sellerId;
 
-        console.log('[Negotiation API] Identity check:', {
-            currentUserId: userId,
-            productSellerId: sellerId,
-            conversationUser1: conversation.user1_id,
-            conversationUser2: conversation.user2_id,
-            determinedBuyerId: buyerId,
-            determinedSellerId: actualSellerId,
-            isBuyer: buyerId === userId,
-            isSeller: actualSellerId === userId
-        });
-
-        // 验证用户身份（只有买家可以发起议价）
+        // 只有买家可以发起议价
         if (buyerId !== userId) {
-            console.error('[Negotiation API] User not buyer:', {
-                buyerId,
-                sellerId: actualSellerId,
-                userId
-            });
-            return res.status(403).json({
-                error: 'Only buyer can propose price',
-                debug: {
-                    yourRole: actualSellerId === userId ? 'seller' : 'unknown',
-                    requiredRole: 'buyer',
-                    yourUserId: userId,
-                    conversationUser1Id: conversation.user1_id,
-                    conversationUser2Id: conversation.user2_id,
-                    productSellerId: sellerId,
-                    determinedBuyerId: buyerId,
-                    conversationId
-                }
-            });
+            return res.status(403).json({ error: 'Only the buyer can propose a price' });
         }
 
         // 创建议价记录
@@ -98,7 +77,7 @@ router.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
                 buyer_id: buyerId,          // 买家ID
                 seller_id: actualSellerId,  // 卖家ID
                 original_price: product.price,
-                offered_price: parseFloat(proposedPrice),
+                offered_price: offeredPrice,
                 proposed_by: userId,
                 status: 'pending'
             })
@@ -116,12 +95,12 @@ router.post('/api/negotiations/propose', requireAuth, async (req: any, res) => {
         const messageResult = await supabase.from('messages').insert({
             conversation_id: conversationId,
             sender_id: userId,
-            text: `💰 议价请求: $${proposedPrice} (原价: $${product.price})`,
+            text: `💰 议价请求: $${offeredPrice} (原价: $${product.price})`,
             message_type: 'price_negotiation',
             content: JSON.stringify({
                 negotiationId: negotiation.id,
                 originalPrice: product.price,
-                proposedPrice: parseFloat(proposedPrice),
+                proposedPrice: offeredPrice,
                 productTitle: product.title,
                 status: 'pending'
             }),
@@ -212,7 +191,7 @@ router.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) 
             case 'accept':
                 updateData.status = 'accepted';
                 messageContent.status = 'accepted';
-                messageContent.finalPrice = negotiation.proposed_price;
+                messageContent.finalPrice = negotiation.offered_price;
 
                 // 更新产品价格
                 await supabase
@@ -227,15 +206,17 @@ router.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) 
                 messageContent.status = 'rejected';
                 break;
 
-            case 'counter':
-                if (!counterPrice) {
-                    return res.status(400).json({ error: 'Counter price required' });
+            case 'counter': {
+                const counter = Number(counterPrice);
+                if (!Number.isFinite(counter) || counter <= 0) {
+                    return res.status(400).json({ error: 'Counter price must be a positive number' });
                 }
                 updateData.status = 'countered';
-                updateData.counter_price = parseFloat(counterPrice);
+                updateData.counter_price = counter;
                 messageContent.status = 'countered';
-                messageContent.counterPrice = parseFloat(counterPrice);
+                messageContent.counterPrice = counter;
                 break;
+            }
         }
 
         // 更新议价记录
@@ -254,7 +235,7 @@ router.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) 
                 responseText = `❌ 卖家拒绝了议价`;
                 break;
             case 'counter':
-                responseText = `💬 卖家还价 $${counterPrice}`;
+                responseText = `💬 卖家还价 $${Number(counterPrice)}`;
                 break;
         }
 
@@ -284,7 +265,7 @@ router.post('/api/negotiations/:id/respond', requireAuth, async (req: any, res) 
             try {
                 const updatedContent = JSON.parse(originalMsg.content);
                 updatedContent.status = action === 'accept' ? 'accepted' : (action === 'reject' ? 'rejected' : 'countered');
-                if (action === 'counter') updatedContent.counterPrice = parseFloat(counterPrice);
+                if (action === 'counter') updatedContent.counterPrice = Number(counterPrice);
                 if (action === 'accept') updatedContent.finalPrice = negotiation.offered_price;
 
                 await supabase

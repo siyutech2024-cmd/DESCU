@@ -16,6 +16,7 @@ import { createOrGetConversation } from '../services/chatService';
 import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { AddressList } from './AddressList';
+import { previewOrderAmounts } from '@/lib/pricing';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51Sq0FTQ21K2ZcCkTeSAIFszExSoxuA6L5qGSn20wjF1MIyYECOM2O8zZU0YSTFVCQs8RAMiuTeLyyWmr4wv4gtkL00eEWCifnz';
 const stripePromise = loadStripe(STRIPE_KEY);
@@ -288,9 +289,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                 );
 
             case 'details':
-                const shippingFee = orderType === 'shipping' ? 50 : 0;
-                const platformFee = paymentMethod === 'online' ? (product.price * 0.03) : 0;
-                const total = product.price + shippingFee + platformFee;
+                // Shipping orders are always paid online (same rule as handleCreateOrder)
+                const { shippingFee, platformFee, total } = previewOrderAmounts(product.price, orderType, orderType === 'shipping' ? 'online' : paymentMethod);
 
                 const isButtonDisabled = isLoading || (orderType === 'shipping' && !shippingAddress?.id);
 
