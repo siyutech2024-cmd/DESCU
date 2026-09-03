@@ -47,7 +47,7 @@ export const uploadAvatarImage = async (file: File, userId: string): Promise<str
     try {
         const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
         const filePath = `avatars/${userId}/${Date.now()}.${ext}`;
-        const { error } = await supabase.storage.from('products').upload(filePath, file, { upsert: true, contentType: file.type || undefined });
+        const { error } = await supabase.storage.from('products').upload(filePath, file, { upsert: false, contentType: file.type || undefined });
         if (error) throw error;
         return supabase.storage.from('products').getPublicUrl(filePath).data.publicUrl;
     } catch (error) {

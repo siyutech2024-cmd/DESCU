@@ -16,12 +16,16 @@ BEGIN;
 --    app_metadata can only be written server-side. Copy existing admins over,
 --    then strip the client-writable copy so it can never be mistaken for authority.
 -- -----------------------------------------------------------------------------
+-- !! Do NOT blindly copy user_metadata.role: anyone could have written it. Grant only
+-- !! the accounts you know. Review the current claimants first:
+--   SELECT id, email, raw_user_meta_data->>'role' AS claimed_role, created_at
+--   FROM auth.users WHERE raw_user_meta_data->>'role' IN ('admin','super_admin');
 UPDATE auth.users
 SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb)
-                        || jsonb_build_object('role', raw_user_meta_data->>'role')
-                        || COALESCE(jsonb_build_object('permissions', raw_user_meta_data->'permissions'), '{}'::jsonb)
-WHERE raw_user_meta_data->>'role' IN ('admin', 'super_admin')
-  AND COALESCE(raw_app_meta_data->>'role', '') NOT IN ('admin', 'super_admin');
+                        || '{"role": "super_admin", "permissions": ["all"]}'::jsonb
+WHERE email IN (
+  'admin@descu.ai'            -- <-- confirmed DESCU admin account(s); add others explicitly
+);
 
 -- Optional clean-up AFTER the new API is live (the old API read user_metadata, so keep
 -- it until then). The new API ignores user_metadata entirely either way.
@@ -42,6 +46,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE INSERT, UPDATE, DELETE, TRUNCAT
 ALTER TABLE public.sellers ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read access to sellers" ON public.sellers;
 DROP POLICY IF EXISTS "Users can CRUD their own seller profile" ON public.sellers;
+DROP POLICY IF EXISTS "sellers_owner_all" ON public.sellers;
 CREATE POLICY "sellers_owner_all" ON public.sellers
   FOR ALL TO authenticated
   USING (auth.uid() = user_id)
@@ -128,8 +133,8 @@ END $$;
 -- -----------------------------------------------------------------------------
 -- 6. products: a seller may edit only their own listing and may never
 --    self-promote, self-verify or skip review. RLS can't compare OLD/NEW, so a
---    trigger pins the protected columns for requests made with a user JWT
---    (the API's service-role writes are unaffected).
+--    trigger pins the protected columns for requests made as the authenticated/anon
+--    database roles (the API's service-role writes are unaffected).
 -- -----------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Sellers can update own products" ON public.products;
 DROP POLICY IF EXISTS "products_owner_update"           ON public.products;
@@ -147,8 +152,9 @@ CREATE POLICY "products_owner_insert" ON public.products
 CREATE OR REPLACE FUNCTION public.products_guard_seller_updates()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  -- Only constrain end-user JWTs; service_role (the API) may change anything.
-  IF current_setting('request.jwt.claim.role', true) = 'authenticated' THEN
+  -- PostgREST runs end-user requests as the `authenticated` / `anon` database roles.
+  -- Constrain those (fail closed); service_role (the API) and postgres may change anything.
+  IF current_user IN ('authenticated', 'anon') THEN
     NEW.is_promoted     := OLD.is_promoted;
     NEW.seller_verified := OLD.seller_verified;
     NEW.seller_id       := OLD.seller_id;

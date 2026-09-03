@@ -174,8 +174,13 @@ router.post('/api/orders/:id/arrange-meetup', requireAuth, async (req: any, res)
         if (order.buyer_id !== userId && order.seller_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
         if (order.order_type !== 'meetup') return res.status(400).json({ error: 'Not a meetup order' });
 
+        if (['completed', 'cancelled', 'disputed', 'refunded'].includes(order.status)) {
+            return res.status(400).json({ error: `Cannot arrange a meetup for an order in status "${order.status}"` });
+        }
+        // An unpaid online order keeps waiting for payment; only paid orders advance to meetup_arranged.
+        const nextStatus = order.status === 'pending_payment' ? 'pending_payment' : 'meetup_arranged';
         const { data: updatedOrder, error } = await supabase.from('orders').update({
-            meetup_location: location, meetup_time: time, meetup_location_lat: lat, meetup_location_lng: lng, status: 'meetup_arranged',
+            meetup_location: location, meetup_time: time, meetup_location_lat: lat, meetup_location_lng: lng, status: nextStatus,
             meetup_confirmed_by_buyer: false, meetup_confirmed_by_seller: false
         }).eq('id', id).select().single();
         if (error) throw error;

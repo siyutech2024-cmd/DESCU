@@ -425,4 +425,6 @@ export const zh: TranslationTable = {
   'checkout.address_hint': '请选择收货地址后继续',
   'checkout.order_notify_meetup': '买家已下单！请在聊天中约定见面时间和地点',
   'checkout.order_notify_shipping': '买家已下单并付款！请尽快安排发货',
+  'modal.required': '请填写标题、价格并至少上传一张图片',
+  'detail.own_listing': '这是你发布的商品',
 };

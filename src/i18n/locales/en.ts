@@ -425,4 +425,6 @@ export const en: TranslationTable = {
   'checkout.address_hint': 'Address selection required to proceed',
   'checkout.order_notify_meetup': 'Buyer placed an order! Arrange meetup details in chat',
   'checkout.order_notify_shipping': 'Buyer placed an order and paid! Please ship the item soon',
+  'modal.required': 'Add a title, a price and at least one photo',
+  'detail.own_listing': 'This is your listing',
 };

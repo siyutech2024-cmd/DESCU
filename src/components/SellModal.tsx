@@ -245,9 +245,19 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     setDragOverIdx(null);
   };
 
+  const isFormComplete =
+    images.length > 0 &&
+    !!userLocation &&
+    !!formData.deliveryType &&
+    !!formData.title?.trim() &&
+    Number(formData.price) > 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (images.length === 0 || !userLocation) return;
+    if (!isFormComplete) {
+      showToast(t('modal.required'), 'warning');
+      return;
+    }
 
     try {
       setIsUploading(true);
@@ -571,7 +581,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white">
           <button
             onClick={handleSubmit}
-            disabled={images.length === 0 || !userLocation || !formData.deliveryType || aiStatus === 'analyzing' || isUploading}
+            disabled={!isFormComplete || aiStatus === 'analyzing' || isUploading}
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-200 hover:shadow-brand-300 transition-all active:scale-[0.98] text-lg flex items-center justify-center gap-2"
           >
             {aiStatus === 'analyzing' ? (

@@ -153,6 +153,33 @@ router.get('/api/admin/ai-status', requireAdmin, async (req: any, res) => {
     });
 });
 
+// 管理员向某个对话发送系统消息（管理员不是对话参与者，所以不能走 /api/messages）
+router.post('/api/admin/conversations/:id/messages', requireAdmin, async (req: any, res) => {
+    try {
+        const { id } = req.params;
+        const { text } = req.body ?? {};
+        if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'text is required' });
+        if (text.length > 4000) return res.status(400).json({ error: 'Message too long' });
+
+        const { data: conversation, error: convError } = await supabase
+            .from('conversations').select('id').eq('id', id).maybeSingle();
+        if (convError) throw convError;
+        if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+        const { data: message, error } = await supabase
+            .from('messages')
+            .insert([{ conversation_id: id, sender_id: req.admin.id, text: text.trim() }])
+            .select()
+            .single();
+        if (error) throw error;
+        await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', id);
+        res.status(201).json(message);
+    } catch (error: any) {
+        console.error('[Admin] send system message error:', error);
+        res.status(500).json({ error: 'Failed to send message' });
+    }
+});
+
 // 批量翻译现有产品 (管理员可调用)
 router.post('/api/admin/batch-translate', requireAdmin, batchTranslateProducts);
 

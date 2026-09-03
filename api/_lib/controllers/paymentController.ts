@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { supabase } from '../db/supabase.js';
 import { AuthenticatedRequest } from '../middleware/userAuth.js';
 import { getAuthClient } from '../utils/supabaseHelper.js';
+import { confirmBlockReason, isPaymentSettled } from '../domain/orders.js';
 
 export const ordersHealthCheck = (req: Request, res: Response) => {
     res.json({
@@ -300,18 +301,9 @@ export const confirmOrder = async (req: Request, res: Response) => {
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.buyer_id !== userId) return res.status(403).json({ error: 'Only buyer can confirm receipt' });
 
-        // Check valid status for confirmation
-        const validStatuses = ['escrow_held', 'shipped', 'paid'];
-        if (!validStatuses.includes(order.status)) {
-            return res.status(400).json({
-                error: `Order cannot be confirmed. Current status: ${order.status}`,
-                validStatuses
-            });
-        }
-
-        if (order.status === 'completed') {
-            return res.status(400).json({ error: 'Order already completed' });
-        }
+        // Never release funds for an order whose payment was not actually captured.
+        const blocked = confirmBlockReason(order);
+        if (blocked) return res.status(400).json({ error: blocked });
 
         // 2. Get Seller's Stripe Account
         const { data: seller } = await supabase
@@ -326,7 +318,7 @@ export const confirmOrder = async (req: Request, res: Response) => {
         let platformFeeCollected = 0;
 
         // 3. Execute Transfer if seller has Stripe account and payment is online
-        const isOnlinePayment = order.payment_method === 'online' || order.stripe_payment_intent_id || order.payment_intent_id;
+        const isOnlinePayment = order.payment_method === 'online' && isPaymentSettled(order);
 
         if (seller?.stripe_connect_id && isOnlinePayment) {
             // Calculate amounts
@@ -378,8 +370,9 @@ export const confirmOrder = async (req: Request, res: Response) => {
                     }
                 });
             }
-        } else if (!seller?.stripe_connect_id) {
-            // Manual Payout Mode: Seller hasn't set up Stripe
+        } else if (isOnlinePayment && !seller?.stripe_connect_id) {
+            // Manual Payout Mode (online payment, seller without Stripe): admin pays via SPEI.
+            // Cash orders never enter the payout queue — the money changed hands in person.
             newStatus = 'completed_pending_payout';
             console.log(`[Escrow Release] Seller has no Stripe account, marking for manual payout`);
         }
@@ -637,10 +630,11 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
 
     try {
         if (!endpointSecret || !sig) {
-            event = req.body;
-        } else {
-            event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
+            // Fail closed: an unsigned payload must never be able to mark orders as paid.
+            console.error('Webhook rejected: missing STRIPE_WEBHOOK_SECRET or stripe-signature header');
+            return res.status(400).json({ error: 'Webhook signature required' });
         }
+        event = getStripe().webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err: any) {
         console.error(`Webhook Error: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);

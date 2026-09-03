@@ -425,4 +425,6 @@ export const es: TranslationTable = {
   'checkout.address_hint': 'Se requiere seleccionar dirección para continuar',
   'checkout.order_notify_meetup': '¡El comprador hizo un pedido! Coordina el encuentro en el chat',
   'checkout.order_notify_shipping': '¡El comprador hizo un pedido y pagó! Envía el artículo pronto',
+  'modal.required': 'Agrega un título, un precio y al menos una foto',
+  'detail.own_listing': 'Esta es tu publicación',
 };

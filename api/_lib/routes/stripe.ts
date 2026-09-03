@@ -885,13 +885,13 @@ router.post('/api/stripe/confirm-payment', requireAuth, async (req: any, res) =>
 
         const { data: existing, error: loadError } = await supabase
             .from('orders')
-            .select('id, buyer_id, status, total_amount, currency, stripe_payment_intent_id')
+            .select('id, buyer_id, status, total_amount, currency, stripe_payment_intent_id, payment_captured')
             .eq('id', orderId)
             .maybeSingle();
         if (loadError) throw loadError;
         if (!existing) return res.status(404).json({ error: 'Order not found' });
         if (existing.buyer_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
-        if (existing.status !== 'pending_payment') {
+        if (existing.payment_captured === true || !['pending_payment', 'meetup_arranged'].includes(existing.status)) {
             return res.status(400).json({ error: `Order is not awaiting payment (status: ${existing.status})` });
         }
 
@@ -913,7 +913,7 @@ router.post('/api/stripe/confirm-payment', requireAuth, async (req: any, res) =>
             .update({ status: 'paid', payment_captured: true, stripe_payment_intent_id: paymentIntent.id })
             .eq('id', orderId)
             .eq('buyer_id', userId)
-            .eq('status', 'pending_payment')
+            .in('status', ['pending_payment', 'meetup_arranged'])
             .select()
             .single();
 

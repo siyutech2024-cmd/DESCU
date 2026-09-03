@@ -283,7 +283,10 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons (hidden on the seller's own listing) */}
+              {user?.id === product.seller.id ? (
+                <div className="pt-2 mb-8 text-center text-sm font-bold text-gray-400 uppercase tracking-widest">{t('detail.own_listing')}</div>
+              ) : (
               <div className="pt-2 grid grid-cols-2 gap-4 mb-8">
                 <button
                   onClick={() => onContactSeller(product)}
@@ -316,6 +319,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                   {product.status === 'sold' ? t('product.sold') : ((!!user && !purchaseEligibility.canPurchase) ? t('product.not_available') : (product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it')))}
                 </button>
               </div>
+              )}
 
               {/* Share Buttons */}
               <div className="flex gap-4 items-center justify-center border-t border-gray-200/50 pt-6">

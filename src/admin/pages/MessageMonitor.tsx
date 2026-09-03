@@ -15,17 +15,6 @@ export const MessageMonitor: React.FC = () => {
     const [messages, setMessages] = useState<any[]>([]);
     const [adminMessage, setAdminMessage] = useState('');
     const [sending, setSending] = useState(false);
-    const [currentAdminId, setCurrentAdminId] = useState<string>('');
-
-    useEffect(() => {
-        // 获取当前管理员ID
-        adminApi.getAdminInfo().then(res => {
-            if (res.data) {
-                setCurrentAdminId(res.data.id);
-            }
-        });
-    }, []);
-
     const fetchConversations = async () => {
         setLoading(true);
         try {
@@ -102,10 +91,7 @@ export const MessageMonitor: React.FC = () => {
         setSending(true);
         try {
             // 使用admin API发送系统消息
-            await api.post('/api/messages', {
-                conversation_id: selectedConv,
-                // 使用真实的用户ID，避免违反外键约束
-                sender_id: currentAdminId || 'system',
+            await api.post(`/api/admin/conversations/${selectedConv}/messages`, {
                 text: `【系统消息】${adminMessage}`,
             }, { auth: 'required' });
 
