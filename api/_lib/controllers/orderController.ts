@@ -32,6 +32,25 @@ const notify = (orderId: string, event: string, meta?: Record<string, unknown>) 
         .catch(console.error);
 };
 
+/** Accepted offers stay valid for a week; the newest one wins. */
+export const OFFER_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const acceptedOfferFor = async (productId: string, buyerId: string): Promise<{ id: string; offered_price: number } | null> => {
+    const since = new Date(Date.now() - OFFER_VALIDITY_MS).toISOString();
+    const { data, error } = await supabase
+        .from('price_negotiations')
+        .select('id, offered_price, responded_at')
+        .eq('product_id', productId)
+        .eq('buyer_id', buyerId)
+        .eq('status', 'accepted')
+        .gte('responded_at', since)
+        .order('responded_at', { ascending: false })
+        .limit(1);
+    if (error) throw error;
+    const deal = data?.[0];
+    return deal && Number(deal.offered_price) > 0 ? { id: deal.id, offered_price: Number(deal.offered_price) } : null;
+};
+
 export const createOrder = asyncHandler<AuthenticatedRequest>(async (req, res) => {
     const { productId, orderType, paymentMethod, shippingAddress, meetupLocation, meetupTime } = parseBody(CreateOrderSchema, req.body);
     const buyerId = req.user!.id;
@@ -46,7 +65,10 @@ export const createOrder = asyncHandler<AuthenticatedRequest>(async (req, res) =
     if (product.status !== 'active' || product.deleted_at) throw badRequest('Product is not available for purchase');
     if (product.seller_id === buyerId) throw badRequest('Cannot buy your own product');
 
-    const { productAmount, shippingFee, platformFee, totalAmount } = computeOrderAmounts(Number(product.price), orderType, paymentMethod);
+    // An offer the seller accepted for this buyer replaces the listing price for this order.
+    const deal = await acceptedOfferFor(productId, buyerId);
+    const unitPrice = deal ? Number(deal.offered_price) : Number(product.price);
+    const { productAmount, shippingFee, platformFee, totalAmount } = computeOrderAmounts(unitPrice, orderType, paymentMethod);
 
     const orderData: Record<string, unknown> = {
         product_id: productId, buyer_id: buyerId, seller_id: product.seller_id,
@@ -65,7 +87,8 @@ export const createOrder = asyncHandler<AuthenticatedRequest>(async (req, res) =
     if (orderError) throw orderError;
 
     await supabase.from('order_timeline').insert({
-        order_id: order.id, event_type: 'created', description: `Order Created (${orderType})`, created_by: buyerId, metadata: { orderType, paymentMethod },
+        order_id: order.id, event_type: 'created', description: `Order Created (${orderType})`, created_by: buyerId,
+        metadata: { orderType, paymentMethod, ...(deal ? { negotiation_id: deal.id, listing_price: Number(product.price), agreed_price: unitPrice } : {}) },
     });
 
     // Auto-create chat (buyer ↔ seller for this product) and post the "order created" card into it.
@@ -84,7 +107,7 @@ export const createOrder = asyncHandler<AuthenticatedRequest>(async (req, res) =
 
     notify(order.id, 'created');
 
-    res.json({ order, success: true, requiresPayment: paymentMethod === 'online', conversationId });
+    res.json({ order, success: true, requiresPayment: paymentMethod === 'online', conversationId, agreedPrice: deal ? unitPrice : null });
 });
 
 export const getOrder = asyncHandler<AuthenticatedRequest>(async (req, res) => {

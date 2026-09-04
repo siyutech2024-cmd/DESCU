@@ -122,6 +122,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
     const [clientSecret, setClientSecret] = useState<string | null>(null);
     const [createdOrder, setCreatedOrder] = useState<any>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    // Price the seller accepted for this buyer in the chat (valid 7 days); the server applies the same rule.
+    const [agreedPrice, setAgreedPrice] = useState<number | null>(null);
+    const unitPrice = agreedPrice ?? product.price;
 
     // Reset state on open
     useEffect(() => {
@@ -133,8 +136,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
             setCreatedOrder(null);
             setConversationId(null);
             setIsLoading(false);
+            setAgreedPrice(null);
+            api.get<{ negotiations?: Array<{ buyer_id: string; status: string; offered_price: number; responded_at: string | null }> }>(`/api/negotiations/product/${product.id}`, { auth: 'required' })
+                .then(data => {
+                    const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+                    const deal = (data.negotiations ?? [])
+                        .filter(n => n.buyer_id === user.id && n.status === 'accepted' && n.responded_at && new Date(n.responded_at).getTime() >= since)
+                        .sort((a, b) => new Date(b.responded_at!).getTime() - new Date(a.responded_at!).getTime())[0];
+                    if (deal && Number(deal.offered_price) > 0) setAgreedPrice(Number(deal.offered_price));
+                })
+                .catch(() => undefined);
         }
-    }, [isOpen]);
+    }, [isOpen, product.id, user.id]);
 
     const handleCreateOrder = async () => {
         setIsLoading(true);
@@ -255,7 +268,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
 
             case 'details':
                 // Shipping orders are always paid online (same rule as handleCreateOrder)
-                const { shippingFee, platformFee, total } = previewOrderAmounts(product.price, orderType, orderType === 'shipping' ? 'online' : paymentMethod);
+                const { shippingFee, platformFee, total } = previewOrderAmounts(unitPrice, orderType, orderType === 'shipping' ? 'online' : paymentMethod);
 
                 const isButtonDisabled = isLoading || (orderType === 'shipping' && !shippingAddress?.id);
 
@@ -305,8 +318,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         <div className="bg-gray-50 p-4 rounded-xl space-y-2">
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-600">{t('checkout.product')}</span>
-                                <span>{formatCurrency(product.price, productCurrency)}</span>
+                                <span>
+                                    {agreedPrice !== null && agreedPrice !== product.price && <span className="text-gray-400 line-through mr-2">{formatCurrency(product.price, productCurrency)}</span>}
+                                    {formatCurrency(unitPrice, productCurrency)}
+                                </span>
                             </div>
+                            {agreedPrice !== null && agreedPrice !== product.price && (
+                                <p className="text-xs text-green-700">{t('checkout.agreed_price_hint')}</p>
+                            )}
                             {shippingFee > 0 && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">{t('checkout.shipping_fee')}</span>

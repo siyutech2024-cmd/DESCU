@@ -184,7 +184,7 @@ export const getDashboardStats = asyncHandler<AdminRequest>(async (_req, res) =>
             totalConversations: conversationStats.count || 0
         },
         categoryStats: mergeCategoryStats(categoryStats.data || []),
-        weeklyTrend: weeklyTrend.data || [],
+        weeklyTrend: weeklyTrend.data && weeklyTrend.data.length > 0 ? weeklyTrend.data : await computeWeeklyTrend(adminClient, weekAgoStr),
         recentProducts: recentProducts.data || [],
         // Debug info (remove in production)
         _debug: {
@@ -194,6 +194,30 @@ export const getDashboardStats = asyncHandler<AdminRequest>(async (_req, res) =>
         }
     });
 });
+
+/** Products / users created per day over the last 7 days, zero-filled (fallback when the admin_daily_stats view is empty). */
+const computeWeeklyTrend = async (client: typeof supabase, sinceIso: string) => {
+    const [products, users] = await Promise.all([
+        client.from('products').select('created_at').gte('created_at', sinceIso),
+        client.from('users').select('created_at').gte('created_at', sinceIso),
+    ]);
+    const days = new Map<string, { date: string; products_count: number; users_count: number }>();
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        days.set(key, { date: key, products_count: 0, users_count: 0 });
+    }
+    const bump = (rows: { created_at: string | null }[] | null, field: 'products_count' | 'users_count') => {
+        for (const row of rows ?? []) {
+            const key = row.created_at ? row.created_at.slice(0, 10) : '';
+            const day = days.get(key);
+            if (day) day[field] += 1;
+        }
+    };
+    bump(products.data as any, 'products_count');
+    bump(users.data as any, 'users_count');
+    return [...days.values()];
+};
 
 /**
  * 获取管理员信息
@@ -296,21 +320,16 @@ export const getReportsData = asyncHandler<AdminRequest>(async (req, res) => {
     }));
 
     // 获取热门商品 Top 10
-    const { data: topProducts } = await supabase
+    // `views_count` is the column (there is no `views`); expose it under both names for the UI.
+    const { data: topProductRows, error: topError } = await supabase
         .from('products')
-        .select(`
-                id,
-                title,
-                price,
-                currency,
-                category,
-                seller_name,
-                views,
-                created_at
-            `)
+        .select('id, title, price, currency, category, seller_name, views_count, status, created_at')
         .is('deleted_at', null)
-        .order('views', { ascending: false })
+        .eq('status', 'active')
+        .order('views_count', { ascending: false, nullsFirst: false })
         .limit(10);
+    if (topError) console.error('[Reports] topProducts failed:', topError.message);
+    const topProducts = (topProductRows || []).map(p => ({ ...p, views: p.views_count ?? 0 }));
 
     // 获取活跃用户 Top 10（按商品发布数量）
     const { data: activeUsers } = await supabase

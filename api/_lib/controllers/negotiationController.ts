@@ -140,23 +140,19 @@ export const respondToNegotiation = asyncHandler<AuthenticatedRequest>(async (re
     switch (action) {
         case 'accept': {
             messageContent.finalPrice = negotiation.offered_price;
-            responseText = `✅ 卖家已接受议价 $${negotiation.offered_price}`;
-            // The agreed price becomes the listing price.
-            const { error: priceError } = await supabase
-                .from('products')
-                .update({ price: negotiation.offered_price })
-                .eq('id', negotiation.product_id);
-            if (priceError) throw priceError;
+            responseText = `✅ ${negotiation.offered_price}`;
+            // The agreed price applies to THIS buyer's order only (orderController.createOrder
+            // picks it up); the public listing price is untouched.
             break;
         }
         case 'reject':
-            responseText = '❌ 卖家拒绝了议价';
+            responseText = '❌';
             break;
         case 'counter':
             // Schema guarantees counterPrice is present for `counter`.
             updateData.counter_price = counterPrice;
             messageContent.counterPrice = counterPrice;
-            responseText = `💬 卖家还价 $${counterPrice}`;
+            responseText = `💬 ${counterPrice}`;
             break;
     }
 

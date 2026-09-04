@@ -193,5 +193,48 @@ export const expireUnpaidOrders = async (limit = 100): Promise<ExpireResult> => 
     return { scanned: stale?.length ?? 0, cancelled: orderIds.length, orderIds };
 };
 
+/**
+ * One item, one buyer. Once an order for a product is paid online or completed, every other
+ * open order on that product that holds no captured money (unpaid online orders, cash intents)
+ * is cancelled and its buyer told in the chat. Returns the cancelled order ids.
+ */
+export const closeCompetingOrders = async (productId: string, winnerOrderId: string, reason: 'sold' | 'paid' = 'sold'): Promise<string[]> => {
+    const { data: rivals, error } = await supabase
+        .from('orders')
+        .select('id, status, payment_method, payment_captured, stripe_payment_intent_id')
+        .eq('product_id', productId)
+        .neq('id', winnerOrderId)
+        .in('status', ['pending_payment', 'paid', 'meetup_arranged']);
+    if (error) throw error;
+
+    const cancelled: string[] = [];
+    for (const rival of rivals ?? []) {
+        if (!isOrderStatus(rival.status) || !canTransition(rival.status, 'cancelled')) continue;
+        // Never touch money: only unpaid online orders and cash intents are closed. (Legacy paid
+        // online rows carry payment_captured = null and must be left alone.)
+        const holdsNoMoney = rival.status === 'pending_payment' ? !rival.payment_captured : rival.payment_method === 'cash';
+        if (!holdsNoMoney) continue;
+        const outcome = await transitionOrder({
+            orderId: rival.id,
+            from: rival.status,
+            to: 'cancelled',
+            where: q => q.or('payment_captured.is.null,payment_captured.eq.false'),
+            timeline: {
+                event_type: 'cancelled',
+                description: reason === 'paid' ? 'Cancelled: another buyer paid for this item' : 'Cancelled: the item was sold to another buyer',
+                metadata: { reason: 'product_sold_elsewhere', winner_order_id: winnerOrderId },
+            },
+            select: 'id, stripe_payment_intent_id',
+        });
+        if (!outcome.ok) continue;
+        cancelled.push(rival.id);
+        await cancelPaymentIntent(rival.stripe_payment_intent_id);
+        import('./orderNotificationService.js')
+            .then(({ notifyOrderStatus }) => notifyOrderStatus(rival.id, 'cancelled').catch(console.error))
+            .catch(console.error);
+    }
+    return cancelled;
+};
+
 /** Shared by the webhook and confirm-payment: an order may be paid only while it is waiting for money. */
 export const AWAITING_PAYMENT = AWAITING_PAYMENT_STATUSES;

@@ -117,7 +117,10 @@ export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({ cont
                 <CardFooter><p className="text-xs text-gray-500">{t('meetup.waiting')}</p></CardFooter>
             )}
             {status === 'accepted' && (
-                <CardFooter className="bg-green-50/60"><p className="text-sm font-bold text-green-700">{t('nego.success.accepted')} {money(finalPrice ?? proposedPrice)}</p></CardFooter>
+                <CardFooter className="bg-green-50/60">
+                    <p className="text-sm font-bold text-green-700">{t('nego.success.accepted')} {money(finalPrice ?? proposedPrice)}</p>
+                    <p className="text-xs text-green-700/80 mt-0.5">{isSeller ? t('nego.applies_seller') : t('nego.applies_buyer')}</p>
+                </CardFooter>
             )}
             {status === 'rejected' && (
                 <CardFooter><p className="text-sm text-gray-500">{t('nego.success.rejected')}</p></CardFooter>

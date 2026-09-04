@@ -1,7 +1,7 @@
 import type Stripe from 'stripe';
 import { supabase } from '../db/supabase.js';
 import { AWAITING_PAYMENT_STATUSES, isAwaitingPayment, toCents } from '../domain/orders.js';
-import { transitionOrder } from './orderTransitionService.js';
+import { closeCompetingOrders, transitionOrder } from './orderTransitionService.js';
 
 /**
  * Single implementation behind both Stripe webhook endpoints
@@ -102,6 +102,8 @@ const markOrderPaid = async (params: {
     // Mark the product as sold so it leaves the feed.
     if (order.product_id) {
         await supabase.from('products').update({ status: 'sold' }).eq('id', order.product_id).eq('status', 'active');
+        // Other buyers' unpaid / cash orders on this item lose the race.
+        await closeCompetingOrders(order.product_id, orderId, 'paid').catch(err => console.error('[Stripe webhook] closeCompetingOrders failed:', err));
     }
 
     import('./orderNotificationService.js')

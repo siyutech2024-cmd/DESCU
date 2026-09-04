@@ -591,4 +591,7 @@ export const es: TranslationTable = {
   'product.relisted': 'Enviado a revisión para republicar',
   'toast.action_failed': 'No se pudo completar, intenta de nuevo',
   'profile.no_favorites_hint': 'Toca el corazón en un artículo para guardarlo aquí.',
+  'checkout.agreed_price_hint': 'Precio acordado con el vendedor en el chat',
+  'nego.applies_buyer': 'Se aplica automáticamente al pagar en los próximos 7 días. El precio publicado no cambia.',
+  'nego.applies_seller': 'Solo para este comprador, válido 7 días. Tu precio publicado no cambia.',
 };

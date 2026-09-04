@@ -591,4 +591,7 @@ export const en: TranslationTable = {
   'product.relisted': 'Sent for review to relist',
   'toast.action_failed': 'Couldn\'t complete that, try again',
   'profile.no_favorites_hint': 'Tap the heart on an item to save it here.',
+  'checkout.agreed_price_hint': 'Price agreed with the seller in the chat',
+  'nego.applies_buyer': 'Applied automatically at checkout within 7 days. The listing price stays the same.',
+  'nego.applies_seller': 'For this buyer only, valid 7 days. Your listing price stays the same.',
 };

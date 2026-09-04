@@ -151,6 +151,17 @@ export const updateOwnProductStatus = asyncHandler<AuthenticatedRequest>(async (
     if (product.seller_id !== userId) throw forbidden('Only the seller can change this listing');
 
     const nextStatus = status === 'sold' ? 'sold' : 'pending_review';
+    if (nextStatus === 'pending_review') {
+        // A 'sold' listing may be sold *because* a paid order is in flight — it cannot be relisted under a buyer.
+        const { data: open, error: openError } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('product_id', id)
+            .in('status', ['paid', 'escrow_held', 'meetup_arranged', 'shipped', 'delivered', 'disputed'])
+            .limit(1);
+        if (openError) throw openError;
+        if (open && open.length > 0) throw conflict('This item has an order in progress and cannot be relisted yet');
+    }
     // Conditional on the current status so a stale button cannot flip an admin decision.
     const allowedFrom = status === 'sold' ? ['active', 'pending_review'] : ['sold', 'inactive'];
     if (!allowedFrom.includes(product.status)) {

@@ -1,7 +1,7 @@
 import { supabase } from '../db/supabase.js';
 import { getStripe } from '../lib/stripe.js';
 import { canTransition, computeReleaseAmounts, isOrderStatus, isPaymentSettled, type OrderLike, type OrderStatus } from '../domain/orders.js';
-import { transitionOrder } from './orderTransitionService.js';
+import { closeCompetingOrders, transitionOrder } from './orderTransitionService.js';
 
 /**
  * The single place where an order is completed and (for online payments) the escrowed
@@ -172,6 +172,8 @@ export const releaseEscrow = async (order: ReleasableOrder, ctx: ReleaseContext)
     // 3. Side effects (best effort).
     if (order.product_id) {
         await supabase.from('products').update({ status: 'sold' }).eq('id', order.product_id);
+        // A cash meetup can have several intents open; the one that completed wins.
+        await closeCompetingOrders(order.product_id, orderId, 'sold').catch(err => console.error('[Escrow Release] closeCompetingOrders failed:', err));
     }
     await supabase.from('order_timeline').insert({
         order_id: orderId,

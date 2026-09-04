@@ -591,4 +591,7 @@ export const zh: TranslationTable = {
   'product.relisted': '已提交审核重新上架',
   'toast.action_failed': '操作失败，请重试',
   'profile.no_favorites_hint': '点击商品上的心形图标即可收藏到这里。',
+  'checkout.agreed_price_hint': '与卖家在聊天中商定的价格',
+  'nego.applies_buyer': '7 天内下单时自动按此价格结算，商品标价不变。',
+  'nego.applies_seller': '仅对该买家有效，7 天内有效。你的标价不变。',
 };
