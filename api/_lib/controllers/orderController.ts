@@ -91,13 +91,17 @@ export const getOrder = asyncHandler<AuthenticatedRequest>(async (req, res) => {
     const { id } = parseParams(UuidParamSchema, req.params);
     const userId = req.user!.id;
 
+    // buyer_id/seller_id reference auth.users, so PostgREST cannot embed public.users — look them up separately.
     const { data: order, error } = await supabase.from('orders')
-        .select('*, product:products(*), buyer:users!buyer_id(id, name, avatar_url), seller:users!seller_id(id, name, avatar_url), timeline:order_timeline(*)')
-        .eq('id', id).single();
-    if (error || !order) throw notFound('Order not found');
+        .select('*, product:products(*), timeline:order_timeline(*)')
+        .eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!order) throw notFound('Order not found');
     if (order.buyer_id !== userId && order.seller_id !== userId) throw forbidden('Unauthorized');
 
-    res.json({ order });
+    const { data: people } = await supabase.from('users').select('id, name, avatar_url').in('id', [order.buyer_id, order.seller_id]);
+    const byId = new Map((people ?? []).map(u => [u.id, u]));
+    res.json({ order: { ...order, buyer: byId.get(order.buyer_id) ?? null, seller: byId.get(order.seller_id) ?? null } });
 });
 
 /** Dual confirmation: each party confirms once; when both have, the order completes through the escrow release path. */

@@ -61,16 +61,12 @@ export async function notifyOrderStatus(orderId: string, status: string, extraDa
         console.log(`[OrderNotification] Sending notification for order ${orderId}, status: ${status}`);
 
         // 获取订单详情
+        // No users embed: orders.buyer_id/seller_id point at auth.users, which PostgREST cannot join to public.users.
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select(`
-        *,
-        product:products(id, title, images),
-        buyer:users!buyer_id(id, name),
-        seller:users!seller_id(id, name)
-      `)
+            .select('*, product:products(id, title, images)')
             .eq('id', orderId)
-            .single();
+            .maybeSingle();
 
         if (orderError || !order) {
             console.error('[OrderNotification] Order not found:', orderError);

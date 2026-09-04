@@ -27,6 +27,11 @@ import { transitionOrder } from './orderTransitionService.js';
 
 export type PayoutQueueStatus = 'pending' | 'processing' | 'completed' | 'all';
 
+/**
+ * Plain columns only: `orders.seller_id`/`buyer_id` reference auth.users, so PostgREST has no
+ * relationship to public.users and an embedded `seller:seller_id(...)` fails (PGRST200).
+ * Products, sellers and their bank details are attached with batched lookups in `attachRelations`.
+ */
 export const PAYOUT_SELECT = `
     id,
     total_amount,
@@ -41,13 +46,7 @@ export const PAYOUT_SELECT = `
     completed_at,
     seller_id,
     buyer_id,
-    products:product_id(id, title, images),
-    seller:seller_id(
-        id,
-        name,
-        email,
-        sellers(bank_clabe, bank_name, bank_holder_name)
-    )
+    product_id
 `;
 
 export interface PayoutStats {
@@ -93,6 +92,31 @@ const decorate = (order: Record<string, any>) => {
     return { ...order, payoutAmount: payoutAmountFor(order), sellerBank };
 };
 
+/** Attach `products`, `seller` (public.users row) and `seller.sellers` (bank details) to raw order rows. */
+const attachRelations = async (rows: Record<string, any>[]): Promise<Record<string, any>[]> => {
+    if (rows.length === 0) return rows;
+    const productIds = [...new Set(rows.map(r => r.product_id).filter(Boolean))];
+    const sellerIds = [...new Set(rows.map(r => r.seller_id).filter(Boolean))];
+    const [productsRes, usersRes, sellersRes] = await Promise.all([
+        productIds.length ? supabase.from('products').select('id, title, images').in('id', productIds) : Promise.resolve({ data: [], error: null }),
+        sellerIds.length ? supabase.from('users').select('id, name, email').in('id', sellerIds) : Promise.resolve({ data: [], error: null }),
+        sellerIds.length ? supabase.from('sellers').select('user_id, bank_clabe, bank_name, bank_holder_name').in('user_id', sellerIds) : Promise.resolve({ data: [], error: null }),
+    ]);
+    for (const r of [productsRes, usersRes, sellersRes]) if (r.error) throw r.error;
+    const products = new Map((productsRes.data ?? []).map((p: any) => [p.id, p]));
+    const users = new Map((usersRes.data ?? []).map((u: any) => [u.id, u]));
+    const banks = new Map((sellersRes.data ?? []).map((b: any) => [b.user_id, b]));
+    return rows.map(r => {
+        const user = users.get(r.seller_id);
+        const bank = banks.get(r.seller_id) ?? null;
+        return {
+            ...r,
+            products: products.get(r.product_id) ?? null,
+            seller: user ? { ...user, sellers: bank ? [bank] : [] } : { id: r.seller_id, name: null, email: null, sellers: bank ? [bank] : [] },
+        };
+    });
+};
+
 export const listPayouts = async (statusParam: unknown = 'pending'): Promise<PayoutListResult> => {
     const status: PayoutQueueStatus = isQueueStatus(statusParam) ? statusParam : 'pending';
 
@@ -122,14 +146,18 @@ export const listPayouts = async (statusParam: unknown = 'pending'): Promise<Pay
 
     const seen = new Set<string>();
     const open: { bucket: 'pending' | 'processing'; row: Record<string, any> }[] = [];
-    for (const order of [...(current.data ?? []), ...(legacy.data ?? [])] as any[]) {
+    const [openRows, completedRows] = await Promise.all([
+        attachRelations([...(current.data ?? []), ...(legacy.data ?? [])] as any[]),
+        attachRelations((completedRes.data ?? []) as any[]),
+    ]);
+    for (const order of openRows) {
         if (seen.has(order.id)) continue;
         seen.add(order.id);
         if (order.payout_status === 'completed') continue;
         open.push({ bucket: order.payout_status === 'processing' ? 'processing' : 'pending', row: decorate(order) });
     }
     open.sort((a, b) => String(a.row.completed_at ?? '').localeCompare(String(b.row.completed_at ?? '')));
-    const completed = ((completedRes.data ?? []) as any[]).map(decorate);
+    const completed = completedRows.map(decorate);
 
     const pending = open.filter(o => o.bucket === 'pending');
     const stats: PayoutStats = {

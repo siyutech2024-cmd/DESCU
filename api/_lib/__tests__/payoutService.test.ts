@@ -7,11 +7,10 @@ jest.mock('../db/supabase', () => ({ supabase: require('./helpers/fakeSupabase')
 
 import { listPayouts, completeManualPayout, markOrderPayoutProcessing } from '../services/payoutService';
 
-const seller = { id: 'seller-1', name: 'Ana', email: 'ana@example.com', sellers: [{ bank_clabe: '0123', bank_name: 'BBVA', bank_holder_name: 'Ana' }] };
+// Relations are attached by batched lookups (orders.seller_id has no PostgREST relationship to public.users).
 const order = (overrides: Partial<Row>): Row => ({
-    id: 'order-x', seller_id: 'seller-1', buyer_id: 'buyer-1', payment_method: 'online', payment_captured: true,
-    total_amount: 105, platform_fee: 5, payout_status: 'pending', completed_at: '2026-01-01T00:00:00Z',
-    products: { id: 'p', title: 'Bike', images: [] }, seller, ...overrides,
+    id: 'order-x', seller_id: 'seller-1', buyer_id: 'buyer-1', product_id: 'p', payment_method: 'online', payment_captured: true,
+    total_amount: 105, platform_fee: 5, payout_status: 'pending', completed_at: '2026-01-01T00:00:00Z', ...overrides,
 });
 
 const seed = () => resetDb({
@@ -30,6 +29,9 @@ const seed = () => resetDb({
         order({ id: 'cash-1', status: 'completed', payment_method: 'cash', payout_status: 'pending', transferred_to_seller: false }),
     ],
     order_timeline: [],
+    products: [{ id: 'p', title: 'Bike', images: [] }],
+    users: [{ id: 'seller-1', name: 'Ana', email: 'ana@example.com' }],
+    sellers: [{ user_id: 'seller-1', bank_clabe: '0123', bank_name: 'BBVA', bank_holder_name: 'Ana' }],
 });
 
 describe('payoutService legacy rows (finalised before escrowReleaseService existed)', () => {
@@ -81,7 +83,9 @@ describe('payoutService.listPayouts', () => {
     it('pays out total minus the recorded platform fee, and exposes the seller bank row', async () => {
         const { payouts } = await listPayouts('pending');
         expect(payouts[0].payoutAmount).toBe(100);
-        expect(payouts[0].sellerBank).toEqual({ bank_clabe: '0123', bank_name: 'BBVA', bank_holder_name: 'Ana' });
+        expect(payouts[0].sellerBank).toEqual({ user_id: 'seller-1', bank_clabe: '0123', bank_name: 'BBVA', bank_holder_name: 'Ana' });
+        expect(payouts[0].seller).toMatchObject({ id: 'seller-1', name: 'Ana' });
+        expect(payouts[0].products).toMatchObject({ title: 'Bike' });
     });
 
     it('falls back to the standard commission when the row has no platform_fee', async () => {
