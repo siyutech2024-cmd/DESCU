@@ -212,7 +212,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
                     </div>
                     {myRating > 0 && (
                         <div className="space-y-3 animate-fade-in">
-                            <textarea
+                            <textarea maxLength={1000}
                                 value={comment}
                                 onChange={e => setComment(e.target.value)}
                                 placeholder={t('profile.rate_comment')}

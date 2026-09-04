@@ -556,4 +556,5 @@ export const en: TranslationTable = {
   'orders.cancel_success': 'Order cancelled',
   'orders.cancel_failed': 'Could not cancel the order',
   'modal.close': 'Close',
+  'payout.bank_fields_required': 'Bank name and account holder are required',
 };

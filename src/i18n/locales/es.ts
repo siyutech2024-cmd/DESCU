@@ -556,4 +556,5 @@ export const es: TranslationTable = {
   'orders.cancel_success': 'Pedido cancelado',
   'orders.cancel_failed': 'No se pudo cancelar el pedido',
   'modal.close': 'Cerrar',
+  'payout.bank_fields_required': 'El banco y el titular de la cuenta son obligatorios',
 };

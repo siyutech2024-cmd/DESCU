@@ -556,4 +556,5 @@ export const zh: TranslationTable = {
   'orders.cancel_success': '订单已取消',
   'orders.cancel_failed': '取消订单失败',
   'modal.close': '关闭',
+  'payout.bank_fields_required': '请填写银行名称和账户持有人',
 };

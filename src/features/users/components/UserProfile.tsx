@@ -140,7 +140,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateUser({ ...user, name, avatar });
+    const trimmed = name.trim();
+    if (!trimmed) return; // the server rejects an empty display name
+    onUpdateUser({ ...user, name: trimmed, avatar });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };

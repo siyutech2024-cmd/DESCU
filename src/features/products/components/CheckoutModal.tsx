@@ -380,21 +380,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         <div className="space-y-3 pt-2">
                             {/* 主按钮：跳转到与卖家的聊天 */}
                             <button
-                                onClick={() => {
-                                    onClose();
-                                    if (conversationId) {
-                                        navigate(`/chat/${conversationId}`);
-                                    } else {
-                                        navigate('/chat');
-                                    }
-                                }}
+                                // Replace the `?checkout=1` entry so Back returns to the product, not to the sheet.
+                                onClick={() => navigate(conversationId ? `/chat/${conversationId}` : '/chat', { replace: true })}
                                 className="w-full bg-brand-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-200 hover:bg-brand-700 transition-all"
                             >
                                 {t('checkout.chat_seller')}
                             </button>
                             {/* 次按钮：查看订单列表 */}
                             <button
-                                onClick={() => { onClose(); navigate('/orders?role=buyer'); }}
+                                onClick={() => navigate('/orders?role=buyer', { replace: true })}
                                 className="w-full bg-gray-100 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all"
                             >
                                 {t('checkout.go_orders')}

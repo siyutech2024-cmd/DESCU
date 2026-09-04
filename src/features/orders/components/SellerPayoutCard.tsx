@@ -114,6 +114,10 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
             alert(t('payout.clabe_error'));
             return;
         }
+        if (!bankForm.bankName.trim() || !bankForm.holderName.trim()) {
+            alert(t('payout.bank_fields_required'));
+            return;
+        }
 
         setSaving(true);
         try {
@@ -131,7 +135,8 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
             setEditingBank(false);
         } catch (err) {
             console.error('Save bank info error:', err);
-            alert(t('payout.save_error'));
+            const detail = err instanceof ApiError && Array.isArray((err.body as any)?.details) ? (err.body as any).details[0]?.message : null;
+            alert(detail || t('payout.save_error'));
         } finally {
             setSaving(false);
         }

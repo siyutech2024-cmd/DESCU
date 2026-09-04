@@ -55,9 +55,10 @@ const PG_INVALID_TEXT = '22P02';       // e.g. a non-UUID id in a uuid column
 const PG_UNIQUE_VIOLATION = '23505';
 const PG_CHECK_VIOLATION = '23514';
 const PGRST_NO_ROWS = 'PGRST116';      // .single() found no row
+const CLIENT_STRIPE_ERRORS = new Set(['StripeCardError', 'StripeInvalidRequestError', 'StripeIdempotencyError']);
 
 export const errorMiddleware = (err: unknown, req: Request, res: Response, _next: NextFunction) => {
-    if (res.headersSent) return;
+    if (res.headersSent) return _next(err); // let Express close the half-written response
 
     if (err instanceof HttpError) {
         const payload: Record<string, unknown> = { error: err.message };
@@ -70,11 +71,14 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
 
     const e = err as { code?: string; message?: string; statusCode?: number; type?: string } | null;
     if (e && typeof e === 'object') {
-        if (e.code === PG_INVALID_TEXT || e.code === PGRST_NO_ROWS) return res.status(404).json({ error: 'Not found' });
+        if (e.code === PGRST_NO_ROWS) return res.status(404).json({ error: 'Not found' });
+        // ids are zod-validated before any query, so a remaining 22P02 is a wrongly typed body value
+        if (e.code === PG_INVALID_TEXT) return res.status(400).json({ error: 'Invalid value' });
         if (e.code === PG_UNIQUE_VIOLATION) return res.status(409).json({ error: 'Already exists' });
         if (e.code === PG_CHECK_VIOLATION) return res.status(400).json({ error: 'Invalid value' });
-        // Stripe errors carry `type` + `statusCode`; card/request errors are the client's problem.
-        if (typeof e.type === 'string' && e.type.startsWith('Stripe') && e.statusCode && e.statusCode < 500) {
+        // Stripe errors carry `type`; only card / invalid-request / idempotency errors are the client's problem
+        // (auth, permission and rate-limit errors are ours and must surface as 500).
+        if (typeof e.type === 'string' && CLIENT_STRIPE_ERRORS.has(e.type)) {
             return res.status(400).json({ error: e.message || 'Payment provider rejected the request' });
         }
         // express.json() body parse failures

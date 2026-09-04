@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useUrlModal } from '@/lib/useUrlModal';
 import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle, Star } from 'lucide-react';
 import { Product, DeliveryType } from '@/types';
 import { useLanguage } from '@/i18n';
@@ -36,22 +37,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const { openLoginModal } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-
   // Checkout lives in the URL (`?checkout=1`) so the back button closes it and deep links open it.
-  const isCheckoutOpen = searchParams.get('checkout') === '1';
-  const openCheckout = () => {
-    setSearchParams(prev => {
-      prev.set('checkout', '1');
-      return prev;
-    });
-  };
-  const closeCheckout = () => {
-    setSearchParams(prev => {
-      prev.delete('checkout');
-      return prev;
-    }, { replace: true });
-  };
+  const { isOpen: isCheckoutOpen, open: openCheckout, close: closeCheckout } = useUrlModal('checkout');
 
   const sellerId = product.seller?.id ?? '';
   const goToSeller = () => {
