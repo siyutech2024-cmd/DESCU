@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@/i18n';
 import {
     ShoppingCart,
     DollarSign,
@@ -32,13 +33,20 @@ interface OrderStatusMessageProps {
         confirmedBy?: 'buyer' | 'seller';
         [key: string]: any;
     };
+    /** Who is looking at the card — picks the buyer or seller wording. */
+    currentUserId?: string;
 }
 
-export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content }) => {
+const KNOWN_EVENTS = new Set([
+    'created', 'paid', 'escrow_held', 'shipped', 'meetup_arranged',
+    'buyer_confirmed', 'seller_confirmed', 'completed', 'cancelled', 'disputed',
+]);
+
+export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content, currentUserId }) => {
     const navigate = useNavigate();
+    const { t, language } = useLanguage();
     const {
         orderId,
-        eventType,
         productTitle,
         productImage,
         amount: rawAmount,
@@ -50,9 +58,19 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
         time,
         trackingNumber,
         productId,
+        buyerId,
     } = content;
+    // Older cards carried `status` only; both mean the same thing.
+    const eventType: string = content.eventType || content.status || 'default';
 
-    const amount = rawAmount ?? totalAmount ?? 0;
+    const amount = Number(rawAmount ?? totalAmount ?? 0);
+    // Cards written by the server carry no copy: localize by event and by the viewer's role.
+    // Cards written by older clients carry `message`/`description` in the sender's language.
+    const eventKey = KNOWN_EVENTS.has(eventType) ? eventType : 'default';
+    const role = buyerId && currentUserId && buyerId !== currentUserId ? 'seller' : 'buyer';
+    const title = message || t(`order_msg.${eventKey}.title`);
+    const body = description || t(`order_msg.${eventKey}.${role}`);
+    const locale = language === 'zh' ? 'zh-CN' : language === 'es' ? 'es-MX' : 'en-US';
 
     // 根据事件类型配置样式
     const getEventConfig = () => {
@@ -67,6 +85,7 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                 };
 
             case 'paid':
+            case 'escrow_held':
                 return {
                     icon: <DollarSign size={24} />,
                     color: 'green',
@@ -102,6 +121,8 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                 };
 
             case 'confirmed':
+            case 'buyer_confirmed':
+            case 'seller_confirmed':
                 return {
                     icon: <CheckCircle size={24} />,
                     color: 'green',
@@ -161,10 +182,10 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                 </div>
                 <div className="flex-1 min-w-0">
                     <h4 className={`font-bold ${config.textColor} text-lg mb-1`}>
-                        {message}
+                        {title}
                     </h4>
                     <p className="text-sm text-gray-600 whitespace-pre-line">
-                        {description}
+                        {body}
                     </p>
                 </div>
             </div>
@@ -186,7 +207,7 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                         {productTitle}
                     </div>
                     <div className="text-xs text-gray-500">
-                        ${(amount || 0).toFixed(2)} {currency || ''}
+                        ${amount.toFixed(2)} {currency || ''}
                     </div>
                 </div>
                 {productId && <ExternalLink size={14} className="text-gray-400 flex-shrink-0" />}
@@ -204,7 +225,7 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
                     {time && (
                         <div className="flex items-start gap-2 text-sm">
                             <Calendar size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700">{new Date(time).toLocaleString('zh-CN')}</span>
+                            <span className="text-gray-700">{new Date(time).toLocaleString(locale)}</span>
                         </div>
                     )}
                     {trackingNumber && (
@@ -219,7 +240,7 @@ export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content 
             {/* Order ID */}
             <div className="mt-3 pt-3 border-t border-gray-200/50">
                 <div className="text-xs text-gray-500 font-mono">
-                    订单 #{orderId?.slice(0, 8) || '...'}
+                    {t('order_msg.order_number', { id: orderId?.slice(0, 8) || '...' })}
                 </div>
             </div>
         </div>

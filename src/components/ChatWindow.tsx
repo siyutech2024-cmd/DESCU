@@ -538,7 +538,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               <div key={msg.id} className="flex justify-center my-3">
                 <div className="max-w-md w-full px-2">
                   {messageType === 'order_status' && (
-                    <OrderStatusMessage content={richContent as any} />
+                    <OrderStatusMessage content={richContent as any} currentUserId={currentUser.id} />
                   )}
                   {(messageType === 'price_negotiation' || messageType === 'price_negotiation_response') && (
                     <PriceNegotiationCard

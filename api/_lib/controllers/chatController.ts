@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { supabase } from '../db/supabase.js';
 import type { AuthenticatedRequest } from '../middleware/userAuth.js';
 import { isBlockedBetween } from '../services/moderationService.js';
+import { imagePrefixesFromEnv, validateMessagePayload } from '../domain/chatMessages.js';
 
 /**
  * Chat controller.
@@ -16,7 +17,6 @@ import { isBlockedBetween } from '../services/moderationService.js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const isUuid = (value: unknown): value is string => typeof value === 'string' && UUID_RE.test(value);
 
-const MAX_MESSAGE_LENGTH = 4000;
 const MAX_PAGE_SIZE = 100;
 const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:?\d{2})$/;
 
@@ -273,26 +273,36 @@ export const getUserConversations = async (req: AuthenticatedRequest, res: Respo
 export const sendMessage = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const userId = req.user!.id;
-        const { conversation_id, text } = req.body ?? {};
-
-        if (typeof text !== 'string' || !text.trim()) {
-            return res.status(400).json({ error: 'Message text is required' });
-        }
-        if (text.length > MAX_MESSAGE_LENGTH) {
-            return res.status(400).json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` });
-        }
+        const { conversation_id } = req.body ?? {};
 
         const conversation = await loadOwnConversation(conversation_id, userId, res);
         if (!conversation) return;
+
+        // Text and rich cards (images / location / meetup_time) share this endpoint; the
+        // server decides the card shape and stamps sender/timestamps.
+        const validated = validateMessagePayload(req.body, {
+            senderId: userId,
+            participants: [conversation.user1_id, conversation.user2_id],
+            allowedImagePrefixes: imagePrefixesFromEnv(process.env.SUPABASE_URL),
+        });
+        if (!validated.ok) return res.status(400).json({ error: validated.error });
 
         const otherId = conversation.user1_id === userId ? conversation.user2_id : conversation.user1_id;
         if (isUuid(otherId) && await isBlockedBetween(userId, otherId)) {
             return res.status(403).json({ error: 'You cannot message this user' });
         }
 
+        const row: Record<string, unknown> = {
+            conversation_id: conversation.id,
+            sender_id: userId,
+            text: validated.value.text,
+            message_type: validated.value.message_type,
+            is_read: false,
+        };
+        if (validated.value.content !== null) row.content = validated.value.content;
         const { data: message, error: msgError } = await supabase
             .from('messages')
-            .insert([{ conversation_id: conversation.id, sender_id: userId, text: text.trim() }])
+            .insert([row])
             .select()
             .single();
         if (msgError) throw msgError;

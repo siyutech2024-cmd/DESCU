@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
 import { supabase } from '../../services/supabase';
 import { uploadChatImage, compressImage } from '../../services/chatImageUpload';
+import { sendRichMessage } from '../../services/chatService';
 import { useLanguage } from '@/i18n';
 
 interface ImageSenderProps {
@@ -65,22 +66,12 @@ export const ImageSender: React.FC<ImageSenderProps> = ({
                 setUploadProgress(Math.round(((i + 1) / selectedImages.length) * 100));
             }
 
-            const imagesContent = JSON.stringify({
-                images: uploadedUrls,
-                count: uploadedUrls.length,
-                shared_by: userId,
-                timestamp: new Date().toISOString()
-            });
-
-            const { error } = await supabase.from('messages').insert({
-                conversation_id: conversationId,
-                sender_id: userId,
-                message_type: 'images',
-                content: imagesContent,
-                text: `📷 ${t('image.shared').replace('{0}', String(uploadedUrls.length))}`
-            });
-
-            if (error) throw error;
+            await sendRichMessage(
+                conversationId,
+                'images',
+                { images: uploadedUrls },
+                `📷 ${t('image.shared').replace('{0}', String(uploadedUrls.length))}`,
+            );
 
             previewUrls.forEach(url => URL.revokeObjectURL(url));
             setSelectedImages([]);

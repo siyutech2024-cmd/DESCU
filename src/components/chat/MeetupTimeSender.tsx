@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, X } from 'lucide-react';
-import { supabase } from '../../services/supabase';
+import { sendRichMessage } from '../../services/chatService';
 import { useLanguage } from '@/i18n';
 
 interface MeetupTimeSenderProps {
@@ -65,35 +65,17 @@ export const MeetupTimeSender: React.FC<MeetupTimeSenderProps> = ({
 
         setIsSending(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                alert(t('meetup.alert_login'));
-                return;
-            }
-
             const meetupDateTime = new Date(`${selectedDate}T${selectedTime}`);
 
-            const meetupContent = JSON.stringify({
+            await sendRichMessage(conversationId, 'meetup_time', {
                 datetime: meetupDateTime.toISOString(),
                 date: selectedDate,
                 time: selectedTime,
                 location: location || t('meetup.location_tbd'),
                 note: note || '',
-                proposed_by: session.user.id,
                 product_title: productTitle || '',
                 status: 'proposed',
-                timestamp: new Date().toISOString()
-            });
-
-            const { error } = await supabase.from('messages').insert({
-                conversation_id: conversationId,
-                sender_id: session.user.id,
-                message_type: 'meetup_time',
-                content: meetupContent,
-                text: `📅 ${t('meetup.send_invite')}: ${selectedDate} ${selectedTime}`
-            });
-
-            if (error) throw error;
+            }, `📅 ${t('meetup.send_invite')}: ${selectedDate} ${selectedTime}`);
 
             // 清空表单
             setSelectedDate('');

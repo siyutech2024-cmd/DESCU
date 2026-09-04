@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, X, Loader2, Search } from 'lucide-react';
-import { supabase } from '../../services/supabase';
+import { sendRichMessage } from '../../services/chatService';
 import { useLanguage } from '@/i18n';
 
 interface LocationSenderProps {
@@ -91,27 +91,12 @@ export const LocationSender: React.FC<LocationSenderProps> = ({
 
         setIsSending(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const locationContent = JSON.stringify({
+            await sendRichMessage(conversationId, 'location', {
                 name: selectedLocation.name,
                 address: selectedLocation.address,
                 lat: selectedLocation.lat,
                 lng: selectedLocation.lng,
-                shared_by: session.user.id,
-                timestamp: new Date().toISOString()
-            });
-
-            const { error } = await supabase.from('messages').insert({
-                conversation_id: conversationId,
-                sender_id: session.user.id,
-                message_type: 'location',
-                content: locationContent,
-                text: `📍 ${t('location.shared')}: ${selectedLocation.name}`
-            });
-
-            if (error) throw error;
+            }, `📍 ${t('location.shared')}: ${selectedLocation.name}`);
 
             onSent?.();
             setSelectedLocation(null);

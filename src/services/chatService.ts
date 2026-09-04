@@ -47,6 +47,26 @@ export const sendMessage = async (
     }
 };
 
+export type RichMessageType = 'images' | 'location' | 'meetup_time';
+
+/**
+ * 发送富消息（图片 / 位置 / 见面时间）。服务端校验并补全卡片字段（sender、时间戳），
+ * 客户端不再直接写 messages 表。
+ */
+export const sendRichMessage = async (
+    conversationId: string,
+    messageType: RichMessageType,
+    content: Record<string, unknown>,
+    text?: string,
+): Promise<any> => {
+    return api.post<any>('/api/messages', {
+        conversation_id: conversationId,
+        message_type: messageType,
+        content,
+        text,
+    }, { auth: 'required' });
+};
+
 export interface GetMessagesOptions {
     /** Page size (server caps at 100). Default 50. */
     limit?: number;

@@ -149,9 +149,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                 payload.shippingAddress = shippingAddress;
             }
 
-            let data: { order: any; requiresPayment?: boolean };
+            let data: { order: any; requiresPayment?: boolean; conversationId?: string | null };
             try {
-                data = await api.post<{ order: any; requiresPayment?: boolean }>('/api/orders/create', payload, { auth: 'required' });
+                data = await api.post<{ order: any; requiresPayment?: boolean; conversationId?: string | null }>('/api/orders/create', payload, { auth: 'required' });
             } catch (apiErr) {
                 if (!(apiErr instanceof ApiError)) throw apiErr;
                 const err: any = apiErr.body ?? {};
@@ -162,52 +162,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
 
             setCreatedOrder(data.order);
 
-            // 🔔 创建/获取对话，并发送订单通知给卖家
-            try {
-                const conversation = await createOrGetConversation(
-                    product.id,
-                    session.user.id,
-                    product.seller.id
-                );
-
-                const convId = conversation.id || conversation.conversation?.id;
-                if (convId) {
-                    setConversationId(convId);
-
-                    // 发送订单通知消息
-                    const orderMsg = orderType === 'meetup'
-                        ? `📦 ${t('checkout.order_notify_meetup')}`
-                        : `📦 ${t('checkout.order_notify_shipping')}`;
-
-                    await supabase.from('messages').insert({
-                        conversation_id: convId,
-                        sender_id: session.user.id,
-                        text: orderMsg,
-                        message_type: 'order_status',
-                        content: JSON.stringify({
-                            type: 'order_status',
-                            orderId: data.order.id,
-                            eventType: 'created',
-                            status: 'created',
-                            productId: product.id,
-                            productTitle: product.title,
-                            productImage: product.images?.[0] || '',
-                            amount: data.order.total_amount || product.price,
-                            currency: product.currency || 'MXN',
-                            orderType,
-                            paymentMethod,
-                            totalAmount: data.order.total_amount,
-                            message: orderType === 'meetup' ? `📦 ${t('checkout.meetup_title')}` : `📦 ${t('checkout.shipping_title')}`,
-                            description: orderType === 'meetup'
-                                ? t('checkout.meetup_success')
-                                : t('checkout.shipping_success'),
-                        }),
-                        is_read: false
-                    });
-                    console.log('[Checkout] Order notification sent, convId:', convId);
+            // The server creates (or reuses) the buyer↔seller conversation and posts the
+            // "order created" card itself; we only need the id to open the chat afterwards.
+            if (data.conversationId) {
+                setConversationId(data.conversationId);
+            } else {
+                try {
+                    const conversation = await createOrGetConversation(product.id, session.user.id, product.seller.id);
+                    const convId = conversation.id || conversation.conversation?.id;
+                    if (convId) setConversationId(convId);
+                } catch (convErr) {
+                    console.error('[Checkout] Failed to open conversation:', convErr);
                 }
-            } catch (notifyErr) {
-                console.error('[Checkout] Failed to create conversation or notify:', notifyErr);
             }
 
             if (data.requiresPayment && payload.paymentMethod === 'online') {

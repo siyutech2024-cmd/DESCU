@@ -106,9 +106,8 @@ export const ProductList: React.FC = () => {
                 showToast.success(`已取消 ${selectedIds.length} 个商品的推荐`);
             } else if (operation === 'delete') {
                 if (confirm(`确定要删除 ${selectedIds.length} 个商品吗？此操作不可恢复！`)) {
-                    for (const id of selectedIds) {
-                        await adminApi.deleteProduct(id);
-                    }
+                    // one request for the whole selection (soft delete, same as the single-item endpoint)
+                    await adminApi.batchUpdateProducts(selectedIds, { status: 'deleted', deleted_at: new Date().toISOString() });
                     showToast.success(`已删除 ${selectedIds.length} 个商品`);
                 }
             }

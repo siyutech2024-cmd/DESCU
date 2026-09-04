@@ -82,12 +82,18 @@ router.post('/api/orders/create', requireAuth, async (req: any, res) => {
             order_id: order.id, event_type: 'created', description: `Order Created (${orderType})`, created_by: buyerId, metadata: { orderType, paymentMethod }
         });
 
-        // Auto-create chat
+        // Auto-create chat (buyer ↔ seller for this product) and post the "order created" card into it.
+        let conversationId: string | null = null;
         const { data: conversation } = await supabase.from('conversations').select('id').eq('product_id', productId)
             .or(`and(user1_id.eq.${buyerId},user2_id.eq.${product.seller_id}),and(user1_id.eq.${product.seller_id},user2_id.eq.${buyerId})`)
             .limit(1).maybeSingle();
-        if (!conversation) {
-            await supabase.from('conversations').insert({ product_id: productId, user1_id: buyerId, user2_id: product.seller_id });
+        if (conversation) {
+            conversationId = conversation.id;
+        } else {
+            const { data: created } = await supabase.from('conversations')
+                .insert({ product_id: productId, user1_id: buyerId, user2_id: product.seller_id })
+                .select('id').single();
+            conversationId = created?.id ?? null;
         }
 
         // 🔔 发送订单创建通知到聊天
@@ -97,7 +103,7 @@ router.post('/api/orders/create', requireAuth, async (req: any, res) => {
             });
         }).catch(console.error);
 
-        res.json({ order, success: true, requiresPayment: paymentMethod === 'online' });
+        res.json({ order, success: true, requiresPayment: paymentMethod === 'online', conversationId });
     } catch (error: any) {
         console.error('Create order error:', error);
         res.status(500).json({ error: 'Failed to create order', message: error.message });

@@ -522,38 +522,21 @@ export const getAdminOrders = async (req: AdminRequest, res: Response) => {
             if (o.seller_id) userIds.add(o.seller_id);
         });
 
-        // 3. Fetch Emails manually (Using Auth Admin API would be ideal, but requires loop or RPC)
-        // Alternatively, use a public profile table if available.
-        // Since we are admin/service_role, we can actually just query 'auth.users' strictly using RPC or just iterate.
-        // For performance, let's try to map what we can. 
-        // Note: supabase-js 'service_role' CANNOT directly select from 'auth.users' via .from('auth.users') usually.
-        // But we can use auth.admin.listUsers() but it doesn't support "WHERE id IN (...)".
-
-        // Strategy: Iterate and fetch (Parallel). For 20 items, it's fast enough.
-        // Or better: Create a map.
-
-        const userMap = new Map<string, string>();
-
-        // To avoid N+1, we can't easily batch fetch users by ID list via standard admin API today without looped 'getUserById'.
-        // However, we can use a raw SQL RPC if strictly needed.
-        // PRACTICAL APPROACH: Just loop Promise.all. It's an admin dashboard, low traffic.
-
-        const uniqueIds = Array.from(userIds);
-
-        // Note: supabase.auth.admin.getUserById is efficient enough.
-        const userPromises = uniqueIds.map(async (uid) => {
-            const { data: { user } } = await supabase.auth.admin.getUserById(uid);
-            return { id: uid, email: user?.email || 'Unknown' };
-        });
-
-        const users = await Promise.all(userPromises);
-        users.forEach(u => userMap.set(u.id, u.email));
+        // 3. One query on public.users (mirrors auth.users) instead of one auth.admin call per user.
+        const { data: userRows, error: usersError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .in('id', Array.from(userIds));
+        if (usersError) throw usersError;
+        const userMap = new Map<string, { name: string | null; email: string | null }>(
+            (userRows || []).map((u: any) => [u.id, { name: u.name ?? null, email: u.email ?? null }])
+        );
 
         // 4. Enrich Orders
         const enrichedOrders = orders.map(o => ({
             ...o,
-            buyer: { email: userMap.get(o.buyer_id) || 'Unknown' },
-            seller: { email: userMap.get(o.seller_id) || 'Unknown' }
+            buyer: { email: userMap.get(o.buyer_id)?.email || 'Unknown', name: userMap.get(o.buyer_id)?.name ?? null },
+            seller: { email: userMap.get(o.seller_id)?.email || 'Unknown', name: userMap.get(o.seller_id)?.name ?? null }
         }));
 
         res.json({

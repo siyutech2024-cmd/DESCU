@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, MapPin, CheckCircle, Edit2 } from 'lucide-react';
-import { supabase } from '../../services/supabase';
+import { sendRichMessage } from '../../services/chatService';
 import { useLanguage } from '@/i18n';
 
 interface MeetupTimeMessageProps {
@@ -54,23 +54,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({
     const handleConfirm = async () => {
         setIsResponding(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-
-            const confirmContent = JSON.stringify({
-                ...content,
-                status: 'confirmed',
-                confirmed_by: session.user.id,
-                confirmed_at: new Date().toISOString()
-            });
-
-            await supabase.from('messages').insert({
-                conversation_id: conversationId,
-                sender_id: session.user.id,
-                message_type: 'meetup_time',
-                content: confirmContent,
-                text: `✅ ${t('meetup.confirmed')}: ${date} ${time}`
-            });
+            await sendRichMessage(conversationId, 'meetup_time', { ...content, status: 'confirmed' }, `✅ ${t('meetup.confirmed')}: ${date} ${time}`);
 
             onUpdate?.();
         } catch (error) {

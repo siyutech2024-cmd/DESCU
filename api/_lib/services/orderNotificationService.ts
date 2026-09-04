@@ -15,6 +15,10 @@ const ORDER_STATUS_MESSAGES: { [key: string]: { buyer: string; seller: string } 
         buyer: '💰 付款成功！等待卖家发货/确认见面',
         seller: '💰 买家已付款！请尽快发货或确认见面时间'
     },
+    escrow_held: {
+        buyer: '💰 付款成功！资金已进入担保，等待卖家发货/确认见面',
+        seller: '💰 买家已付款（担保中）！请尽快发货或确认见面时间'
+    },
     shipped: {
         buyer: '🚚 卖家已发货！请注意查收',
         seller: '🚚 您已发货！等待买家确认收货'
@@ -106,24 +110,29 @@ export async function notifyOrderStatus(orderId: string, status: string, extraDa
             conversationId = newConv.id;
         }
 
-        // 获取状态消息
+        // 获取状态消息（仅用于聊天列表预览文本；卡片本身由前端按 eventType 本地化）
         const messages = ORDER_STATUS_MESSAGES[status];
         if (!messages) {
             console.warn(`[OrderNotification] No message template for status: ${status}`);
             return;
         }
 
-        // 创建订单状态卡片消息内容
+        // 创建订单状态卡片消息内容 —— 字段与前端 OrderStatusMessage 一致，不含任何语言文案
         const cardContent = {
             type: 'order_status',
             orderId: order.id,
+            eventType: status,
             status,
-            productTitle: order.product?.title || '商品',
-            productImage: order.product?.images?.[0],
+            productId: order.product_id,
+            productTitle: order.product?.title || '',
+            productImage: order.product?.images?.[0] ?? null,
+            amount: order.total_amount,
             totalAmount: order.total_amount,
+            currency: order.currency || 'MXN',
             orderType: order.order_type,
-            buyerMessage: messages.buyer,
-            sellerMessage: messages.seller,
+            paymentMethod: order.payment_method,
+            buyerId: order.buyer_id,
+            sellerId: order.seller_id,
             timestamp: new Date().toISOString(),
             ...extraData
         };
@@ -132,11 +141,13 @@ export async function notifyOrderStatus(orderId: string, status: string, extraDa
         const { error: msgError } = await supabase.from('messages').insert({
             conversation_id: conversationId,
             sender_id: order.buyer_id, // 使用买家ID作为发送者（系统消息）
-            text: `📋 订单更新: ${messages.buyer}`,
+            text: `📋 ${messages.buyer}`,
             message_type: 'order_status',
             content: JSON.stringify(cardContent),
             is_read: false
         });
+
+        await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId);
 
         if (msgError) {
             console.error('[OrderNotification] Failed to send message:', msgError);

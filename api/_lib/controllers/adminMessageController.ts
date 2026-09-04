@@ -48,30 +48,30 @@ export const getAdminConversations = async (req: AdminRequest, res: Response) =>
 
         if (error) throw error;
 
-        // 获取每个对话的消息数量
-        const conversationsWithStats = await Promise.all(
-            (data || []).map(async (conversation) => {
-                const { count: messageCount } = await supabase
-                    .from('messages')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('conversation_id', conversation.id)
-                    .is('deleted_at', null);
+        const rows = data || [];
+        // One query for every product on the page; message counts are cheap HEAD requests run in parallel.
+        const productIds = [...new Set(rows.map(c => c.product_id).filter(Boolean))];
+        const [productsRes, counts] = await Promise.all([
+            productIds.length
+                ? supabase.from('products').select('id, title, images').in('id', productIds)
+                : Promise.resolve({ data: [] as any[], error: null }),
+            Promise.all(rows.map(c =>
+                supabase.from('messages').select('id', { count: 'exact', head: true }).eq('conversation_id', c.id).is('deleted_at', null)
+                    .then(r => r.count || 0)
+            )),
+        ]);
+        if (productsRes.error) throw productsRes.error;
+        const productById = new Map((productsRes.data || []).map((p: any) => [p.id, p]));
 
-                // 获取商品信息
-                const { data: product } = await supabase
-                    .from('products')
-                    .select('title, images')
-                    .eq('id', conversation.product_id)
-                    .single();
-
-                return {
-                    ...conversation,
-                    message_count: messageCount || 0,
-                    product_title: product?.title || 'Unknown',
-                    product_image: product?.images?.[0] || ''
-                };
-            })
-        );
+        const conversationsWithStats = rows.map((conversation, i) => {
+            const product = productById.get(conversation.product_id);
+            return {
+                ...conversation,
+                message_count: counts[i],
+                product_title: product?.title || 'Unknown',
+                product_image: product?.images?.[0] || ''
+            };
+        });
 
         res.json({
             conversations: conversationsWithStats,

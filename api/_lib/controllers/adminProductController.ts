@@ -378,6 +378,8 @@ export const updateProductPromotion = async (req: AdminRequest, res: Response) =
 /**
  * 批量操作商品
  */
+const BATCH_UPDATABLE_COLUMNS = new Set(['category', 'status', 'is_promoted', 'deleted_at', 'updated_at']);
+
 export const batchUpdateProducts = async (req: AdminRequest, res: Response) => {
     try {
         // 支持两种参数格式：
@@ -394,7 +396,9 @@ export const batchUpdateProducts = async (req: AdminRequest, res: Response) => {
         let updates: any = {};
 
         if (directUpdates) {
-            // 直接使用的是新格式的 updates 对象
+            // 直接使用的是新格式的 updates 对象 —— 只允许批量场景需要的列
+            const unknown = Object.keys(directUpdates).filter(k => !BATCH_UPDATABLE_COLUMNS.has(k));
+            if (unknown.length) return res.status(400).json({ error: `不允许批量修改字段: ${unknown.join(', ')}` });
             updates = directUpdates;
         } else {
             // 兼容旧格式 action
