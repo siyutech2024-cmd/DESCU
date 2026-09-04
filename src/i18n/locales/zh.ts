@@ -554,4 +554,5 @@ export const zh: TranslationTable = {
   'orders.cancel_keep': '保留订单',
   'orders.cancel_success': '订单已取消',
   'orders.cancel_failed': '取消订单失败',
+  'modal.close': '关闭',
 };

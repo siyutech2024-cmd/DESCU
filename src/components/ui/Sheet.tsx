@@ -138,13 +138,15 @@ export const Sheet: React.FC<SheetProps> = ({
 
     // Escape + Tab trap
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+        // Events from a sheet nested inside this one (layer="modal-top") are its business.
+        if (!panelRef.current || !panelRef.current.contains(e.target as Node)) return;
         if (e.key === 'Escape') {
             if (!dismissibleRef.current) return;
             e.stopPropagation();
             onCloseRef.current();
             return;
         }
-        if (e.key !== 'Tab' || !panelRef.current) return;
+        if (e.key !== 'Tab') return;
         const nodes = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE))
             .filter(el => el.offsetParent !== null || el === document.activeElement);
         if (nodes.length === 0) { e.preventDefault(); return; }
@@ -200,7 +202,7 @@ export const Sheet: React.FC<SheetProps> = ({
                         </div>
                     </div>
                 )}
-                <div className={`flex-1 min-h-0 overflow-y-auto ${title !== undefined ? 'px-5 pb-5' : ''} ${footer ? '' : 'pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-5'} ${bodyClassName}`}>
+                <div className={`flex-1 min-h-0 overflow-y-auto ${title !== undefined ? 'px-5' : ''} ${footer || /\bp[by]?-/.test(bodyClassName) ? '' : 'pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] md:pb-5'} ${bodyClassName}`}>
                     {children}
                 </div>
                 {footer && (

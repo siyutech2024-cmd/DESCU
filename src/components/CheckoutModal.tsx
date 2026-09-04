@@ -394,7 +394,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                             </button>
                             {/* 次按钮：查看订单列表 */}
                             <button
-                                onClick={() => { onClose(); navigate('/profile?tab=buying'); }}
+                                onClick={() => { onClose(); navigate('/orders?role=buyer'); }}
                                 className="w-full bg-gray-100 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all"
                             >
                                 {t('checkout.go_orders')}
@@ -415,6 +415,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
             labelledBy="checkout-modal-title"
             bodyClassName="p-6"
         >
+            <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                aria-label={t('modal.close')}
+                className="absolute top-4 right-4 z-raised p-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors disabled:opacity-40"
+            >
+                <X size={20} />
+            </button>
             {renderStepContent()}
         </Sheet>
     );

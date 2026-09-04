@@ -278,6 +278,7 @@ router.post('/api/stripe/create-payment-intent', requireAuth, async (req: any, r
         const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.buyer_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
+        if (order.payment_method !== 'online') return res.status(400).json({ error: 'This order is paid in cash' });
         if (order.payment_captured === true || !isAwaitingPayment(order.status)) {
             return res.status(400).json({ error: 'Invalid order status' });
         }
@@ -313,12 +314,13 @@ router.post('/api/stripe/confirm-payment', requireAuth, async (req: any, res) =>
 
         const { data: existing, error: loadError } = await supabase
             .from('orders')
-            .select('id, buyer_id, status, total_amount, currency, stripe_payment_intent_id, payment_captured')
+            .select('id, buyer_id, status, total_amount, currency, stripe_payment_intent_id, payment_captured, payment_method')
             .eq('id', orderId)
             .maybeSingle();
         if (loadError) throw loadError;
         if (!existing) return res.status(404).json({ error: 'Order not found' });
         if (existing.buyer_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
+        if (existing.payment_method !== 'online') return res.status(400).json({ error: 'This order is paid in cash' });
         if (existing.payment_captured === true || !isAwaitingPayment(existing.status)) {
             return res.status(400).json({ error: `Order is not awaiting payment (status: ${existing.status})` });
         }

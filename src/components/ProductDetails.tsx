@@ -477,7 +477,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
       </div>
       {/* Mobile: the two actions stay reachable without scrolling past the description */}
       {!isOwnListing && (
-        <div className="md:hidden fixed inset-x-0 bottom-nav-offset z-sticky px-3 pt-2 pb-2 bg-white/90 backdrop-blur-md border-t border-gray-100 grid grid-cols-2 gap-3">
+        <div className="md:hidden fixed inset-x-0 bottom-nav-offset z-sticky px-3 pt-2 pb-7 bg-white/90 backdrop-blur-md border-t border-gray-100 grid grid-cols-2 gap-3">
           {actionButtons}
         </div>
       )}

@@ -3,7 +3,7 @@ import { AdminRequest } from '../middleware/adminAuth.js';
 import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 import { getStripe } from '../lib/stripe.js';
-import { isPaymentSettled } from '../domain/orders.js';
+import { canTransition, isOrderStatus, isPaymentSettled } from '../domain/orders.js';
 import { releaseEscrow } from '../services/escrowReleaseService.js';
 import { completeManualPayout } from '../services/payoutService.js';
 import { transitionOrder } from '../services/orderTransitionService.js';
@@ -605,6 +605,11 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
         }
         if (dispute.status !== 'open') {
             return res.status(409).json({ error: `Dispute already ${dispute.status}` });
+        }
+        // The ruling must be representable in the state graph *before* any money moves.
+        const target = action === 'refund' ? 'refunded' : 'completed';
+        if (!isOrderStatus(dispute.order.status) || !canTransition(dispute.order.status, target)) {
+            return res.status(409).json({ error: `Order is in status "${dispute.order.status}" and cannot be ${target}; reconcile manually` });
         }
 
         // 2. Claim the dispute first so a double click / concurrent admin cannot move money twice.

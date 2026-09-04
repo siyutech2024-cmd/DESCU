@@ -554,4 +554,5 @@ export const es: TranslationTable = {
   'orders.cancel_keep': 'Mantener pedido',
   'orders.cancel_success': 'Pedido cancelado',
   'orders.cancel_failed': 'No se pudo cancelar el pedido',
+  'modal.close': 'Cerrar',
 };

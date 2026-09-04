@@ -244,7 +244,7 @@ router.post('/api/orders/:id/cancel', requireAuth, async (req: any, res) => {
         const { id } = req.params;
         const userId: string = req.user.id;
         const { data: order, error } = await supabase.from('orders')
-            .select('id, status, buyer_id, seller_id, product_id, payment_method, payment_captured')
+            .select('id, status, buyer_id, seller_id, product_id, payment_method, payment_captured, stripe_payment_intent_id')
             .eq('id', id).maybeSingle();
         if (error?.code === '22P02') return res.status(404).json({ error: 'Order not found' });
         if (error) throw error;

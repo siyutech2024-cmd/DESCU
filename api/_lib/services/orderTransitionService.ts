@@ -1,4 +1,5 @@
 import { supabase } from '../db/supabase.js';
+import { getStripe } from '../lib/stripe.js';
 import {
     AWAITING_PAYMENT_STATUSES,
     ORDER_EXPIRY_GRACE_MS,
@@ -87,6 +88,7 @@ export interface CancelInput {
         product_id?: string | null;
         payment_method?: string | null;
         payment_captured?: boolean | null;
+        stripe_payment_intent_id?: string | null;
     };
     actorId: string;
     reason?: string | null;
@@ -116,8 +118,25 @@ export const cancelOrder = async ({ order, actorId, reason }: CancelInput): Prom
             metadata: { reason: cleanReason, by: isBuyer ? 'buyer' : 'seller' },
         },
     });
-    if (outcome.ok) await reopenProductAfterCancel(order.product_id, outcome.order?.product_id);
+    if (outcome.ok) {
+        await reopenProductAfterCancel(order.product_id, outcome.order?.product_id);
+        await cancelPaymentIntent(order.stripe_payment_intent_id ?? outcome.order?.stripe_payment_intent_id);
+    }
     return outcome;
+};
+
+/**
+ * Best effort: void the PaymentIntent of a cancelled order so a late 3DS completion / OXXO
+ * voucher cannot capture money for it. Stripe refuses to cancel `processing`/`succeeded`
+ * intents — those land in the webhook's payment_orphaned path for support.
+ */
+const cancelPaymentIntent = async (paymentIntentId: string | null | undefined) => {
+    if (!paymentIntentId || !paymentIntentId.startsWith('pi_')) return;
+    try {
+        await getStripe().paymentIntents.cancel(paymentIntentId, { cancellation_reason: 'abandoned' });
+    } catch (err: any) {
+        console.warn('[cancelOrder] could not cancel PaymentIntent', paymentIntentId, err?.message ?? err);
+    }
 };
 
 /** A cancelled cash order never marked its product sold; a cancelled online order may have (legacy). Put it back on sale. */
@@ -141,7 +160,7 @@ export const expireUnpaidOrders = async (limit = 100): Promise<ExpireResult> => 
     const cutoff = new Date(Date.now() - ORDER_EXPIRY_GRACE_MS).toISOString();
     const { data: stale, error } = await supabase
         .from('orders')
-        .select('id, status, product_id, payment_method, payment_captured, expires_at')
+        .select('id, status, product_id, payment_method, payment_captured, expires_at, stripe_payment_intent_id')
         .eq('status', 'pending_payment')
         .eq('payment_method', 'online')
         .or('payment_captured.is.null,payment_captured.eq.false')
@@ -168,6 +187,7 @@ export const expireUnpaidOrders = async (limit = 100): Promise<ExpireResult> => 
         if (outcome.ok) {
             orderIds.push(order.id);
             await reopenProductAfterCancel(order.product_id);
+            await cancelPaymentIntent(order.stripe_payment_intent_id);
         }
     }
     return { scanned: stale?.length ?? 0, cancelled: orderIds.length, orderIds };
