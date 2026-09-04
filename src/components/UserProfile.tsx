@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import OrderList from './OrderList';
 import { SellerPayoutCard } from './SellerPayoutCard';
 import { CreditBadge } from './CreditBadge';
 import { ArrowLeft, Camera, Save, Check, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, Scale, ExternalLink, Star, Heart, Lock } from 'lucide-react';
@@ -40,7 +39,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const [avatar, setAvatar] = useState(user.avatar);
   const [isSaved, setIsSaved] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [activeTab, setActiveTab] = useState<'listings' | 'buying' | 'selling' | 'favorites'>('listings');
+  const [activeTab, setActiveTab] = useState<'listings' | 'favorites'>('listings');
   const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
   const [listingsLimit, setListingsLimit] = useState(6); // 商品列表分页限制
 
@@ -241,16 +240,16 @@ export const UserProfile: React.FC<UserProfileProps> = ({
             {t('nav.favorites') || 'Favorites'} ({favorites.size})
           </button>
           <button
-            onClick={() => setActiveTab('buying')}
-            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'buying' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => navigate('/orders?role=buyer')}
+            className="flex-1 pb-3 text-sm font-bold transition-colors text-gray-500 hover:text-gray-700"
           >
-            {t('profile.buying') || 'Orders'}
+            {t('profile.buying')}
           </button>
           <button
-            onClick={() => setActiveTab('selling')}
-            className={`flex-1 pb-3 text-sm font-bold transition-colors ${activeTab === 'selling' ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => navigate('/orders?role=seller')}
+            className="flex-1 pb-3 text-sm font-bold transition-colors text-gray-500 hover:text-gray-700"
           >
-            {t('profile.selling') || 'Sales'}
+            {t('profile.selling')}
           </button>
         </div>
 
@@ -399,9 +398,6 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           )
         )}
 
-        {/* New Order Lists */}
-        {activeTab === 'buying' && <div className="min-h-[200px]"><OrderList role="buyer" currentUser={user} /></div>}
-        {activeTab === 'selling' && <div className="min-h-[200px]"><OrderList role="seller" currentUser={user} /></div>}
 
         <div className="mt-8 pt-8 border-t border-gray-200">
           <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">{t('profile.settings')}</h3>

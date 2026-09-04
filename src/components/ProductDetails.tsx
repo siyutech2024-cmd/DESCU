@@ -146,6 +146,46 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
   };
 
+  const isSold = product.status === 'sold';
+  const cannotBuy = isSold || (!!user && !purchaseEligibility.canPurchase);
+  // Rendered twice: inline on desktop, in the fixed bottom bar on mobile.
+  const actionButtons = (
+    <>
+      <button
+        type="button"
+        onClick={() => onContactSeller(product)}
+        disabled={isSold}
+        className={`flex items-center justify-center gap-2 py-3.5 md:py-4 rounded-2xl font-bold text-base md:text-lg transition-all ${isSold
+          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          : 'bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm'
+          }`}
+      >
+        <MessageCircle size={22} />
+        {isSold ? t('product.sold') : t('detail.contact')}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          if (!user) {
+            onRequireLogin();
+          } else {
+            setIsCheckoutOpen(true);
+          }
+        }}
+        disabled={cannotBuy}
+        className={`flex items-center justify-center gap-2 py-3.5 md:py-4 rounded-2xl font-bold text-base md:text-lg transition-all shadow-lg ${cannotBuy
+          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
+          }`}
+        title={(!user || purchaseEligibility.canPurchase) ? (purchaseEligibility.warning || '') : purchaseEligibility.reason}
+      >
+        <ShoppingBag size={22} />
+        {isSold ? t('product.sold') : ((!!user && !purchaseEligibility.canPurchase) ? t('product.not_available') : (product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it')))}
+      </button>
+    </>
+  );
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
     setLinkCopied(true);
@@ -153,7 +193,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   };
 
   return (
-    <div className="min-h-[60vh] bg-transparent pt-4 animate-fade-in">
+    <div className="min-h-[60vh] bg-transparent pt-4 pb-24 md:pb-0 animate-fade-in">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header Actions */}
         <div className="flex items-center justify-between mb-6">
@@ -338,42 +378,11 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 </div>
               </div>
 
-              {/* Action Buttons (hidden on the seller's own listing) */}
-              {user?.id === product.seller.id ? (
+              {/* Action Buttons: inline from md up; on mobile they live in the fixed bar below */}
+              {isOwnListing ? (
                 <div className="pt-2 mb-8 text-center text-sm font-bold text-gray-400 uppercase tracking-widest">{t('detail.own_listing')}</div>
               ) : (
-              <div className="pt-2 grid grid-cols-2 gap-4 mb-8">
-                <button
-                  onClick={() => onContactSeller(product)}
-                  disabled={product.status === 'sold'}
-                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all ${product.status === 'sold'
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm'
-                    }`}
-                >
-                  <MessageCircle size={22} />
-                  {product.status === 'sold' ? t('product.sold') : t('detail.contact')}
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      onRequireLogin();
-                    } else {
-                      setIsCheckoutOpen(true);
-                    }
-                  }}
-                  disabled={product.status === 'sold' || (!!user && !purchaseEligibility.canPurchase)}
-                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${(product.status === 'sold' || (!!user && !purchaseEligibility.canPurchase))
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
-                    }`}
-                  title={(!user || purchaseEligibility.canPurchase) ? (purchaseEligibility.warning || '') : purchaseEligibility.reason}
-                >
-                  <ShoppingBag size={22} />
-                  {product.status === 'sold' ? t('product.sold') : ((!!user && !purchaseEligibility.canPurchase) ? t('product.not_available') : (product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it')))}
-                </button>
-              </div>
+                <div className="hidden md:grid pt-2 grid-cols-2 gap-4 mb-8">{actionButtons}</div>
               )}
 
               {/* Share Buttons */}
@@ -466,6 +475,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           </div>
         </div>
       </div>
+      {/* Mobile: the two actions stay reachable without scrolling past the description */}
+      {!isOwnListing && (
+        <div className="md:hidden fixed inset-x-0 bottom-nav-offset z-sticky px-3 pt-2 pb-2 bg-white/90 backdrop-blur-md border-t border-gray-100 grid grid-cols-2 gap-3">
+          {actionButtons}
+        </div>
+      )}
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} targetType="product" targetId={product.id} />
       {user && (
         <CheckoutModal

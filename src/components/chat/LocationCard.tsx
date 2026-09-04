@@ -27,7 +27,7 @@ export const LocationCard: React.FC<LocationCardProps> = ({ content, senderName,
     const handleCopyAddress = () => {
         navigator.clipboard.writeText(address);
         const toast = document.createElement('div');
-        toast.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-6 py-3 rounded-full shadow-xl animate-fade-in z-[999] backdrop-blur-md flex items-center gap-2';
+        toast.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white px-6 py-3 rounded-full shadow-xl animate-fade-in z-toast backdrop-blur-md flex items-center gap-2';
         toast.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>${t('location.address_copied')}`;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 2000);

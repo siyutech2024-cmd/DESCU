@@ -10,6 +10,7 @@ import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { showToast } from '@/lib/toast';
 import { uploadProductImage } from '../services/supabase';
+import { Sheet } from './ui/Sheet';
 
 const MAX_IMAGES = 5;
 
@@ -301,22 +302,44 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative bg-white w-full max-w-lg h-[92vh] md:h-auto md:max-h-[85vh] md:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex-shrink-0 bg-white px-6 py-4 border-b border-gray-100 flex justify-between items-center z-10">
-          <h2 className="text-lg font-bold text-gray-900">{t('modal.title')}</h2>
-          <button onClick={onClose} className="p-2 -mr-2 hover:bg-gray-100 rounded-full text-gray-500">
-            <X size={22} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      variant="bottom"
+      size="lg"
+      title={t('modal.title')}
+      className="h-[92vh] md:h-auto"
+      footer={
+        <button
+          onClick={handleSubmit}
+          disabled={!isFormComplete || aiStatus === 'analyzing' || isUploading}
+          className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-200 hover:shadow-brand-300 transition-all active:scale-[0.98] text-lg flex items-center justify-center gap-2"
+        >
+          {aiStatus === 'analyzing' ? (
+            <>
+              <Loader2 size={20} className="animate-spin" />
+              {t('modal.submit.analyzing')}
+            </>
+          ) : isUploading ? (
+            <>
+              <Loader2 size={20} className="animate-spin" />
+              {`${t('modal.submit.analyzing') || 'Uploading'} ${uploadProgress}/${images.length}...`}
+            </>
+          ) : (
+            <>
+              {t('modal.submit')}
+              {images.length > 0 && (
+                <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1">
+                  {images.length} {images.length === 1 ? 'foto' : 'fotos'}
+                </span>
+              )}
+            </>
+          )}
+        </button>
+      }
+    >
+        <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Image Upload Area */}
           <div className="space-y-3">
@@ -578,36 +601,6 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
             </div>
           </div>
         </form>
-
-        <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white pb-safe">
-          <button
-            onClick={handleSubmit}
-            disabled={!isFormComplete || aiStatus === 'analyzing' || isUploading}
-            className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-200 hover:shadow-brand-300 transition-all active:scale-[0.98] text-lg flex items-center justify-center gap-2"
-          >
-            {aiStatus === 'analyzing' ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                {t('modal.submit.analyzing')}
-              </>
-            ) : isUploading ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                {`${t('modal.submit.analyzing') || 'Uploading'} ${uploadProgress}/${images.length}...`}
-              </>
-            ) : (
-              <>
-                {t('modal.submit')}
-                {images.length > 0 && (
-                  <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1">
-                    {images.length} {images.length === 1 ? 'foto' : 'fotos'}
-                  </span>
-                )}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 };

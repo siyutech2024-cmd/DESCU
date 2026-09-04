@@ -542,4 +542,16 @@ export const zh: TranslationTable = {
   'order_msg.default.buyer': '你的订单状态已变化。',
   'order_msg.default.seller': '订单状态已变化。',
   'order_msg.order_number': '订单 #{id}',
+
+  // Orders page + cancel flow
+  'auth.signed_out_hint_orders': '登录后查看你的买入和卖出订单',
+  'orders.title': '我的订单',
+  'orders.keep_shopping': '继续逛逛 →',
+  'orders.cancel': '取消订单',
+  'orders.cancel_confirm_title': '确定取消该订单？',
+  'orders.cancel_confirm_body_unpaid': '商品将重新上架，之后仍可再次下单。',
+  'orders.cancel_confirm_body_cash': '取消前请先告知对方。此操作无法撤销。',
+  'orders.cancel_keep': '保留订单',
+  'orders.cancel_success': '订单已取消',
+  'orders.cancel_failed': '取消订单失败',
 };

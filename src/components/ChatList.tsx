@@ -4,6 +4,7 @@ import { Conversation, ConversationLastMessage, User } from '../types';
 import { useLanguage } from '@/i18n';
 import { deleteConversation } from '../services/chatService';
 import { MessageCircle, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
+import { ConfirmSheet } from './ui/Sheet';
 
 interface ChatListProps {
   conversations: Conversation[];
@@ -435,9 +436,9 @@ export const ChatList: React.FC<ChatListProps> = ({
       {/* 上下文菜单 */}
       {contextMenu && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
+          <div className="fixed inset-0 z-overlay" onClick={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-48 animate-fade-in"
+            className="fixed z-overlay bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-48 animate-fade-in"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
@@ -462,36 +463,20 @@ export const ChatList: React.FC<ChatListProps> = ({
       )}
 
       {/* 自定义删除确认对话框 */}
-      {confirmDeleteId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 animate-fade-in" onClick={() => setConfirmDeleteId(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 mx-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Trash2 size={20} className="text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900">{t('chat.delete_conversation')}</h3>
-            </div>
-            <p className="text-gray-500 text-sm mb-5">{t('chat.delete_confirm')}</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDeleteId(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-              >
-                {t('chat.cancel')}
-              </button>
-              <button
-                onClick={() => {
-                  handleDeleteConversation(confirmDeleteId);
-                  setConfirmDeleteId(null);
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
-              >
-                {t('chat.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmSheet
+        open={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (confirmDeleteId) handleDeleteConversation(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+        title={t('chat.delete_conversation')}
+        description={t('chat.delete_confirm')}
+        confirmLabel={t('chat.delete')}
+        cancelLabel={t('chat.cancel')}
+        destructive
+        icon={<Trash2 size={20} />}
+      />
 
       {/* 隐藏的对话恢复提示 */}
       {hiddenConversations.size > 0 && (

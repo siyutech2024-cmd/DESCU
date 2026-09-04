@@ -348,7 +348,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   return (
     // Mobile: a fixed full-height column that ends where the bottom nav starts (shared
     // --bottom-nav-h var). Desktop (md+): a normal block inside ChatPage's card.
-    <div className="fixed inset-x-0 top-0 bottom-nav-offset z-50 flex flex-col bg-[#f8f9fa] md:static md:h-full md:rounded-2xl md:overflow-hidden md:border md:border-gray-200 animate-fade-in">
+    <div className="fixed inset-x-0 top-0 bottom-nav-offset z-overlay flex flex-col bg-[#f8f9fa] md:static md:h-full md:rounded-2xl md:overflow-hidden md:border md:border-gray-200 animate-fade-in">
 
       {/* Header - Glassmorphism (pt-safe: sits under the notch on mobile) */}
       <div className="flex-shrink-0 relative z-20 glass-panel border-b border-white/40 pt-safe md:pt-0">
@@ -403,7 +403,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             {showMenu && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
-                <div className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 z-40 overflow-hidden animate-fade-in-up origin-top-right">
+                <div className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 z-raised overflow-hidden animate-fade-in-up origin-top-right">
                   <button
                     onClick={() => { setShowMenu(false); setIsReportOpen(true); }}
                     className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-500 text-sm font-medium transition-colors border-b border-gray-100"
@@ -615,7 +615,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
         {/* Emoji Picker Popover */}
         {showEmojiPicker && (
-          <div className="absolute bottom-20 left-4 animate-fade-in-up z-50 mb-safe">
+          <div className="absolute bottom-20 left-4 animate-fade-in-up z-raised mb-safe">
             <div className="glass-panel p-3 rounded-2xl shadow-xl border border-white/50 w-64">
               <div className="grid grid-cols-6 gap-2">
                 {['😂', '❤️', '👍', '🔥', '😊', '😭', '😍', '🤔', '🎉', '👀', '🙏', '💯', '👋', '😅', '🙌', '😎', '😉', '😢'].map(emoji => (

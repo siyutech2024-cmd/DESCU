@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Home, PlusCircle, User as UserIcon, MapPin, Bell, X, Globe, Check } from 'lucide-react';
+import { Home, PlusCircle, User as UserIcon, MapPin, Bell, Globe, Check } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { useRegion, REGIONS } from '../contexts/RegionContext';
 import { DetailedLocationInfo } from '../services/locationService';
+import { Sheet } from './ui/Sheet';
 
 interface BottomNavProps {
   currentView: string;
@@ -29,83 +30,69 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const { region, setRegion } = useRegion();
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
 
-  const totalNotifications = unreadCount + orderCount;
 
   const currentRegion = REGIONS.find(r => r.code === region) || REGIONS[0];
 
   return (
     <>
       {/* Region Selection Modal */}
-      {isRegionModalOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-end justify-center animate-fade-in"
-          onClick={() => setIsRegionModalOpen(false)}
-        >
-          <div
-            className="bg-white rounded-t-3xl w-full max-h-[70vh] overflow-hidden animate-slide-up pb-safe"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Globe size={20} className="text-brand-600" />
-                {t('region.select')}
-              </h2>
-              <button
-                onClick={() => setIsRegionModalOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={20} className="text-gray-500" />
-              </button>
-            </div>
-
-            {/* Current Location */}
-            {locationInfo && (
-              <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
-                <div className="flex items-center gap-2 text-blue-700">
-                  <MapPin size={16} />
-                  <span className="text-sm font-medium">
-                    {t('region.current_location')}: {locationInfo.displayName}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Region List */}
-            <div className="p-4 space-y-2 overflow-y-auto max-h-[50vh]">
-              {REGIONS.map((r) => (
-                <button
-                  key={r.code}
-                  onClick={() => {
-                    setRegion(r.code);
-                    setIsRegionModalOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${region === r.code
-                    ? 'bg-brand-50 border-2 border-brand-500'
-                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                    }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{r.flag}</span>
-                    <div className="text-left">
-                      <div className="font-bold text-gray-900">{r.name}</div>
-                      <div className="text-xs text-gray-500">{t('region.currency')}: {r.currency}</div>
-                    </div>
-                  </div>
-                  {region === r.code && (
-                    <div className="w-6 h-6 bg-brand-600 rounded-full flex items-center justify-center">
-                      <Check size={14} className="text-white" />
-                    </div>
-                  )}
-                </button>
-              ))}
+      <Sheet
+        open={isRegionModalOpen}
+        onClose={() => setIsRegionModalOpen(false)}
+        variant="bottom"
+        size="md"
+        title={
+          <span className="flex items-center gap-2">
+            <Globe size={20} className="text-brand-600" />
+            {t('region.select')}
+          </span>
+        }
+      >
+        {/* Current Location */}
+        {locationInfo && (
+          <div className="-mx-5 mb-3 px-4 py-3 bg-blue-50 border-y border-blue-100">
+            <div className="flex items-center gap-2 text-blue-700">
+              <MapPin size={16} />
+              <span className="text-sm font-medium">
+                {t('region.current_location')}: {locationInfo.displayName}
+              </span>
             </div>
           </div>
+        )}
+
+        {/* Region List */}
+        <div className="space-y-2">
+          {REGIONS.map((r) => (
+            <button
+              key={r.code}
+              onClick={() => {
+                setRegion(r.code);
+                setIsRegionModalOpen(false);
+              }}
+              className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${region === r.code
+                ? 'bg-brand-50 border-2 border-brand-500'
+                : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{r.flag}</span>
+                <div className="text-left">
+                  <div className="font-bold text-gray-900">{r.name}</div>
+                  <div className="text-xs text-gray-500">{t('region.currency')}: {r.currency}</div>
+                </div>
+              </div>
+              {region === r.code && (
+                <div className="w-6 h-6 bg-brand-600 rounded-full flex items-center justify-center">
+                  <Check size={14} className="text-white" />
+                </div>
+              )}
+            </button>
+          ))}
         </div>
-      )}
+      </Sheet>
 
       {/* Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-nav pb-safe">
         {/* Single Navigation Bar with 4 buttons */}
         <div className="bg-white/95 backdrop-blur-xl border-t border-gray-200/50 shadow-glass-lg px-4 pb-3 pt-3">
           <div className="flex items-center justify-around relative">
@@ -148,10 +135,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className={`flex flex-col items-center justify-center gap-1 relative transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'chat-list' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="relative">
-                <Bell size={22} strokeWidth={2} className={totalNotifications > 0 ? "text-orange-600" : ""} />
-                {totalNotifications > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white animate-pulse">
-                    {totalNotifications}
+                <Bell size={22} strokeWidth={2} className={unreadCount > 0 ? "text-orange-600" : ""} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white">
+                    {unreadCount}
                   </span>
                 )}
               </div>
@@ -163,16 +150,24 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               onClick={() => onChangeView('profile')}
               className={`flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'profile' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              {user ? (
-                <img
-                  src={user.avatar}
-                  alt={user.name}
-                  className={`w-6 h-6 rounded-full object-cover border-2 ${currentView === 'profile' ? 'border-brand-500' : 'border-gray-300'
-                    }`}
-                />
-              ) : (
-                <UserIcon size={22} strokeWidth={currentView === 'profile' ? 2.5 : 2} fill={currentView === 'profile' ? "currentColor" : "none"} />
-              )}
+              <div className="relative">
+                {user ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className={`w-6 h-6 rounded-full object-cover border-2 ${currentView === 'profile' ? 'border-brand-500' : 'border-gray-300'
+                      }`}
+                  />
+                ) : (
+                  <UserIcon size={22} strokeWidth={currentView === 'profile' ? 2.5 : 2} fill={currentView === 'profile' ? "currentColor" : "none"} />
+                )}
+                {/* Orders waiting on the user (ship / confirm receipt / confirm meetup) */}
+                {orderCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white">
+                    {orderCount}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] font-bold">{t('nav.profile')}</span>
             </button>
           </div>

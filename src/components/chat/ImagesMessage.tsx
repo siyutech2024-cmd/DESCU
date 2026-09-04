@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Image as ImageIcon, ZoomIn } from 'lucide-react';
 
 interface ImagesMessageProps {
@@ -21,6 +21,15 @@ export const ImagesMessage: React.FC<ImagesMessageProps> = ({ content }) => {
     const closeViewer = () => {
         setSelectedImage(null);
     };
+
+    useEffect(() => {
+        if (!selectedImage) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') closeViewer();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [selectedImage]);
 
     // 根据图片数量渲染不同布局
     const renderImageGrid = () => {
@@ -138,7 +147,7 @@ export const ImagesMessage: React.FC<ImagesMessageProps> = ({ content }) => {
             {/* Full Screen Image Viewer */}
             {selectedImage && (
                 <div
-                    className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 animate-fade-in"
+                    className="fixed inset-0 bg-black/95 z-toast flex items-center justify-center p-4 animate-fade-in"
                     onClick={closeViewer}
                 >
                     <button

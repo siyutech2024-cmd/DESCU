@@ -24,6 +24,16 @@ export default {
                     dark: 'rgba(15, 23, 42, 0.6)',
                 }
             },
+            // Layering tokens — use these instead of raw z-* values (see src/components/ui/Sheet.tsx)
+            zIndex: {
+                raised: '10',    // cards, stickies inside content
+                sticky: '20',    // sticky headers/CTAs inside a page
+                nav: '30',       // top navbar / bottom nav
+                overlay: '40',   // dropdowns, context menus, chat window on mobile
+                modal: '50',     // dialogs / bottom sheets
+                'modal-top': '60', // a dialog stacked on another (confirm inside a sheet)
+                toast: '70',     // toasts, image lightbox
+            },
             boxShadow: {
                 'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
                 'glass-sm': '0 4px 16px 0 rgba(31, 38, 135, 0.05)',

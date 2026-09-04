@@ -17,6 +17,7 @@ import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
 import { AddressList } from './AddressList';
 import { previewOrderAmounts } from '@/lib/pricing';
+import { Sheet } from './ui/Sheet';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51Sq0FTQ21K2ZcCkTeSAIFszExSoxuA6L5qGSn20wjF1MIyYECOM2O8zZU0YSTFVCQs8RAMiuTeLyyWmr4wv4gtkL00eEWCifnz';
 const stripePromise = loadStripe(STRIPE_KEY);
@@ -111,6 +112,8 @@ const CheckoutForm: React.FC<{
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, product, user }) => {
     const navigate = useNavigate();
+    const { t } = useLanguage();
+    const { formatCurrency } = useRegion();
     const [step, setStep] = useState<Step>('type-selection');
     const [orderType, setOrderType] = useState<OrderType>('meetup');
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
@@ -201,10 +204,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
         }
     };
 
-    if (!isOpen) return null;
-
-    const { t } = useLanguage();
-    const { formatCurrency } = useRegion();
     const productCurrency = product.currency || 'MXN';
 
     const renderStepContent = () => {
@@ -216,7 +215,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
 
                 return (
                     <div className="space-y-4">
-                        <h3 className="text-lg font-bold text-gray-800 mb-4">{t('checkout.select_method')}</h3>
+                        <h3 id="checkout-modal-title" className="text-lg font-bold text-gray-800 mb-4">{t('checkout.select_method')}</h3>
 
                         {showMeetup && (
                             <button
@@ -266,7 +265,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                             <button onClick={() => setStep('type-selection')} className="p-1 hover:bg-gray-100 rounded-full">
                                 <ArrowLeft size={20} />
                             </button>
-                            <h3 className="text-lg font-bold">{t('checkout.review')}</h3>
+                            <h3 id="checkout-modal-title" className="text-lg font-bold">{t('checkout.review')}</h3>
                         </div>
 
                         {/* Order Type Badge */}
@@ -350,7 +349,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                             <button onClick={() => setStep('details')} className="p-1 hover:bg-gray-100 rounded-full">
                                 <ArrowLeft size={20} />
                             </button>
-                            <h3 className="text-lg font-bold">{t('checkout.secure_payment')}</h3>
+                            <h3 id="checkout-modal-title" className="text-lg font-bold">{t('checkout.secure_payment')}</h3>
                         </div>
                         {clientSecret && createdOrder && (
                             <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
@@ -372,7 +371,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
                         <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
                             <CheckCircle size={48} />
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-800">{t('checkout.success')}</h3>
+                        <h3 id="checkout-modal-title" className="text-2xl font-bold text-gray-800">{t('checkout.success')}</h3>
                         <p className="text-gray-600">
                             {orderType === 'meetup'
                                 ? t('checkout.meetup_success')
@@ -407,16 +406,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, p
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-                <div className="absolute top-4 right-4 z-10">
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400">
-                        <X size={20} />
-                    </button>
-                </div>
-                {renderStepContent()}
-            </div>
-        </div>
+        <Sheet
+            open={isOpen}
+            onClose={onClose}
+            variant="bottom"
+            size="md"
+            dismissible={!isLoading}
+            labelledBy="checkout-modal-title"
+            bodyClassName="p-6"
+        >
+            {renderStepContent()}
+        </Sheet>
     );
 }

@@ -542,4 +542,16 @@ export const en: TranslationTable = {
   'order_msg.default.buyer': 'Your order status changed.',
   'order_msg.default.seller': 'The order status changed.',
   'order_msg.order_number': 'Order #{id}',
+
+  // Orders page + cancel flow
+  'auth.signed_out_hint_orders': 'Sign in to see what you are buying and selling',
+  'orders.title': 'My orders',
+  'orders.keep_shopping': 'Keep browsing →',
+  'orders.cancel': 'Cancel order',
+  'orders.cancel_confirm_title': 'Cancel this order?',
+  'orders.cancel_confirm_body_unpaid': 'The item goes back on sale and you can order it again later.',
+  'orders.cancel_confirm_body_cash': 'Let the other person know before you cancel. This cannot be undone.',
+  'orders.cancel_keep': 'Keep order',
+  'orders.cancel_success': 'Order cancelled',
+  'orders.cancel_failed': 'Could not cancel the order',
 };

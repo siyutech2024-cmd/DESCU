@@ -59,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <nav className="sticky top-0 z-50 pt-safe bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-glass-sm transition-all duration-300">
+    <nav className="sticky top-0 z-nav pt-safe bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-glass-sm transition-all duration-300">
       <div className="max-w-5xl mx-auto px-3 md:px-4 h-16 md:h-18 flex items-center gap-2 md:gap-4 justify-between">
 
         {/* Brand Logo - Added for brand consistency */}
@@ -212,7 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={onProfileClick}
                     title={t('nav.profile')}
                   />
-                  <div className="absolute top-full right-0 mt-2 py-1 px-2 bg-black/80 backdrop-blur-md text-white text-xs rounded-lg opacity-0 group-hover/profile:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                  <div className="absolute top-full right-0 mt-2 py-1 px-2 bg-black/80 backdrop-blur-md text-white text-xs rounded-lg opacity-0 group-hover/profile:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-raised">
                     {user.name}
                   </div>
                 </div>

@@ -16,6 +16,7 @@ import { PageLoader } from './PageLoader';
 const HomePage = React.lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
 const ProductPage = React.lazy(() => import('@/pages/ProductPage').then(m => ({ default: m.ProductPage })));
 const ProfilePage = React.lazy(() => import('@/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const OrdersPage = React.lazy(() => import('@/pages/OrdersPage').then(m => ({ default: m.OrdersPage })));
 const ChatPage = React.lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.ChatPage })));
 const UserProfilePage = React.lazy(() => import('@/pages/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 const PrivacyPolicyPage = React.lazy(() => import('@/pages/PrivacyPolicyPage'));
@@ -29,7 +30,7 @@ type BottomNavView = 'home' | 'chat-list' | 'profile' | 'product';
 
 const viewFromPath = (path: string): BottomNavView => {
     if (path.startsWith('/chat')) return 'chat-list';
-    if (path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/profile') || path.startsWith('/orders')) return 'profile';
     if (path.startsWith('/product')) return 'product';
     return 'home';
 };
@@ -158,6 +159,7 @@ export const MarketplaceApp: React.FC = () => {
                                 />
                             }
                         />
+                        <Route path="/orders" element={<OrdersPage user={user} />} />
                         <Route path="/user/:id" element={<UserProfilePage currentUserId={user?.id} />} />
                         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                         <Route path="*" element={<Navigate to="/" replace />} />

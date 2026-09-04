@@ -542,4 +542,16 @@ export const es: TranslationTable = {
   'order_msg.default.buyer': 'El estado de tu pedido cambió.',
   'order_msg.default.seller': 'El estado del pedido cambió.',
   'order_msg.order_number': 'Pedido #{id}',
+
+  // Orders page + cancel flow
+  'auth.signed_out_hint_orders': 'Inicia sesión para ver lo que compras y vendes',
+  'orders.title': 'Mis pedidos',
+  'orders.keep_shopping': 'Seguir explorando →',
+  'orders.cancel': 'Cancelar pedido',
+  'orders.cancel_confirm_title': '¿Cancelar este pedido?',
+  'orders.cancel_confirm_body_unpaid': 'El artículo vuelve a la venta y podrás pedirlo de nuevo más tarde.',
+  'orders.cancel_confirm_body_cash': 'Avísale a la otra persona antes de cancelar. Esta acción no se puede deshacer.',
+  'orders.cancel_keep': 'Mantener pedido',
+  'orders.cancel_success': 'Pedido cancelado',
+  'orders.cancel_failed': 'No se pudo cancelar el pedido',
 };

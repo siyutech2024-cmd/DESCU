@@ -10,6 +10,9 @@ import { User } from '../types';
 import { OrderStatusCard } from './OrderStatusCard';
 import { DisputeModal } from './DisputeModal';
 import { ShipmentModal } from './ShipmentModal';
+import { ConfirmSheet } from './ui/Sheet';
+import { XCircle } from 'lucide-react';
+import type { Order } from '../types';
 
 interface OrderListProps {
     role: 'buyer' | 'seller';
@@ -34,6 +37,30 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
     const [confirmingId, setConfirmingId] = useState<string | null>(null);
     // Two-tap confirmation (replaces the blocking `confirm()` dialog) for the irreversible receipt confirmation.
     const [armedOrderId, setArmedOrderId] = useState<string | null>(null);
+    const [cancelTarget, setCancelTarget] = useState<Order | null>(null);
+    const [isCancelling, setIsCancelling] = useState(false);
+
+    // Mirrors the server rule (domain/orderStatus.cancelBlockReason): buyer cancels unpaid online
+    // orders; either party cancels a cash order that has not been completed.
+    const canCancel = (order: Order): boolean => {
+        if (order.payment_method === 'online') return role === 'buyer' && order.status === 'pending_payment';
+        return order.status === 'paid' || order.status === 'meetup_arranged';
+    };
+
+    const handleCancel = async () => {
+        if (!cancelTarget) return;
+        setIsCancelling(true);
+        try {
+            await api.post(`/api/orders/${cancelTarget.id}/cancel`, {}, { auth: 'required' });
+            notify.success(t('orders.cancel_success'));
+            setCancelTarget(null);
+            refreshOrders();
+        } catch (err) {
+            notify.fromError(err, t('orders.cancel_failed'));
+        } finally {
+            setIsCancelling(false);
+        }
+    };
 
     const refreshOrders = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.orders(currentUser.id) });
@@ -90,6 +117,16 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
 
                         {/* Extra actions (not part of the clickable product area) */}
                         <div className="mt-2 flex gap-2 justify-end px-2">
+                            {canCancel(order) && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setCancelTarget(order); }}
+                                    className="px-3 py-2 text-gray-500 text-xs hover:bg-gray-100 rounded-lg transition-colors font-medium"
+                                >
+                                    {t('orders.cancel')}
+                                </button>
+                            )}
+
                             {/* SELLER: Ship Button */}
                             {role === 'seller' && (order.status === 'paid' || order.status === 'escrow_held') && order.order_type === 'shipping' && (
                                 <button
@@ -144,6 +181,19 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
                 orderId={selectedOrderId || ''}
                 onClose={() => setShowDisputeModal(false)}
                 onSuccess={refreshOrders}
+            />
+
+            <ConfirmSheet
+                open={cancelTarget !== null}
+                onClose={() => setCancelTarget(null)}
+                onConfirm={handleCancel}
+                busy={isCancelling}
+                destructive
+                icon={<XCircle size={20} />}
+                title={t('orders.cancel_confirm_title')}
+                description={cancelTarget?.payment_method === 'online' ? t('orders.cancel_confirm_body_unpaid') : t('orders.cancel_confirm_body_cash')}
+                confirmLabel={t('orders.cancel')}
+                cancelLabel={t('orders.cancel_keep')}
             />
         </div>
     );
