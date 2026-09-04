@@ -579,7 +579,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
           </div>
         </form>
 
-        <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white">
+        <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white pb-safe">
           <button
             onClick={handleSubmit}
             disabled={!isFormComplete || aiStatus === 'analyzing' || isUploading}

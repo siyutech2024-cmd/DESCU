@@ -112,7 +112,8 @@
  * app shell in MarketplaceApp) — pages must not add their own compensation.
  */
 :root {
-  --bottom-nav-h: 86px;
+  --bottom-nav-h: 86px;      /* bar + FAB overhang: use for page padding */
+  --bottom-nav-bar-h: 66px;  /* the bar alone: use for fixed panels that must butt against it */
 }
 
 /* Safe area insets for iOS (notch / home indicator). Elements that sit at the edges of the
@@ -129,7 +130,7 @@
   /* Reserve room for the mobile bottom nav (+ home indicator). Pair with `md:pb-0`. */
   .pb-bottom-nav { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
   /* Offset for fixed elements that must float above the bottom nav (e.g. chat composer). */
-  .bottom-nav-offset { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+  .bottom-nav-offset { bottom: calc(var(--bottom-nav-bar-h) + env(safe-area-inset-bottom, 0px)); }
 }
 
 body {

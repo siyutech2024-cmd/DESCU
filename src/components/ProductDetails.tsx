@@ -399,17 +399,19 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 pb-8">
           {/* Seller Card — whole card navigates to the seller's public profile */}
           <div
-            role="link"
-            tabIndex={0}
-            aria-label={`${t('detail.seller')}: ${product.seller.name}`}
-            onClick={goToSeller}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                goToSeller();
-              }
-            }}
-            className="glass-card p-6 rounded-[2rem] flex items-center gap-5 cursor-pointer hover:shadow-lg transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+            {...(sellerId ? {
+              role: 'link',
+              tabIndex: 0,
+              'aria-label': `${t('detail.seller')}: ${product.seller.name || 'User'}`,
+              onClick: goToSeller,
+              onKeyDown: (e: React.KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  goToSeller();
+                }
+              },
+            } : {})}
+            className={`glass-card p-6 rounded-[2rem] flex items-center gap-5 transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${sellerId ? 'cursor-pointer hover:shadow-lg' : ''}`}
           >
             <div className="relative">
               <img src={product.seller.avatar} alt={product.seller.name} className="w-16 h-16 rounded-full border-2 border-white shadow-md object-cover" />

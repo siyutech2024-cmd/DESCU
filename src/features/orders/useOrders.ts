@@ -20,7 +20,7 @@ export const useOrders = () => {
         refetchInterval: ORDERS_POLL_MS,
         refetchIntervalInBackground: false,
         queryFn: async () => {
-            const data = await api.get<{ orders?: Order[] }>('/api/orders', { auth: 'required' });
+            const data = await api.get<{ orders?: Order[] }>('/api/orders', { params: { limit: 200 }, auth: 'required' });
             return data.orders ?? [];
         },
     });

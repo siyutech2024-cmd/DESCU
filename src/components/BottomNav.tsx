@@ -42,7 +42,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           onClick={() => setIsRegionModalOpen(false)}
         >
           <div
-            className="bg-white rounded-t-3xl w-full max-h-[70vh] overflow-hidden animate-slide-up"
+            className="bg-white rounded-t-3xl w-full max-h-[70vh] overflow-hidden animate-slide-up pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}

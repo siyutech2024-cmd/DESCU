@@ -11,7 +11,7 @@ export const requiresAction = (order: Order, userId: string): boolean => {
     const isSeller = order.seller_id === userId;
     if (!isBuyer && !isSeller) return false;
 
-    if (isBuyer && order.status === 'shipped') return true;
+    if (isBuyer && (order.status === 'shipped' || order.status === 'delivered')) return true;
 
     if (order.order_type === 'meetup' && order.status === 'meetup_arranged') {
         const myConfirmation = isBuyer ? order.buyer_confirmed_at : order.seller_confirmed_at;

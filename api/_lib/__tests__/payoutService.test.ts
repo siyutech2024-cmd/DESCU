@@ -32,6 +32,41 @@ const seed = () => resetDb({
     order_timeline: [],
 });
 
+describe('payoutService legacy rows (finalised before escrowReleaseService existed)', () => {
+    beforeEach(() => {
+        seed();
+        db.orders.push(
+            // completed online order that was never transferred nor paid manually → still owed
+            order({ id: 'legacy-1', status: 'completed', payout_status: 'pending', transferred_to_seller: null, completed_at: '2025-12-01T00:00:00Z' }),
+            order({ id: 'legacy-2', status: 'delivered', payout_status: null, transferred_to_seller: false, completed_at: '2025-12-02T00:00:00Z' }),
+        );
+    });
+
+    it('lists legacy completed-but-unpaid online orders in the pending queue', async () => {
+        const { payouts, stats } = await listPayouts('pending');
+        expect(payouts.map(p => p.id)).toEqual(['legacy-1', 'legacy-2', 'queue-2', 'queue-1']);
+        expect(stats.pending).toBe(4);
+        expect(payouts.map(p => p.id)).not.toContain('stripe-1');
+        expect(payouts.map(p => p.id)).not.toContain('cash-1');
+    });
+
+    it('can pay a legacy row exactly once', async () => {
+        expect((await completeManualPayout({ orderId: 'legacy-1', adminId: 'a', reference: 'SPEI-9' })).ok).toBe(true);
+        const row = db.orders.find(o => o.id === 'legacy-1')!;
+        expect(row.transferred_to_seller).toBe(true);
+        expect(row.payout_status).toBe('completed');
+        const again = await completeManualPayout({ orderId: 'legacy-1', adminId: 'a' });
+        expect(again).toMatchObject({ ok: false, code: 409 });
+        expect((await listPayouts('pending')).payouts.map(p => p.id)).not.toContain('legacy-1');
+    });
+
+    it('a completed payout is terminal: processing cannot reopen it', async () => {
+        const r = await markOrderPayoutProcessing('done-1');
+        expect(r).toMatchObject({ ok: false, code: 409 });
+        expect(db.orders.find(o => o.id === 'done-1')!.payout_status).toBe('completed');
+    });
+});
+
 describe('payoutService.listPayouts', () => {
     beforeEach(seed);
 

@@ -47,8 +47,13 @@ describe('requiresAction', () => {
         expect(requiresAction(buyerConfirmed, 'seller')).toBe(true);
     });
 
+    it('a delivered shipping order still needs the buyer to confirm receipt', () => {
+        expect(requiresAction(order({ status: 'delivered', order_type: 'shipping' }), 'buyer')).toBe(true);
+        expect(requiresAction(order({ status: 'delivered', order_type: 'shipping' }), 'seller')).toBe(false);
+    });
+
     it('closed and waiting states are not actionable', () => {
-        for (const status of ['pending_payment', 'delivered', 'completed', 'cancelled', 'refunded', 'disputed'] as Order['status'][]) {
+        for (const status of ['pending_payment', 'completed', 'cancelled', 'refunded', 'disputed'] as Order['status'][]) {
             expect(requiresAction(order({ status }), 'buyer')).toBe(false);
             expect(requiresAction(order({ status }), 'seller')).toBe(false);
         }

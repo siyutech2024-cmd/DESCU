@@ -24,7 +24,8 @@ export class FakeQuery {
     private sort: { col: string; ascending: boolean } | null = null;
     private slice: { from: number; to: number } | null = null;
     constructor(private table: string) { db[table] ??= []; }
-    select() { this.wantSelect = true; return this; }
+    private countOnly = false;
+    select(_cols?: string, opts?: { count?: string; head?: boolean }) { this.wantSelect = true; if (opts?.head) this.countOnly = true; return this; }
     insert(rows: Row | Row[]) { this.op = 'insert'; this.payload = Array.isArray(rows) ? rows : [rows]; return this; }
     update(patch: Row) { this.op = 'update'; this.payload = patch; return this; }
     delete() { this.op = 'delete'; return this; }
@@ -33,10 +34,12 @@ export class FakeQuery {
     is(col: string, v: any) { this.filters.push(r => (v === null ? r[col] == null : r[col] === v)); return this; }
     in(col: string, vs: any[]) { this.filters.push(r => vs.includes(r[col])); return this; }
     or(expr: string) {
-        // supports "col.is.null,col.eq.false"
+        // supports "col.is.null,col.eq.false,col.neq.value"
         const alts = expr.split(',').map(part => {
             const [col, op, val] = part.split('.');
-            return (r: Row) => op === 'is' ? r[col] == null : String(r[col]) === val;
+            if (op === 'is') return (r: Row) => (val === 'null' ? r[col] == null : String(r[col]) === val);
+            if (op === 'neq') return (r: Row) => r[col] != null && String(r[col]) !== val;
+            return (r: Row) => String(r[col]) === val;
         });
         this.filters.push(r => alts.some(f => f(r)));
         return this;
@@ -86,8 +89,9 @@ export class FakeQuery {
                 return (av < bv ? -1 : 1) * (ascending ? 1 : -1);
             });
         }
+        if (this.countOnly) return { data: null, count: out.length, error: null };
         if (this.slice) out = out.slice(this.slice.from, this.slice.to + 1);
-        return { data: out, error: null };
+        return { data: out, count: out.length, error: null };
     }
     then(onOk?: ((v: any) => any) | null, onErr?: ((e: any) => any) | null): Promise<any> {
         return Promise.resolve(this.exec()).then(onOk ?? undefined, onErr ?? undefined);
