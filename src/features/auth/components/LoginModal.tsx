@@ -2,7 +2,7 @@
 import React from 'react';
 import { X, LogIn } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { Sheet } from './ui/Sheet';
+import { Sheet } from '@/components/ui/Sheet';
 
 interface LoginModalProps {
     isOpen: boolean;

@@ -1,10 +1,10 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Conversation, ConversationLastMessage, User } from '../types';
+import { Conversation, ConversationLastMessage, User } from '@/types';
 import { useLanguage } from '@/i18n';
-import { deleteConversation } from '../services/chatService';
+import { deleteConversation } from '@/services/chatService';
 import { MessageCircle, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
-import { ConfirmSheet } from './ui/Sheet';
+import { ConfirmSheet } from '@/components/ui/Sheet';
 
 interface ChatListProps {
   conversations: Conversation[];

@@ -2,7 +2,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Product, User } from '../types';
-import { ProductDetails } from '../components/ProductDetails';
+import { ProductDetails } from '@/features/products/components/ProductDetails';
 import { useSEO } from '../hooks/useSEO';
 import { useLanguage } from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';

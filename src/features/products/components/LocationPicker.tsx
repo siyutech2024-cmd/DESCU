@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Navigation } from 'lucide-react';
-import { Coordinates } from '../types';
+import { Coordinates } from '@/types';
 
 interface LocationPickerProps {
     value?: string;

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
-import { supabase } from '../../services/supabase';
-import { uploadChatImage, compressImage } from '../../services/chatImageUpload';
-import { sendRichMessage } from '../../services/chatService';
+import { supabase } from '@/services/supabase';
+import { uploadChatImage, compressImage } from '@/services/chatImageUpload';
+import { sendRichMessage } from '@/services/chatService';
 import { useLanguage } from '@/i18n';
 
 interface ImageSenderProps {

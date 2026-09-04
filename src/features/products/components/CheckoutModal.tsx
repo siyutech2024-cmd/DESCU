@@ -9,15 +9,15 @@ import {
     useElements,
 } from '@stripe/react-stripe-js';
 import { X, Lock, MapPin, Truck, ArrowLeft, CheckCircle, Banknote } from 'lucide-react';
-import { Product, User } from '../types';
+import { Product, User } from '@/types';
 import { api, ApiError } from '@/lib/api/client';
-import { supabase } from '../services/supabase';
-import { createOrGetConversation } from '../services/chatService';
+import { supabase } from '@/services/supabase';
+import { createOrGetConversation } from '@/services/chatService';
 import { useLanguage } from '@/i18n';
-import { useRegion } from '../contexts/RegionContext';
+import { useRegion } from '@/contexts/RegionContext';
 import { AddressList } from './AddressList';
 import { previewOrderAmounts } from '@/lib/pricing';
-import { Sheet } from './ui/Sheet';
+import { Sheet } from '@/components/ui/Sheet';
 
 const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_live_51Sq0FTQ21K2ZcCkTeSAIFszExSoxuA6L5qGSn20wjF1MIyYECOM2O8zZU0YSTFVCQs8RAMiuTeLyyWmr4wv4gtkL00eEWCifnz';
 const stripePromise = loadStripe(STRIPE_KEY);

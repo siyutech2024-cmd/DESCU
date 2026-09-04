@@ -4,7 +4,7 @@ import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { useOrders, requiresAction } from '@/features/orders';
 import { useBackNavigation } from '@/lib/useBackNavigation';
-import OrderList from '@/components/OrderList';
+import OrderList from '@/features/orders/components/OrderList';
 import { SignedOutPlaceholder } from '@/components/SignedOutPlaceholder';
 import type { User } from '../types';
 

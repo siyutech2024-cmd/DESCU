@@ -3,9 +3,9 @@ import React from 'react';
 import { MessageCircle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, Conversation } from '../types';
-import { ChatList } from '../components/ChatList';
-import { ChatWindow } from '../components/ChatWindow';
-import { SignedOutPlaceholder } from '../components/SignedOutPlaceholder';
+import { ChatList } from '@/features/chat/components/ChatList';
+import { ChatWindow } from '@/features/chat/components/ChatWindow';
+import { SignedOutPlaceholder } from '@/components/SignedOutPlaceholder';
 import { useBackNavigation } from '@/lib/useBackNavigation';
 
 interface ChatPageProps {

@@ -2,15 +2,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Sparkles, MapPin, Loader2, Camera, Truck, Handshake, Info, AlertCircle, Plus, Star, GripVertical } from 'lucide-react';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
+import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '@/types';
 import { analyzeProductImage } from '@/features/products/analyzeApi';
 import { CATEGORIES, categoryLabelKey } from '@/features/products/categories';
-import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
+import { fileToBase64, getFullDataUrl, compressImage } from '@/services/utils';
 import { useLanguage } from '@/i18n';
-import { useRegion } from '../contexts/RegionContext';
+import { useRegion } from '@/contexts/RegionContext';
 import { showToast } from '@/lib/toast';
-import { uploadProductImage } from '../services/supabase';
-import { Sheet } from './ui/Sheet';
+import { uploadProductImage } from '@/services/supabase';
+import { Sheet } from '@/components/ui/Sheet';
 
 const MAX_IMAGES = 5;
 

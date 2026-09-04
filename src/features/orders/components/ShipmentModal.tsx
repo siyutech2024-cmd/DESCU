@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Truck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { api, ApiError } from '@/lib/api/client';
-import { Sheet } from './ui/Sheet';
+import { Sheet } from '@/components/ui/Sheet';
 
 interface ShipmentModalProps {
     isOpen: boolean;

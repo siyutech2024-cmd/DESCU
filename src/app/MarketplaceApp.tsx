@@ -22,8 +22,8 @@ const UserProfilePage = React.lazy(() => import('@/pages/UserProfilePage').then(
 const PrivacyPolicyPage = React.lazy(() => import('@/pages/PrivacyPolicyPage'));
 
 // Modals — code-split
-const SellModal = React.lazy(() => import('@/components/SellModal').then(m => ({ default: m.SellModal })));
-const LoginModal = React.lazy(() => import('@/components/LoginModal').then(m => ({ default: m.LoginModal })));
+const SellModal = React.lazy(() => import('@/features/products/components/SellModal').then(m => ({ default: m.SellModal })));
+const LoginModal = React.lazy(() => import('@/features/auth/components/LoginModal').then(m => ({ default: m.LoginModal })));
 const OnboardingModal = React.lazy(() => import('@/components/OnboardingModal').then(m => ({ default: m.OnboardingModal })));
 
 type BottomNavView = 'home' | 'chat-list' | 'profile' | 'product';

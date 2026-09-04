@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Star, X, Loader2 } from 'lucide-react';
-import { User } from '../types';
+import { User } from '@/types';
 import { useLanguage } from '@/i18n';
-import { Sheet } from './ui/Sheet';
+import { Sheet } from '@/components/ui/Sheet';
 
 interface RatingModalProps {
     isOpen: boolean;

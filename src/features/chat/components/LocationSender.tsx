@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, X, Loader2, Search } from 'lucide-react';
-import { sendRichMessage } from '../../services/chatService';
+import { sendRichMessage } from '@/services/chatService';
 import { useLanguage } from '@/i18n';
 
 interface LocationSenderProps {

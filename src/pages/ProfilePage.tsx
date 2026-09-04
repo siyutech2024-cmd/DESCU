@@ -2,8 +2,8 @@
 import React from 'react';
 import { UserCircle } from 'lucide-react';
 import { User, Product } from '../types';
-import { UserProfile } from '../components/UserProfile';
-import { SignedOutPlaceholder } from '../components/SignedOutPlaceholder';
+import { UserProfile } from '@/features/users/components/UserProfile';
+import { SignedOutPlaceholder } from '@/components/SignedOutPlaceholder';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useBackNavigation } from '@/lib/useBackNavigation';

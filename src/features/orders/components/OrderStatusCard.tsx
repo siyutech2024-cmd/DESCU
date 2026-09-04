@@ -8,7 +8,7 @@ import {
     ChevronRight,
     Package
 } from 'lucide-react';
-import { Order, User } from '../types';
+import { Order, User } from '@/types';
 import { api } from '@/lib/api/client';
 import { notify } from '@/lib/toast';
 import { queryKeys } from '@/lib/queryClient';

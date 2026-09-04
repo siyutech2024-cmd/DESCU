@@ -4,7 +4,7 @@ import { Flag, AlertTriangle, ShieldAlert, Ban, Info, CheckCircle2, Loader2 } fr
 import { useLanguage } from '@/i18n';
 import { notify } from '@/lib/toast';
 import { submitReport, type ReportReason, type ReportTargetType } from '@/services/moderationService';
-import { Sheet } from './ui/Sheet';
+import { Sheet } from '@/components/ui/Sheet';
 
 interface ReportModalProps {
   isOpen: boolean;

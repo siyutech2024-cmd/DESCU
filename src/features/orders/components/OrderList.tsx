@@ -6,13 +6,13 @@ import { notify } from '@/lib/toast';
 import { queryKeys } from '@/lib/queryClient';
 import { useOrders } from '@/features/orders';
 import { useLanguage } from '@/i18n';
-import { User } from '../types';
+import { User } from '@/types';
 import { OrderStatusCard } from './OrderStatusCard';
 import { DisputeModal } from './DisputeModal';
 import { ShipmentModal } from './ShipmentModal';
-import { ConfirmSheet } from './ui/Sheet';
+import { ConfirmSheet } from '@/components/ui/Sheet';
 import { XCircle } from 'lucide-react';
-import type { Order } from '../types';
+import type { Order } from '@/types';
 
 interface OrderListProps {
     role: 'buyer' | 'seller';

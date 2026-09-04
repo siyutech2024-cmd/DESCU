@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ProductCard } from '../components/ProductCard';
+import { ProductCard } from '@/features/products/components/ProductCard';
 import { RefreshCw, MapPinOff, MapPin, SearchX, Package, Car, Home, Smartphone, Briefcase, Armchair, Shirt, Book, Trophy } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { useRegion, REGIONS, REGION_CONFIG } from '../contexts/RegionContext';

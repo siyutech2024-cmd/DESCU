@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SellerPayoutCard } from './SellerPayoutCard';
+import { SellerPayoutCard } from '@/features/orders/components/SellerPayoutCard';
 import { CreditBadge } from './CreditBadge';
 import { ArrowLeft, Camera, Save, Check, ShoppingBag, ShieldCheck, Zap, Upload, Loader2, Scale, ExternalLink, Star, Heart, Lock } from 'lucide-react';
-import { User, Product } from '../types';
+import { User, Product } from '@/types';
 import { useLanguage } from '@/i18n';
-import { compressImage } from '../services/utils';
+import { compressImage } from '@/services/utils';
 import { notify } from '@/lib/toast';
 import { api } from '@/lib/api/client';
-import { markProductAsSold, relistProduct, uploadAvatarImage } from '../services/supabase';
+import { markProductAsSold, relistProduct, uploadAvatarImage } from '@/services/supabase';
 
 interface UserProfileProps {
   user: User;
@@ -112,7 +112,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   // Load Rating Stats & Credit Score
   useEffect(() => {
     // Ratings
-    import('../services/ratingService').then(({ getUserRatingStats }) => {
+    import('@/services/ratingService').then(({ getUserRatingStats }) => {
       getUserRatingStats(user.id).then(setRatingStats);
     });
 

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, Calendar } from 'lucide-react';
-import { Order } from '../types';
-import { LocationPicker } from './LocationPicker';
+import { Order } from '@/types';
+import { LocationPicker } from '@/features/products/components/LocationPicker';
 import { api } from '@/lib/api/client';
 import toast from 'react-hot-toast';
-import { Sheet } from './ui/Sheet';
+import { Sheet } from '@/components/ui/Sheet';
 
 interface MeetupArrangementModalProps {
     isOpen: boolean;

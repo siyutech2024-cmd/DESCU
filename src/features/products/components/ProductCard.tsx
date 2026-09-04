@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Product, DeliveryType } from '../types';
+import { Product, DeliveryType } from '@/types';
 import { MapPin, Truck, Zap } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { useRegion } from '../contexts/RegionContext';
-import { getOptimizedImageUrl } from '../services/imageOptimizer';
+import { useRegion } from '@/contexts/RegionContext';
+import { getOptimizedImageUrl } from '@/services/imageOptimizer';
 
 interface ProductCardProps {
   product: Product;

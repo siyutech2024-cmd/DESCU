@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, MapPin, CheckCircle, Edit2 } from 'lucide-react';
-import { sendRichMessage } from '../../services/chatService';
+import { sendRichMessage } from '@/services/chatService';
 import { useLanguage } from '@/i18n';
 
 interface MeetupTimeMessageProps {

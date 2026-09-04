@@ -5,25 +5,25 @@ import {
   ArrowLeft, Send, CheckCheck, Loader2, MoreVertical,
   Image as ImageIcon, Smile, MapPin, Clock, DollarSign
 } from 'lucide-react';
-import { Conversation, User } from '../types';
+import { Conversation, User } from '@/types';
 import { useLanguage } from '@/i18n';
-import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
+import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '@/services/chatService';
 import { blockUser } from '@/services/moderationService';
 import { api, ApiError } from '@/lib/api/client';
 import { queryKeys } from '@/lib/queryClient';
 import { notify } from '@/lib/toast';
 import { useOrders } from '@/features/orders';
-import { ReportModal } from './ReportModal';
-import { MeetupArrangementModal } from './MeetupArrangementModal';
-import { OrderStatusMessage } from './chat/OrderStatusMessage';
-import { PriceNegotiationCard } from './chat/PriceNegotiationCard';
-import { PriceNegotiationSender } from './chat/PriceNegotiationSender';
-import { LocationCard } from './chat/LocationCard';
-import { LocationSender } from './chat/LocationSender';
-import { ImageSender } from './chat/ImageSender';
-import { ImagesMessage } from './chat/ImagesMessage';
-import { MeetupTimeSender } from './chat/MeetupTimeSender';
-import { MeetupTimeMessage } from './chat/MeetupTimeMessage';
+import { ReportModal } from '@/features/users/components/ReportModal';
+import { MeetupArrangementModal } from '@/features/orders/components/MeetupArrangementModal';
+import { OrderStatusMessage } from './OrderStatusMessage';
+import { PriceNegotiationCard } from './PriceNegotiationCard';
+import { PriceNegotiationSender } from './PriceNegotiationSender';
+import { LocationCard } from './LocationCard';
+import { LocationSender } from './LocationSender';
+import { ImageSender } from './ImageSender';
+import { ImagesMessage } from './ImagesMessage';
+import { MeetupTimeSender } from './MeetupTimeSender';
+import { MeetupTimeMessage } from './MeetupTimeMessage';
 
 interface ChatWindowProps {
   conversation: Conversation;
