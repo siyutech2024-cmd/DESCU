@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Home, PlusCircle, User as UserIcon, MapPin, Bell, Globe, Check } from 'lucide-react';
+import { Home, Plus, User as UserIcon, MapPin, MessageCircle, Globe, Check } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { useRegion, REGIONS } from '../contexts/RegionContext';
 import { DetailedLocationInfo } from '../services/locationService';
@@ -50,9 +50,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       >
         {/* Current Location */}
         {locationInfo && (
-          <div className="-mx-5 mb-3 px-4 py-3 bg-blue-50 border-y border-blue-100">
-            <div className="flex items-center gap-2 text-blue-700">
-              <MapPin size={16} />
+          <div className="mb-3 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
+            <div className="flex items-center gap-2 text-gray-700">
+              <MapPin size={16} className="text-brand-600" />
               <span className="text-sm font-medium">
                 {t('region.current_location')}: {locationInfo.displayName}
               </span>
@@ -69,9 +69,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 setRegion(r.code);
                 setIsRegionModalOpen(false);
               }}
-              className={`w-full flex items-center justify-between p-4 rounded-xl transition-all ${region === r.code
-                ? 'bg-brand-50 border-2 border-brand-500'
-                : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+              className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-colors ${region === r.code
+                ? 'bg-brand-50 border-brand-300'
+                : 'bg-white border-gray-100 hover:border-brand-100 hover:bg-brand-50/40'
                 }`}
             >
               <div className="flex items-center gap-3">
@@ -94,7 +94,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       {/* Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-nav pb-safe">
         {/* Single Navigation Bar with 4 buttons */}
-        <div className="bg-white/95 backdrop-blur-xl border-t border-gray-200/50 shadow-glass-lg px-4 pb-3 pt-3">
+        <div className="bg-white/95 backdrop-blur-xl border-t border-gray-100 px-2 pb-2 pt-2">
           <div className="flex items-center justify-around relative">
             {/* 1. Home Button */}
             <button
@@ -111,21 +111,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className="flex flex-col items-center justify-center gap-1 transition-all duration-300 active:scale-95 min-w-[60px] text-gray-500 hover:text-gray-700"
             >
               <div className="relative">
-                <MapPin size={22} strokeWidth={2} className="text-brand-600" />
-                <span className="absolute -top-1 -right-2 text-[10px]">{currentRegion.flag}</span>
+                <MapPin size={22} strokeWidth={2} />
+                <span className="absolute -top-1.5 -right-2.5 text-[11px] leading-none">{currentRegion.flag}</span>
               </div>
-              <span className="text-[9px] font-medium truncate max-w-[70px]">
-                {locationInfo?.displayName || currentRegion.name}
+              <span className="text-[10px] font-bold truncate max-w-[72px]">
+                {locationInfo?.city || currentRegion.name}
               </span>
             </button>
 
             {/* 3. Floating Action Button (FAB) - Centered */}
-            <div className="absolute left-1/2 -translate-x-1/2 -top-8">
+            <div className="absolute left-1/2 -translate-x-1/2 -top-7">
               <button
                 onClick={onSellClick}
-                className="w-16 h-16 bg-gradient-to-tr from-brand-600 to-brand-400 rounded-full flex items-center justify-center shadow-xl shadow-brand-500/40 text-white transform transition-all active:scale-90 hover:scale-110 border-4 border-white ring-1 ring-black/5"
+                aria-label={t('nav.sell')}
+                className="w-14 h-14 bg-brand-600 hover:bg-brand-700 rounded-full flex items-center justify-center shadow-lg shadow-brand-500/40 text-white transition-all active:scale-90 border-4 border-white"
               >
-                <PlusCircle size={32} strokeWidth={2} />
+                <Plus size={28} strokeWidth={2.5} />
               </button>
             </div>
 
@@ -135,14 +136,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               className={`flex flex-col items-center justify-center gap-1 relative transition-all duration-300 active:scale-95 min-w-[60px] ${currentView === 'chat-list' ? 'text-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="relative">
-                <Bell size={22} strokeWidth={2} className={unreadCount > 0 ? "text-orange-600" : ""} />
+                <MessageCircle size={22} strokeWidth={currentView === 'chat-list' ? 2.5 : 2} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white">
-                    {unreadCount}
+                  <span className="absolute -top-1.5 -right-2 bg-brand-600 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-bold">{t('nav.notifications')}</span>
+              <span className="text-[10px] font-bold">{t('nav.chat')}</span>
             </button>
 
             {/* 5. Profile Button */}
@@ -155,7 +156,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   <img
                     src={user.avatar}
                     alt={user.name}
-                    className={`w-6 h-6 rounded-full object-cover border-2 ${currentView === 'profile' ? 'border-brand-500' : 'border-gray-300'
+                    className={`w-6 h-6 rounded-full object-cover ring-2 ${currentView === 'profile' ? 'ring-brand-500' : 'ring-gray-200'
                       }`}
                   />
                 ) : (
@@ -163,7 +164,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 )}
                 {/* Orders waiting on the user (ship / confirm receipt / confirm meetup) */}
                 {orderCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white">
+                  <span className="absolute -top-1.5 -right-2 bg-brand-600 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full ring-2 ring-white">
                     {orderCount}
                   </span>
                 )}

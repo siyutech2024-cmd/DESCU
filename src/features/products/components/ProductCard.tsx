@@ -1,43 +1,42 @@
-import { formatDistance, isMeaningfulDistance } from '../distance';
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { MapPin, Truck, Zap, Heart } from 'lucide-react';
+import { formatDistance, isMeaningfulDistance } from '../distance';
 import { Product, DeliveryType } from '@/types';
-import { MapPin, Truck, Zap } from 'lucide-react';
 import { useLanguage } from '@/i18n';
 import { useRegion } from '@/contexts/RegionContext';
 import { getOptimizedImageUrl } from '@/services/imageOptimizer';
 
 interface ProductCardProps {
   product: Product;
-  isInCart: boolean;
+  /** @deprecated cart was removed; kept so existing call sites type-check */
+  isInCart?: boolean;
   /**
    * Optional click handler. The card is a real link to `/product/:id`, so callers no longer
    * need to navigate themselves. When provided, it is invoked for plain left clicks *instead of*
-   * the default link navigation (so legacy callers that call `navigate()` do not double-navigate);
-   * modified clicks (middle / ctrl / cmd) always follow the href natively.
+   * the default link navigation; modified clicks (middle / ctrl / cmd) always follow the href.
    */
   onClick?: (product: Product) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (product: Product) => void;
-  priority?: boolean; // 首屏图片优先加载
+  priority?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onClick, isFavorite, onToggleFavorite, priority = false }) => {
+/** Feed tile: photo, title (2 lines), price, place. One accent (brand) plus the promoted badge. */
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, isFavorite, onToggleFavorite, priority = false }) => {
   const { t, language } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
 
-  // 根据用户语言读取翻译字段
   const localizedTitle = (product as any)[`title_${language}`] || product.title;
-
-  const productCurrency = product.currency || 'MXN'; // Fallback
+  const productCurrency = product.currency || 'MXN';
   const { price: convertedPrice, currency: targetCurrency } = convertPrice(product.price, productCurrency);
   const showDual = productCurrency !== userCurrency;
-
-  const productUrl = `/product/${product.id}`;
+  const isSold = product.status === 'sold';
+  const ships = product.deliveryType === DeliveryType.Shipping || product.deliveryType === DeliveryType.Both;
+  const place = product.city || product.town || product.locationName || '';
 
   const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!onClick) return;
-    // Let the browser handle new-tab / modified clicks via the href.
     const isPlainLeftClick = e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
     if (!isPlainLeftClick) return;
     e.preventDefault();
@@ -46,116 +45,64 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
 
   return (
     <Link
-      to={productUrl}
+      to={`/product/${product.id}`}
       onClick={handleCardClick}
       aria-label={localizedTitle}
-      className={`glass-card rounded-xl md:rounded-2xl overflow-hidden group cursor-pointer relative flex flex-col h-full active:scale-[0.98] transition-all duration-200 ${product.isPromoted ? 'ring-2 ring-yellow-400/50 shadow-brand-500/10' : 'border border-white/40'}`}
+      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white border shadow-sm transition-[box-shadow,transform] duration-200 hover:shadow-md active:scale-[0.99] focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${product.isPromoted ? 'border-amber-200' : 'border-gray-100'}`}
     >
-      {/* Promoted Badge */}
-      {product.isPromoted && (
-        <div className="absolute top-0 right-0 z-10 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-[9px] md:text-[10px] font-bold px-2 py-0.5 md:px-2.5 md:py-1 rounded-bl-xl uppercase tracking-wider shadow-md flex items-center gap-1">
-          <Zap size={8} fill="currentColor" className="md:w-[10px] md:h-[10px]" />
-          {t('card.promoted')}
-        </div>
-      )}
-
-      {/* Favorite Button */}
-      {onToggleFavorite && (
-        <button
-          type="button"
-          aria-label={t('nav.favorites')}
-          aria-pressed={!!isFavorite}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggleFavorite(product);
-          }}
-          className="absolute top-2 right-2 z-10 p-2 rounded-full bg-white/50 backdrop-blur-md hover:bg-white text-gray-400 hover:text-red-500 transition-colors shadow-sm active:scale-90"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill={isFavorite ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`w-5 h-5 ${isFavorite ? "text-red-500" : ""}`}
-          >
-            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-          </svg>
-        </button>
-      )}
-
-      {/* Image Container - Aspect Square (1:1) */}
       <div className="relative aspect-square w-full overflow-hidden bg-gray-100">
         <img
           src={getOptimizedImageUrl(product.images[0], 'thumbnail')}
-          alt={localizedTitle}
+          alt=""
           loading={priority ? 'eager' : 'lazy'}
           decoding="async"
           width={300}
           height={300}
-          className={`object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500 ease-out ${product.status === 'sold' ? 'grayscale opacity-70' : ''}`}
+          className={`h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105 ${isSold ? 'grayscale opacity-70' : ''}`}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* SOLD Badge */}
-        {product.status === 'sold' && (
+        {product.isPromoted && (
+          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            <Zap size={10} className="fill-current" />{t('card.promoted')}
+          </span>
+        )}
+
+        {onToggleFavorite && (
+          <button
+            type="button"
+            aria-label={t('nav.favorites')}
+            aria-pressed={!!isFavorite}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFavorite(product); }}
+            className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur transition-colors active:scale-90 ${isFavorite ? 'text-brand-600' : 'text-gray-400 hover:text-brand-600'}`}
+          >
+            <Heart size={16} className={isFavorite ? 'fill-current' : ''} />
+          </button>
+        )}
+
+        {isSold && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <div className="bg-red-600 text-white px-4 py-2 rounded-xl font-black text-sm transform -rotate-12 shadow-lg border-2 border-white">
-              {t('product.sold')}
-            </div>
+            <span className="-rotate-6 rounded-lg bg-white px-3 py-1.5 text-sm font-black text-gray-900 shadow-lg">{t('product.sold')}</span>
           </div>
         )}
 
-        {/* Location Badge - Show distance for all products */}
-        {isMeaningfulDistance(product.distance) && product.status !== 'sold' && (
-          <div className={`absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 backdrop-blur-md text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full flex items-center gap-0.5 shadow-sm border ${product.distance <= 5
-            ? 'bg-green-100/90 text-green-800 border-green-200'
-            : product.distance <= 50
-              ? 'bg-white/80 text-gray-800 border-white/50'
-              : 'bg-orange-100/90 text-orange-800 border-orange-200'
-            }`}>
-            <MapPin size={8} className={`md:w-[10px] md:h-[10px] ${product.distance <= 5 ? 'text-green-600' : product.distance <= 50 ? 'text-brand-600' : 'text-orange-600'}`} />
-            {formatDistance(product.distance)}
-          </div>
+        {isMeaningfulDistance(product.distance) && !isSold && (
+          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-gray-700 shadow-sm backdrop-blur">
+            <MapPin size={10} className="text-brand-600" />{formatDistance(product.distance!)}
+          </span>
         )}
       </div>
 
-      {/* Content */}
-      <div className="p-2.5 md:p-4 flex flex-col flex-grow relative bg-white/40 backdrop-blur-sm group-hover:bg-white/60 transition-colors">
-        {/* Title - 2 lines max */}
-        <h4 className="text-xs md:text-sm font-bold text-gray-800 line-clamp-2 leading-tight mb-2 min-h-[2.5em] group-hover:text-brand-700 transition-colors">
+      <div className="flex flex-1 flex-col p-2.5 md:p-3.5">
+        <h4 className="mb-1.5 line-clamp-2 min-h-[2.5em] text-xs md:text-sm font-bold leading-tight text-gray-800 transition-colors group-hover:text-brand-700">
           {localizedTitle}
         </h4>
-
         <div className="mt-auto">
-          {/* Price */}
-          <div className="flex flex-col mb-2">
-            <div className="flex items-end justify-between">
-              <span className={`text-base md:text-lg font-black tracking-tight ${product.isPromoted ? 'text-orange-600' : 'text-gray-900'}`}>
-                {formatCurrency(product.price, productCurrency)}
-              </span>
-
-              {/* Delivery Icons */}
-              <div className="flex gap-1 opacity-70">
-                {(product.deliveryType === DeliveryType.Shipping || product.deliveryType === DeliveryType.Both) && (
-                  <div className="bg-blue-100 p-0.5 md:p-1 rounded-full"><Truck size={10} className="text-blue-600 md:w-3 md:h-3" /></div>
-                )}
-              </div>
-            </div>
-
-            {showDual && (
-              <span className="text-[10px] md:text-xs text-gray-400 font-bold -mt-0.5">
-                ≈ {formatCurrency(convertedPrice, targetCurrency)}
-              </span>
-            )}
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-base md:text-lg font-black tracking-tight text-gray-900 tabular-nums">{formatCurrency(product.price, productCurrency)}</span>
+            {ships && <Truck size={14} className="text-gray-400 flex-shrink-0" aria-label={t('delivery.shipping')} />}
           </div>
-
-          <div className="flex items-center justify-between pt-2 border-t border-gray-200/50">
-            {/* Cart button removed - direct purchase model */}
-          </div>
+          {showDual && <p className="text-[10px] md:text-xs font-bold text-gray-400 tabular-nums">≈ {formatCurrency(convertedPrice, targetCurrency)}</p>}
+          {place && <p className="mt-1 truncate text-[11px] text-gray-500">{place}</p>}
         </div>
       </div>
     </Link>

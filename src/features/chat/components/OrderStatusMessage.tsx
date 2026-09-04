@@ -1,37 +1,31 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '@/i18n';
-import {
-    ShoppingCart,
-    DollarSign,
-    MapPin,
-    Truck,
-    CheckCircle,
-    Calendar,
-    Package,
-    PartyPopper,
-    XCircle,
-    AlertTriangle,
-    ExternalLink
-} from 'lucide-react';
+import { ShoppingBag, Banknote, MapPin, Truck, CheckCircle, Calendar, Package, PartyPopper, XCircle, AlertTriangle, ChevronRight } from 'lucide-react';
+import { useLanguage, useLocale } from '@/i18n';
+import { useRegion } from '@/contexts/RegionContext';
+import { Button, type ChipTone } from '@/components/ui/primitives';
+import { MessageCard, CardFooter } from './MessageCard';
 
 interface OrderStatusMessageProps {
     content: {
         orderId: string;
-        eventType: string;
+        eventType?: string;
+        status?: string;
         productTitle: string;
-        productImage?: string;
-        amount: number;
-        currency: string;
-        orderType: string;
-        paymentMethod: string;
-        message: string;
-        description: string;
+        productImage?: string | null;
+        productId?: string;
+        amount?: number;
+        totalAmount?: number;
+        currency?: string;
+        orderType?: string;
+        paymentMethod?: string;
+        message?: string;
+        description?: string;
         location?: string;
         time?: string;
         trackingNumber?: string;
-        confirmedBy?: 'buyer' | 'seller';
-        [key: string]: any;
+        buyerId?: string;
+        [key: string]: unknown;
     };
     /** Who is looking at the card — picks the buyer or seller wording. */
     currentUserId?: string;
@@ -42,207 +36,74 @@ const KNOWN_EVENTS = new Set([
     'buyer_confirmed', 'seller_confirmed', 'completed', 'cancelled', 'disputed',
 ]);
 
+const EVENT_STYLE: Record<string, { icon: React.ReactNode; tone: ChipTone }> = {
+    created: { icon: <ShoppingBag size={16} />, tone: 'brand' },
+    paid: { icon: <Banknote size={16} />, tone: 'success' },
+    escrow_held: { icon: <Banknote size={16} />, tone: 'success' },
+    meetup_arranged: { icon: <MapPin size={16} />, tone: 'info' },
+    shipped: { icon: <Truck size={16} />, tone: 'info' },
+    delivered: { icon: <Package size={16} />, tone: 'info' },
+    buyer_confirmed: { icon: <CheckCircle size={16} />, tone: 'success' },
+    seller_confirmed: { icon: <CheckCircle size={16} />, tone: 'success' },
+    confirmed: { icon: <CheckCircle size={16} />, tone: 'success' },
+    completed: { icon: <PartyPopper size={16} />, tone: 'success' },
+    cancelled: { icon: <XCircle size={16} />, tone: 'neutral' },
+    disputed: { icon: <AlertTriangle size={16} />, tone: 'danger' },
+};
+
+/** Order timeline event rendered in the chat (created / paid / shipped / …). */
 export const OrderStatusMessage: React.FC<OrderStatusMessageProps> = ({ content, currentUserId }) => {
     const navigate = useNavigate();
-    const { t, language } = useLanguage();
-    const {
-        orderId,
-        productTitle,
-        productImage,
-        amount: rawAmount,
-        totalAmount,
-        currency,
-        message,
-        description,
-        location,
-        time,
-        trackingNumber,
-        productId,
-        buyerId,
-    } = content;
+    const { t } = useLanguage();
+    const locale = useLocale();
+    const { formatCurrency } = useRegion();
+    const { orderId, productTitle, productImage, message, description, location, time, trackingNumber, productId, buyerId, currency } = content;
     // Older cards carried `status` only; both mean the same thing.
-    const eventType: string = content.eventType || content.status || 'default';
+    const eventType = content.eventType || content.status || 'default';
+    const eventKey = KNOWN_EVENTS.has(eventType) ? eventType : 'default';
+    const amount = Number(content.amount ?? content.totalAmount ?? 0);
 
-    const amount = Number(rawAmount ?? totalAmount ?? 0);
     // Cards written by the server carry no copy: localize by event and by the viewer's role.
     // Cards written by older clients carry `message`/`description` in the sender's language.
-    const eventKey = KNOWN_EVENTS.has(eventType) ? eventType : 'default';
     const role = buyerId && currentUserId && buyerId !== currentUserId ? 'seller' : 'buyer';
     const title = message || t(`order_msg.${eventKey}.title`);
     const body = description || t(`order_msg.${eventKey}.${role}`);
-    const locale = language === 'zh' ? 'zh-CN' : language === 'es' ? 'es-MX' : 'en-US';
-
-    // 根据事件类型配置样式
-    const getEventConfig = () => {
-        switch (eventType) {
-            case 'created':
-                return {
-                    icon: <ShoppingCart size={24} />,
-                    color: 'blue',
-                    bgGradient: 'from-blue-50 to-indigo-50',
-                    borderColor: 'border-blue-200',
-                    textColor: 'text-blue-900'
-                };
-
-            case 'paid':
-            case 'escrow_held':
-                return {
-                    icon: <DollarSign size={24} />,
-                    color: 'green',
-                    bgGradient: 'from-green-50 to-emerald-50',
-                    borderColor: 'border-green-200',
-                    textColor: 'text-green-900'
-                };
-
-            case 'meetup_arranged':
-                return {
-                    icon: <MapPin size={24} />,
-                    color: 'purple',
-                    bgGradient: 'from-purple-50 to-pink-50',
-                    borderColor: 'border-purple-200',
-                    textColor: 'text-purple-900'
-                };
-
-            case 'shipped':
-                return {
-                    icon: <Truck size={24} />,
-                    color: 'orange', bgGradient: 'from-orange-50 to-amber-50',
-                    borderColor: 'border-orange-200',
-                    textColor: 'text-orange-900'
-                };
-
-            case 'delivered':
-                return {
-                    icon: <Package size={24} />,
-                    color: 'teal',
-                    bgGradient: 'from-teal-50 to-cyan-50',
-                    borderColor: 'border-teal-200',
-                    textColor: 'text-teal-900'
-                };
-
-            case 'confirmed':
-            case 'buyer_confirmed':
-            case 'seller_confirmed':
-                return {
-                    icon: <CheckCircle size={24} />,
-                    color: 'green',
-                    bgGradient: 'from-green-50 to-lime-50',
-                    borderColor: 'border-green-200',
-                    textColor: 'text-green-900'
-                };
-
-            case 'completed':
-                return {
-                    icon: <PartyPopper size={24} />,
-                    color: 'green',
-                    bgGradient: 'from-green-100 to-emerald-100',
-                    borderColor: 'border-green-300',
-                    textColor: 'text-green-900'
-                };
-
-            case 'cancelled':
-                return {
-                    icon: <XCircle size={24} />,
-                    color: 'gray',
-                    bgGradient: 'from-gray-50 to-slate-50',
-                    borderColor: 'border-gray-300',
-                    textColor: 'text-gray-900'
-                };
-
-            case 'disputed':
-                return {
-                    icon: <AlertTriangle size={24} />,
-                    color: 'red',
-                    bgGradient: 'from-red-50 to-orange-50',
-                    borderColor: 'border-red-300',
-                    textColor: 'text-red-900'
-                };
-
-            default:
-                return {
-                    icon: <Package size={24} />,
-                    color: 'gray',
-                    bgGradient: 'from-gray-50 to-slate-50',
-                    borderColor: 'border-gray-200',
-                    textColor: 'text-gray-900'
-                };
-        }
-    };
-
-    const config = getEventConfig();
+    const style = EVENT_STYLE[eventType] ?? { icon: <Package size={16} />, tone: 'neutral' as ChipTone };
 
     return (
-        <div className={`bg-gradient-to-br ${config.bgGradient} rounded-2xl p-5 border-2 ${config.borderColor} shadow-md`}>
-            {/* Header */}
-            <div className="flex items-start gap-3 mb-4">
-                <div className={`w-12 h-12 rounded-full bg-${config.color}-100 flex items-center justify-center flex-shrink-0`}>
-                    <div className={`text-${config.color}-600`}>
-                        {config.icon}
-                    </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h4 className={`font-bold ${config.textColor} text-lg mb-1`}>
-                        {title}
-                    </h4>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">
-                        {body}
-                    </p>
-                </div>
-            </div>
+        <MessageCard icon={style.icon} tone={style.tone} label={t('chat.order_status_label')} title={title}>
+            <p className="px-4 pb-3 text-sm text-gray-600 leading-relaxed whitespace-pre-line">{body}</p>
 
-            {/* Product Info - 可点击跳转产品页 */}
-            <div
-                onClick={() => productId ? navigate(`/product/${productId}`) : undefined}
-                className={`flex items-center gap-3 p-3 bg-white/60 rounded-xl mb-3 ${productId ? 'cursor-pointer hover:bg-white/80 hover:shadow-sm transition-all active:scale-[0.98]' : ''}`}
+            <button
+                type="button"
+                onClick={() => productId && navigate(`/product/${productId}`)}
+                disabled={!productId}
+                className="mx-4 mb-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-xl bg-gray-50 p-2.5 text-left transition-colors enabled:hover:bg-gray-100 disabled:cursor-default"
             >
-                {productImage && (
-                    <img
-                        src={productImage}
-                        alt={productTitle}
-                        className="w-12 h-12 rounded-lg object-cover"
-                    />
+                {productImage ? (
+                    <img src={productImage} alt="" className="w-11 h-11 rounded-lg object-cover flex-shrink-0 bg-gray-200" />
+                ) : (
+                    <span className="w-11 h-11 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0"><Package size={18} /></span>
                 )}
-                <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate text-sm">
-                        {productTitle}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                        ${amount.toFixed(2)} {currency || ''}
-                    </div>
-                </div>
-                {productId && <ExternalLink size={14} className="text-gray-400 flex-shrink-0" />}
-            </div>
+                <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-bold text-gray-900 truncate">{productTitle}</span>
+                    {amount > 0 && <span className="block text-xs text-gray-500 tabular-nums">{formatCurrency(amount, currency || 'MXN')}</span>}
+                </span>
+                {productId && <ChevronRight size={16} className="text-gray-400 flex-shrink-0" />}
+            </button>
 
-            {/* Additional Info */}
             {(location || time || trackingNumber) && (
-                <div className="space-y-2 pt-3 border-t border-gray-200/50">
-                    {location && (
-                        <div className="flex items-start gap-2 text-sm">
-                            <MapPin size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700">{location}</span>
-                        </div>
-                    )}
-                    {time && (
-                        <div className="flex items-start gap-2 text-sm">
-                            <Calendar size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700">{new Date(time).toLocaleString(locale)}</span>
-                        </div>
-                    )}
-                    {trackingNumber && (
-                        <div className="flex items-start gap-2 text-sm">
-                            <Truck size={16} className="text-gray-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700 font-mono">{trackingNumber}</span>
-                        </div>
-                    )}
-                </div>
+                <dl className="px-4 pb-3 space-y-1.5 text-sm">
+                    {location && <div className="flex items-start gap-2"><MapPin size={15} className="text-gray-400 mt-0.5 flex-shrink-0" /><dd className="text-gray-700">{location}</dd></div>}
+                    {time && <div className="flex items-start gap-2"><Calendar size={15} className="text-gray-400 mt-0.5 flex-shrink-0" /><dd className="text-gray-700">{new Date(time).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })}</dd></div>}
+                    {trackingNumber && <div className="flex items-start gap-2"><Truck size={15} className="text-gray-400 mt-0.5 flex-shrink-0" /><dd className="text-gray-700 font-mono text-xs">{trackingNumber}</dd></div>}
+                </dl>
             )}
 
-            {/* Order ID */}
-            <div className="mt-3 pt-3 border-t border-gray-200/50">
-                <div className="text-xs text-gray-500 font-mono">
-                    {t('order_msg.order_number', { id: orderId?.slice(0, 8) || '...' })}
-                </div>
-            </div>
-        </div>
+            <CardFooter className="flex items-center justify-between gap-3">
+                <span className="text-xs text-gray-400 font-mono">{t('order_msg.order_number', { id: orderId?.slice(0, 8) || '…' })}</span>
+                <Button size="sm" variant="ghost" onClick={() => navigate('/orders')} className="-mr-2 text-brand-700">{t('orders.title')}</Button>
+            </CardFooter>
+        </MessageCard>
     );
 };

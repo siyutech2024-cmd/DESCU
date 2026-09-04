@@ -1,189 +1,74 @@
 import React, { useEffect, useState } from 'react';
-import { X, Image as ImageIcon, ZoomIn } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useLanguage } from '@/i18n';
 
 interface ImagesMessageProps {
     content: {
         images: string[];
-        count: number;
-        shared_by?: string;
-        timestamp?: string;
+        count?: number;
     };
 }
 
+/** Photo bubble: a tight grid of thumbnails that opens a full-screen viewer. */
 export const ImagesMessage: React.FC<ImagesMessageProps> = ({ content }) => {
-    const { images, count } = content;
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
-    const handleImageClick = (url: string) => {
-        setSelectedImage(url);
-    };
-
-    const closeViewer = () => {
-        setSelectedImage(null);
-    };
+    const { t } = useLanguage();
+    const images = (content.images || []).filter(Boolean);
+    const count = images.length;
+    const [viewer, setViewer] = useState<number | null>(null);
 
     useEffect(() => {
-        if (!selectedImage) return;
+        if (viewer === null) return;
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') closeViewer();
+            if (e.key === 'Escape') setViewer(null);
+            if (e.key === 'ArrowRight') setViewer(v => (v === null ? v : (v + 1) % count));
+            if (e.key === 'ArrowLeft') setViewer(v => (v === null ? v : (v - 1 + count) % count));
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [selectedImage]);
+    }, [viewer, count]);
 
-    // 根据图片数量渲染不同布局
-    const renderImageGrid = () => {
-        if (count === 1) {
-            return (
-                <div
-                    onClick={() => handleImageClick(images[0])}
-                    className="cursor-pointer rounded-2xl overflow-hidden hover:scale-[1.02] transition-transform duration-300 relative group"
-                >
-                    <img
-                        src={images[0]}
-                        alt="分享的图片"
-                        className="w-full h-auto max-h-80 object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                        <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" size={32} />
-                    </div>
-                </div>
-            );
-        }
+    if (count === 0) return null;
 
-        if (count === 2) {
-            return (
-                <div className="grid grid-cols-2 gap-1.5">
-                    {images.map((url, idx) => (
-                        <div
-                            key={idx}
-                            onClick={() => handleImageClick(url)}
-                            className="aspect-square cursor-pointer rounded-2xl overflow-hidden hover:scale-[1.02] transition-transform duration-300 relative group"
-                        >
-                            <img
-                                src={url}
-                                alt={`图片 ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                        </div>
-                    ))}
-                </div>
-            );
-        }
-
-        if (count === 3) {
-            return (
-                <div className="grid grid-cols-3 gap-1.5">
-                    {images.map((url, idx) => (
-                        <div
-                            key={idx}
-                            onClick={() => handleImageClick(url)}
-                            className="aspect-square cursor-pointer rounded-xl overflow-hidden hover:scale-[1.02] transition-transform duration-300 relative group"
-                        >
-                            <img
-                                src={url}
-                                alt={`图片 ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                            />
-                        </div>
-                    ))}
-                </div>
-            );
-        }
-
-        // 4-5张图片
-        return (
-            <div className="grid grid-cols-2 gap-1.5">
-                {images.slice(0, 4).map((url, idx) => (
-                    <div
-                        key={idx}
-                        onClick={() => handleImageClick(url)}
-                        className="aspect-square cursor-pointer rounded-xl overflow-hidden hover:scale-[1.02] transition-transform duration-300 relative group"
-                    >
-                        <img
-                            src={url}
-                            alt={`图片 ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                        />
-                        {idx === 3 && count > 4 && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                                <span className="text-white text-3xl font-bold">
-                                    +{count - 4}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-        );
-    };
+    const cols = count === 1 ? 'grid-cols-1' : count === 3 ? 'grid-cols-3' : 'grid-cols-2';
+    const shown = images.slice(0, count > 4 ? 4 : count);
 
     return (
         <>
-            <div className="relative overflow-hidden rounded-3xl shadow-lg max-w-sm group">
-                {/* 渐变背景 */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 opacity-90" />
-
-                {/* 装饰 */}
-                <div className="absolute -top-8 -right-8 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-
-                {/* Header */}
-                <div className="relative flex items-center gap-2 p-3">
-                    <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                        <ImageIcon className="text-white" size={16} />
-                    </div>
-                    <span className="text-xs font-bold text-white/90 uppercase tracking-wider">
-                        📷 {count} 张图片
-                    </span>
-                </div>
-
-                {/* Images */}
-                <div className="relative p-3 pt-0">
-                    {renderImageGrid()}
-                </div>
+            <div className={`grid ${cols} gap-1 rounded-2xl overflow-hidden bg-white border border-gray-100 p-1 shadow-sm`}>
+                {shown.map((url, idx) => (
+                    <button
+                        key={`${url}-${idx}`}
+                        type="button"
+                        onClick={() => setViewer(idx)}
+                        className={`relative overflow-hidden bg-gray-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${count === 1 ? 'rounded-xl' : 'aspect-square rounded-lg'}`}
+                        aria-label={`${t('chat.preview.image')} ${idx + 1}/${count}`}
+                    >
+                        <img src={url} alt="" loading="lazy" className={`w-full h-full object-cover transition-transform duration-300 hover:scale-[1.03] ${count === 1 ? 'max-h-72' : ''}`} />
+                        {idx === 3 && count > 4 && (
+                            <span className="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-2xl font-black">+{count - 4}</span>
+                        )}
+                    </button>
+                ))}
             </div>
 
-            {/* Full Screen Image Viewer */}
-            {selectedImage && (
-                <div
-                    className="fixed inset-0 bg-black/95 z-toast flex items-center justify-center p-4 animate-fade-in"
-                    onClick={closeViewer}
-                >
-                    <button
-                        onClick={closeViewer}
-                        className="absolute top-4 right-4 w-12 h-12 bg-white/10 backdrop-blur-xl text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors z-10 shadow-lg"
-                    >
-                        <X size={24} />
+            {viewer !== null && createPortal(
+                <div className="fixed inset-0 z-toast bg-black/95 flex items-center justify-center p-4 animate-fade-in" onClick={() => setViewer(null)} role="dialog" aria-modal="true">
+                    <button type="button" onClick={() => setViewer(null)} aria-label={t('modal.close')} className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
+                        <X size={22} />
                     </button>
-
-                    <div className="relative max-w-4xl max-h-full">
-                        <img
-                            src={selectedImage}
-                            alt="全屏查看"
-                            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-
-                        {count > 1 && (
-                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 bg-black/50 backdrop-blur-md px-4 py-2 rounded-full">
-                                {images.map((url, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedImage(url);
-                                        }}
-                                        className={`w-2.5 h-2.5 rounded-full transition-all ${url === selectedImage
-                                            ? 'bg-white w-6'
-                                            : 'bg-white/50 hover:bg-white/75'
-                                            }`}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                    {count > 1 && (
+                        <>
+                            <button type="button" onClick={e => { e.stopPropagation(); setViewer((viewer - 1 + count) % count); }} className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"><ChevronLeft size={22} /></button>
+                            <button type="button" onClick={e => { e.stopPropagation(); setViewer((viewer + 1) % count); }} className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"><ChevronRight size={22} /></button>
+                        </>
+                    )}
+                    <img src={images[viewer]} alt="" className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl" onClick={e => e.stopPropagation()} />
+                    {count > 1 && (
+                        <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white tabular-nums">{viewer + 1} / {count}</span>
+                    )}
+                </div>,
+                document.body,
             )}
         </>
     );

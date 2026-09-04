@@ -18,6 +18,8 @@ import {
  */
 
 const PROPOSAL_PIN_MS = 48 * 60 * 60 * 1000;
+/** Offers under 30% of the asking price are refused outright. */
+const MIN_OFFER_RATIO = 0.3;
 const RESPONSE_PIN_MS = 24 * 60 * 60 * 1000;
 
 const NEGOTIATION_STATUS: Record<NegotiationAction, 'accepted' | 'rejected' | 'countered'> = {
@@ -50,6 +52,10 @@ export const proposeNegotiation = asyncHandler<AuthenticatedRequest>(async (req,
     if (productError) throw productError;
     if (!product) throw notFound('Product not found');
     if (product.status !== 'active') throw badRequest('Product is not available');
+    // Lowball floor: below this the seller would only ever decline (the client shows the same limit).
+    const minOffer = Math.ceil(Number(product.price) * MIN_OFFER_RATIO);
+    if (Number(product.price) > 0 && offeredPrice < minOffer) throw badRequest(`Offer too low: minimum ${minOffer}`);
+    if (offeredPrice >= Number(product.price)) throw badRequest('Offer must be below the asking price');
 
     // The seller must be one side of the conversation; the other side is the buyer.
     const sellerId: string = product.seller_id;
@@ -79,7 +85,7 @@ export const proposeNegotiation = asyncHandler<AuthenticatedRequest>(async (req,
     const { error: messageError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_id: userId,
-        text: `💰 议价请求: $${offeredPrice} (原价: $${product.price})`,
+        text: `💰 ${offeredPrice} (${product.price})`,
         message_type: 'price_negotiation',
         content: JSON.stringify({
             negotiationId: negotiation.id,

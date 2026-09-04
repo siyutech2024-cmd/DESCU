@@ -1,11 +1,10 @@
-
-import { formatDistance, isMeaningfulDistance } from '../distance';
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle, Star, ChevronRight } from 'lucide-react';
+import { formatDistance, isMeaningfulDistance } from '../distance';
 import { useUrlModal } from '@/lib/useUrlModal';
-import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle, Star } from 'lucide-react';
-import { Product, DeliveryType } from '@/types';
+import { Product, DeliveryType, User } from '@/types';
 import { useLanguage } from '@/i18n';
 import { getOptimizedImageUrl } from '@/services/imageOptimizer';
 import { useRegion } from '@/contexts/RegionContext';
@@ -13,7 +12,6 @@ import { ReportModal } from '@/features/users/components/ReportModal';
 import { CheckoutModal } from './CheckoutModal';
 import { RatingModal } from '@/features/users/components/RatingModal';
 import { CreditBadge } from '@/features/users/components/CreditBadge';
-import { User } from '@/types';
 import { canPurchaseProduct } from '@/services/locationService';
 import { api } from '@/lib/api/client';
 import { notify } from '@/lib/toast';
@@ -21,18 +19,22 @@ import { queryKeys } from '@/lib/queryClient';
 import { useAuth } from '@/features/auth';
 import { categoryLabelKey } from '@/features/products/categories';
 import { submitRating, getUserRatingStats, EMPTY_RATING_STATS } from '@/services/ratingService';
+import { Button, Card, Chip, Eyebrow, IconButton } from '@/components/ui/primitives';
 
 interface ProductDetailsProps {
   product: Product;
   onBack: () => void;
-  // onAddToCart removed - direct purchase model
   onContactSeller: (product: Product) => void;
   onRequireLogin: () => void;
-  isInCart: boolean;
+  /** @deprecated cart was removed; kept so existing call sites type-check */
+  isInCart?: boolean;
   user: User | null;
 }
 
-export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onContactSeller, onRequireLogin, isInCart, user }) => {
+const WHATSAPP_GREEN = '#25D366';
+const FACEBOOK_BLUE = '#1877F2';
+
+export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onContactSeller, onRequireLogin, user }) => {
   const { t, language } = useLanguage();
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
   const { openLoginModal } = useAuth();
@@ -42,19 +44,15 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const { isOpen: isCheckoutOpen, open: openCheckout, close: closeCheckout } = useUrlModal('checkout');
 
   const sellerId = product.seller?.id ?? '';
-  const goToSeller = () => {
-    if (sellerId) navigate(`/user/${sellerId}`);
-  };
   const isOwnListing = !!user && user.id === sellerId;
+  const goToSeller = () => { if (sellerId) navigate(`/user/${sellerId}`); };
 
-  // Seller rating stats (refreshed after the current user submits a rating).
   const { data: sellerRatingStats = EMPTY_RATING_STATS } = useQuery({
     queryKey: queryKeys.ratings(sellerId),
     queryFn: () => getUserRatingStats(sellerId),
     enabled: !!sellerId,
   });
 
-  // 根据用户语言读取翻译字段
   const localizedTitle = (product as any)[`title_${language}`] || product.title;
   const localizedDescription = (product as any)[`description_${language}`] || product.description;
 
@@ -67,54 +65,30 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const [linkCopied, setLinkCopied] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
-
-  // Check if user can purchase this product based on location
   const [purchaseEligibility, setPurchaseEligibility] = useState<{ canPurchase: boolean; reason?: string; warning?: string }>({ canPurchase: true });
   const [sellerScore, setSellerScore] = useState(0);
 
   useEffect(() => {
     if (user && user.country && product.country) {
-      const eligibility = canPurchaseProduct(
-        user.country,
-        user.city || '',
-        product.country,
-        product.city || '',
-        product.deliveryType,
-        language
-      );
-      setPurchaseEligibility(eligibility);
+      setPurchaseEligibility(canPurchaseProduct(user.country, user.city || '', product.country, product.city || '', product.deliveryType, language));
     }
-
-    // Fetch Seller Credit Score
-    if (product.seller && product.seller.id) {
-      api.get<{ score?: number }>(`/api/users/${product.seller.id}/credit`)
+    if (sellerId) {
+      api.get<{ score?: number }>(`/api/users/${sellerId}/credit`)
         .then(data => setSellerScore(data.score || 0))
-        .catch(err => console.error("Failed to fetch seller credit", err));
+        .catch(err => console.error('Failed to fetch seller credit', err));
     }
-  }, [user, product, language]);
+  }, [user, product, language, sellerId]);
 
   const handleOpenRating = () => {
-    if (!user) {
-      openLoginModal();
-      return;
-    }
-    if (isOwnListing) {
-      notify.warning(t('rating.cannot_rate_self'));
-      return;
-    }
+    if (!user) { openLoginModal(); return; }
+    if (isOwnListing) { notify.warning(t('rating.cannot_rate_self')); return; }
     setIsRatingOpen(true);
   };
 
   /** Submits the rating; throws on failure so the modal stays open for retry. */
   const handleSubmitRating = async (score: number, comment: string) => {
-    if (!user) {
-      openLoginModal();
-      throw new Error('login required');
-    }
-    if (isOwnListing || !sellerId) {
-      notify.warning(t('rating.cannot_rate_self'));
-      throw new Error('cannot rate self');
-    }
+    if (!user) { openLoginModal(); throw new Error('login required'); }
+    if (isOwnListing || !sellerId) { notify.warning(t('rating.cannot_rate_self')); throw new Error('cannot rate self'); }
     try {
       await submitRating(user.id, sellerId, score, comment);
     } catch (err) {
@@ -125,382 +99,209 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
     await queryClient.invalidateQueries({ queryKey: queryKeys.ratings(sellerId) });
   };
 
-  const getRelativeTime = (timestamp: number) => {
-    const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
-    if (days === 0) return t('time.today');
-    return t('time.days_ago').replace('{0}', days.toString());
+  const relativeTime = (timestamp: number) => {
+    const days = Math.floor((Date.now() - timestamp) / 86400000);
+    return days === 0 ? t('time.today') : t('time.days_ago').replace('{0}', String(days));
   };
 
-  const getDeliveryLabel = (type: DeliveryType) => {
-    return t(`delivery.${type}`);
-  };
-
-  // 生成正确的分享链接（避免在移动端使用 capacitor://localhost）
-  const PRODUCTION_URL = 'https://descu.ai';
-  const productPath = `/product/${product.id}`;
-  const shareUrl = PRODUCTION_URL + productPath;
-  const shareText = `Check out ${localizedTitle} on DESCU!`;
-
-  const handleShareWhatsApp = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
-  };
-
-  const handleShareFacebook = () => {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
+  // Share links use the production host (never capacitor://localhost inside the app).
+  const shareUrl = `https://descu.ai/product/${product.id}`;
+  const shareText = `${localizedTitle} · ${formatCurrency(product.price, productCurrency)} — DESCU`;
+  const shareWhatsApp = () => window.open(`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`, '_blank', 'noopener');
+  const shareFacebook = () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener');
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      notify.success(t('product.link_copied'));
+      setTimeout(() => setLinkCopied(false), 1500);
+    } catch { /* clipboard blocked */ }
   };
 
   const isSold = product.status === 'sold';
   const cannotBuy = isSold || (!!user && !purchaseEligibility.canPurchase);
-  // Rendered twice: inline on desktop, in the fixed bottom bar on mobile.
-  const actionButtons = (
-    <>
-      <button
-        type="button"
-        onClick={() => onContactSeller(product)}
-        disabled={isSold}
-        className={`flex items-center justify-center gap-2 py-3.5 md:py-4 rounded-2xl font-bold text-base md:text-lg transition-all ${isSold
-          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          : 'bg-white/80 backdrop-blur-md text-brand-600 border border-brand-100 hover:bg-white hover:scale-[1.02] shadow-sm'
-          }`}
-      >
-        <MessageCircle size={22} />
-        {isSold ? t('product.sold') : t('detail.contact')}
-      </button>
+  const buyLabel = isSold ? t('product.sold')
+    : (!!user && !purchaseEligibility.canPurchase) ? t('product.not_available')
+    : product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it');
+  const buyTitle = (!user || purchaseEligibility.canPurchase) ? (purchaseEligibility.warning || '') : purchaseEligibility.reason;
 
-      <button
-        type="button"
-        onClick={() => {
-          if (!user) {
-            onRequireLogin();
-          } else {
-            openCheckout();
-          }
-        }}
-        disabled={cannotBuy}
-        className={`flex items-center justify-center gap-2 py-3.5 md:py-4 rounded-2xl font-bold text-base md:text-lg transition-all shadow-lg ${cannotBuy
-          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          : 'bg-gradient-to-r from-brand-600 to-brand-500 text-white hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-95'
-          }`}
-        title={(!user || purchaseEligibility.canPurchase) ? (purchaseEligibility.warning || '') : purchaseEligibility.reason}
-      >
-        <ShoppingBag size={22} />
-        {isSold ? t('product.sold') : ((!!user && !purchaseEligibility.canPurchase) ? t('product.not_available') : (product.deliveryType === 'meetup' ? t('product.arrange_meetup') : t('product.want_it')))}
-      </button>
+  // Rendered twice: inline on desktop, in the fixed bottom bar on mobile (shorter labels there).
+  const renderActions = (compact: boolean) => (
+    <>
+      <Button variant="secondary" size="lg" icon={<MessageCircle size={18} />} disabled={isSold} onClick={() => onContactSeller(product)}>
+        {isSold ? t('product.sold') : compact ? t('detail.contact_short') : t('detail.contact')}
+      </Button>
+      <Button size="lg" icon={<ShoppingBag size={18} />} disabled={cannotBuy} title={buyTitle} onClick={() => (user ? openCheckout() : onRequireLogin())}>
+        {compact && !isSold && (!user || purchaseEligibility.canPurchase)
+          ? (product.deliveryType === 'meetup' ? t('product.arrange_meetup_short') : t('product.want_it_short'))
+          : buyLabel}
+      </Button>
     </>
   );
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareUrl);
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
-  };
+  const subcategoryLabel = product.subcategory ? t(`subcat.${product.subcategory}`) : '';
+  const hasSubcategory = !!subcategoryLabel && !subcategoryLabel.startsWith('subcat.') && !subcategoryLabel.startsWith('[');
+  const placeName = product.location_display_name || product.town || product.district || product.city || product.locationName || '';
+  const deliveryIcon = product.deliveryType === DeliveryType.Shipping ? <Truck size={18} /> : product.deliveryType === 'both' ? <Truck size={18} /> : <Handshake size={18} />;
+  const distance = product.distance ?? Infinity;
+  const distanceTone = distance <= 5 ? 'success' : distance <= 50 ? 'brand' : 'warning';
+  const images = product.images.length > 0 ? product.images : [];
 
   return (
-    <div className="min-h-[60vh] bg-transparent pt-4 pb-24 md:pb-0 animate-fade-in">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header Actions */}
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
-          >
-            <ArrowLeft size={20} />
-            {t('detail.back')}
-          </button>
-          <button
-            onClick={() => setIsReportModalOpen(true)}
-            className="flex items-center gap-1.5 text-gray-400 hover:text-red-500 transition-colors text-xs font-bold uppercase tracking-wider bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm"
-          >
-            <Flag size={14} />
-            {t('detail.report')}
-          </button>
+    <div className="pt-3 md:pt-5 pb-28 md:pb-12 animate-fade-in">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4">
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-3 md:mb-5">
+          <Button variant="ghost" size="sm" icon={<ArrowLeft size={18} />} onClick={onBack} className="-ml-2 text-gray-600">{t('detail.back')}</Button>
+          <Button variant="ghost" size="sm" icon={<Flag size={14} />} onClick={() => setIsReportModalOpen(true)} className="text-gray-400 hover:text-red-600">{t('detail.report')}</Button>
         </div>
 
-        <div className="glass-panel rounded-[2.5rem] p-1 md:p-8 shadow-2xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-10">
-            {/* Image Section - Framed Glass */}
-            <div className="relative group">
-              <div className={`aspect-square rounded-[2rem] overflow-hidden bg-gray-100 shadow-inner border border-white/30 relative z-10 mb-4 ${!imageLoaded ? 'animate-pulse' : ''}`}>
-                <img
-                  src={getOptimizedImageUrl(product.images[selectedImageIndex] || product.images[0], 'medium')}
-                  alt={product.title}
-                  loading="lazy"
-                  onLoad={() => setImageLoaded(true)}
-                  className={`w-full h-full object-cover transform transition-all duration-700 hover:scale-105 ${product.status === 'sold' ? 'grayscale' : ''} ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-                />
-                {/* SOLD Overlay */}
-                {product.status === 'sold' && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
-                    <div className="bg-red-600 text-white px-8 py-4 rounded-2xl font-black text-3xl transform -rotate-12 shadow-2xl border-4 border-white">
-                      {t('product.sold')}
-                    </div>
-                  </div>
-                )}
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-5 md:gap-8 items-start">
+          {/* Gallery — sticks while the info column scrolls */}
+          <div className="md:sticky md:top-24">
+            <div className={`relative aspect-square rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm ${!imageLoaded ? 'animate-pulse' : ''}`}>
+              <img
+                src={getOptimizedImageUrl(images[selectedImageIndex] || images[0], 'medium')}
+                alt={localizedTitle}
+                onLoad={() => setImageLoaded(true)}
+                className={`w-full h-full object-cover transition-opacity duration-500 ${isSold ? 'grayscale' : ''} ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              />
+              {isSold && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <span className="rounded-xl bg-white px-6 py-3 text-2xl font-black text-gray-900 -rotate-6 shadow-xl">{t('product.sold')}</span>
+                </div>
+              )}
+              <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 pointer-events-none">
+                {isMeaningfulDistance(product.distance) ? (
+                  <Chip tone={distanceTone} icon={<MapPin size={12} />} className="shadow-sm bg-white/95">{distance <= 5 ? `${t('card.nearby')} · ` : ''}{formatDistance(distance)}</Chip>
+                ) : <span />}
+                {product.isPromoted && <Chip tone="warning" icon={<Zap size={12} className="fill-current" />} className="shadow-sm bg-white/95">{t('card.promoted')}</Chip>}
               </div>
+            </div>
+            {images.length > 1 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => { setSelectedImageIndex(idx); setImageLoaded(false); }}
+                    aria-label={`${idx + 1}/${images.length}`}
+                    aria-current={selectedImageIndex === idx}
+                    className={`w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-colors ${selectedImageIndex === idx ? 'border-brand-500' : 'border-transparent hover:border-brand-200'}`}
+                  >
+                    <img src={getOptimizedImageUrl(img, 'thumbnail')} alt="" loading="lazy" className={`w-full h-full object-cover ${isSold ? 'grayscale' : ''}`} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-              {/* Thumbnails (Mock implementation as product might only have 1 image in mock) */}
-              {product.images.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                  {product.images.map((img, idx) => (
-                    <button key={idx} onClick={() => { setSelectedImageIndex(idx); setImageLoaded(false); }} className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${selectedImageIndex === idx ? 'border-brand-500 ring-2 ring-brand-300' : 'border-transparent hover:border-brand-500'}`}>
-                      <img src={getOptimizedImageUrl(img, 'thumbnail')} className={`w-full h-full object-cover ${product.status === 'sold' ? 'grayscale' : ''}`} alt="" loading="lazy" />
-                    </button>
-                  ))}
-                  {/* Mock extra images if only 1 exists, just to show UI? No, stick to real data */}
-                </div>
-              )}
-
-              {/* Decorative Blur blob behind image */}
-              <div className="absolute -inset-4 bg-brand-500/20 blur-3xl rounded-full opacity-50 z-0 pointer-events-none"></div>
-
-              {isMeaningfulDistance(product.distance) && (
-                <div className={`absolute top-6 left-6 z-20 backdrop-blur-md text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border ${product.distance <= 5
-                  ? 'bg-green-100/90 text-green-800 border-green-200'
-                  : product.distance <= 50
-                    ? 'bg-white/80 text-gray-800 border-white/50'
-                    : 'bg-orange-100/90 text-orange-800 border-orange-200'
-                  }`}>
-                  <MapPin size={14} className={product.distance <= 5 ? 'text-green-600' : product.distance <= 50 ? 'text-brand-600' : 'text-orange-600'} />
-                  {product.distance <= 5 ? t('card.nearby') : ''} {formatDistance(product.distance)}
-                </div>
-              )}
-              {product.isPromoted && (
-                <div className="absolute top-6 right-6 z-20 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
-                  <Zap size={14} fill="currentColor" />
-                  {t('card.promoted')}
-                </div>
-              )}
+          {/* Info */}
+          <div className="space-y-4 md:space-y-5">
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <Chip tone="brand">{hasSubcategory ? subcategoryLabel : t(categoryLabelKey(product.category))}</Chip>
+                <Chip tone="neutral">{product.condition === 'new' ? t('condition.new') : t('condition.used')}</Chip>
+                <span className="inline-flex items-center gap-1 text-xs text-gray-400"><Clock size={12} />{relativeTime(product.createdAt)}</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight tracking-tight" style={{ textWrap: 'balance' } as React.CSSProperties}>{localizedTitle}</h1>
+              <div className="mt-2 flex flex-wrap items-baseline gap-x-3">
+                <span className="text-3xl md:text-4xl font-black text-brand-600 tabular-nums">{formatCurrency(product.price, productCurrency)}</span>
+                {showDual && <span className="text-base font-bold text-gray-400 tabular-nums">≈ {formatCurrency(convertedPrice, targetCurrency)}</span>}
+              </div>
             </div>
 
-            {/* Info Section */}
-            <div className="p-6 md:p-2 flex flex-col justify-center">
-              <div className="mb-auto">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="glass-pill px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider text-brand-700">
-                    {product.subcategory ? t(`subcat.${product.subcategory}`) : t(categoryLabelKey(product.category))}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-gray-500 text-xs font-medium bg-white/30 px-2 py-1 rounded-full">
-                    <Clock size={12} />
-                    {getRelativeTime(product.createdAt)}
-                  </span>
+            {/* Delivery + location, one card */}
+            <Card padding={false} className="divide-y divide-gray-100">
+              <div className="flex items-center gap-3 p-4">
+                <span className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center flex-shrink-0">{deliveryIcon}</span>
+                <div className="min-w-0 flex-1">
+                  <Eyebrow>{t('detail.delivery')}</Eyebrow>
+                  <p className="font-bold text-gray-900">{t(`delivery.${product.deliveryType}`)}</p>
                 </div>
-
-                <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-3 leading-tight tracking-tight">
-                  {localizedTitle}
-                </h1>
-
-                <div className="flex flex-col">
-                  <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-400 mb-1 drop-shadow-sm">
-                    {formatCurrency(product.price, productCurrency)}
-                  </div>
-                  {showDual && (
-                    <div className="text-lg md:text-xl font-bold text-gray-400 mb-6">
-                      ≈ {formatCurrency(convertedPrice, targetCurrency)}
-                    </div>
+              </div>
+              <div className="flex items-start gap-3 p-4">
+                <span className="w-10 h-10 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center flex-shrink-0"><MapPin size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <Eyebrow>{t('detail.location')}</Eyebrow>
+                  <p className="font-bold text-gray-900 truncate">{placeName || t('list.loc_success')}{product.country && !product.location_display_name ? `, ${product.country}` : ''}</p>
+                  {isMeaningfulDistance(product.distance) && <p className="text-sm text-gray-500 mt-0.5">{t('detail.distance_away', { km: formatDistance(distance) })}</p>}
+                  {!purchaseEligibility.canPurchase && purchaseEligibility.reason && (
+                    <p className="mt-2 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700"><AlertCircle size={14} className="mt-0.5 flex-shrink-0" />{purchaseEligibility.reason}</p>
+                  )}
+                  {purchaseEligibility.canPurchase && purchaseEligibility.warning && (
+                    <p className="mt-2 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800"><MapPin size={14} className="mt-0.5 flex-shrink-0" />{purchaseEligibility.warning}</p>
                   )}
                 </div>
-
-                {/* Delivery Method Info */}
-                <div className="glass-card rounded-2xl p-4 mb-4 flex items-center gap-4 bg-white/40">
-                  <div className={`p-3 rounded-full ${product.deliveryType === DeliveryType.Shipping ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
-                    {product.deliveryType === DeliveryType.Shipping ? <Truck size={24} /> : <Handshake size={24} />}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-800 mb-0.5 uppercase tracking-wide opacity-70">{t('detail.delivery')}</h4>
-                    <p className="text-lg font-bold text-gray-900">{getDeliveryLabel(product.deliveryType)}</p>
-                  </div>
-                </div>
-
-                {/* Region Restriction Badge with Distance */}
-                <div className={`glass-card rounded-2xl p-4 mb-8 flex items-start gap-3 border ${!purchaseEligibility.canPurchase
-                  ? 'bg-orange-50/50 border-orange-200'
-                  : 'bg-blue-50/50 border-blue-100'
-                  }`}>
-                  <MapPin size={20} className={!purchaseEligibility.canPurchase ? 'text-orange-600' : 'text-blue-600'} />
-                  <div className="flex-1">
-                    <h4 className="text-sm font-bold text-gray-900 mb-1">{t('detail.location')}</h4>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm text-gray-700 font-medium">
-                        {product.location_display_name || product.town || product.district || product.city || 'N/A'}, {product.country || 'MX'}
-                      </p>
-                      {isMeaningfulDistance(product.distance) && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${product.distance <= 5
-                          ? 'bg-green-100 text-green-700'
-                          : product.distance <= 50
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-orange-100 text-orange-700'
-                          }`}>
-                          {formatDistance(product.distance)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 配送方式说明 */}
-                    <div className="mt-2 text-xs text-gray-500">
-                      {product.deliveryType === 'meetup' && (
-                        <span className="flex items-center gap-1">
-                          <Handshake size={12} />
-                          {t('delivery.meetup')}
-                        </span>
-                      )}
-                      {product.deliveryType === 'shipping' && (
-                        <span className="flex items-center gap-1">
-                          <Truck size={12} />
-                          {t('delivery.shipping')}
-                        </span>
-                      )}
-                      {product.deliveryType === 'both' && (
-                        <span className="flex items-center gap-1">
-                          <Truck size={12} />
-                          {t('delivery.both')}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 不可购买提示 */}
-                    {!purchaseEligibility.canPurchase && purchaseEligibility.reason && (
-                      <div className="mt-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-2">
-                        <AlertCircle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-red-800 font-bold">{purchaseEligibility.reason}</p>
-                      </div>
-                    )}
-
-                    {/* Meetup 不同城市温馨提示 */}
-                    {purchaseEligibility.canPurchase && purchaseEligibility.warning && (
-                      <div className="mt-2 flex items-start gap-2 bg-orange-50 border border-orange-200 rounded-lg p-2">
-                        <MapPin size={16} className="text-orange-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-orange-800 font-bold">{purchaseEligibility.warning}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="prose prose-sm text-gray-600 mb-8 bg-white/30 p-6 rounded-2xl border border-white/40 backdrop-blur-sm">
-                  <h3 className="text-gray-900 font-bold mb-2 text-lg">{t('detail.desc_title')}</h3>
-                  <p className="whitespace-pre-wrap leading-relaxed font-medium">{localizedDescription}</p>
-                </div>
               </div>
+            </Card>
 
-              {/* Action Buttons: inline from md up; on mobile they live in the fixed bar below */}
-              {isOwnListing ? (
-                <div className="pt-2 mb-8 text-center text-sm font-bold text-gray-400 uppercase tracking-widest">{t('detail.own_listing')}</div>
-              ) : (
-                <div className="hidden md:grid pt-2 grid-cols-2 gap-4 mb-8">{actionButtons}</div>
-              )}
+            {/* Description */}
+            <Card>
+              <h2 className="font-bold text-gray-900 mb-2">{t('detail.desc_title')}</h2>
+              <p className="text-[15px] text-gray-700 leading-relaxed whitespace-pre-wrap break-words">{localizedDescription}</p>
+            </Card>
 
-              {/* Share Buttons */}
-              <div className="flex gap-4 items-center justify-center border-t border-gray-200/50 pt-6">
-                <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mr-2">{t('product.share')}</span>
-                <button onClick={handleShareWhatsApp} className="p-3 bg-[#25D366] text-white rounded-full hover:scale-110 transition-all shadow-md hover:shadow-lg" title="Share on WhatsApp">
-                  <MessageCircle size={20} fill="currentColor" />
-                </button>
-                <button onClick={handleShareFacebook} className="p-3 bg-[#1877F2] text-white rounded-full hover:scale-110 transition-all shadow-md hover:shadow-lg" title="Share on Facebook">
-                  <Facebook size={20} fill="currentColor" />
-                </button>
-                <button onClick={handleCopyLink} className="p-3 bg-gray-800 text-white rounded-full hover:scale-110 transition-all shadow-md hover:shadow-lg relative" title="Copy Link">
-                  {linkCopied ? <Check size={20} /> : <LinkIcon size={20} />}
-                  {linkCopied && <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/90 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl">Link Copied!</span>}
-                </button>
+            {/* Actions (desktop inline; mobile uses the fixed bar) */}
+            {isOwnListing ? (
+              <p className="text-center text-sm font-bold text-gray-400 uppercase tracking-widest py-1">{t('detail.own_listing')}</p>
+            ) : (
+              <div className="hidden md:grid grid-cols-2 gap-3">{renderActions(false)}</div>
+            )}
+
+            {/* Seller */}
+            <Card
+              padding={false}
+              interactive={!!sellerId}
+              {...(sellerId ? {
+                role: 'link', tabIndex: 0, 'aria-label': `${t('detail.seller')}: ${product.seller.name || 'User'}`, onClick: goToSeller,
+                onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToSeller(); } },
+              } : {})}
+              className="p-4 flex items-center gap-4 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+            >
+              <div className="relative flex-shrink-0">
+                <img src={product.seller.avatar} alt="" className="w-14 h-14 rounded-full object-cover bg-gray-100 ring-2 ring-white shadow-sm" />
+                {product.seller.isVerified && <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center ring-2 ring-white"><ShieldCheck size={11} /></span>}
               </div>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Seller & Location Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 pb-8">
-          {/* Seller Card — whole card navigates to the seller's public profile */}
-          <div
-            {...(sellerId ? {
-              role: 'link',
-              tabIndex: 0,
-              'aria-label': `${t('detail.seller')}: ${product.seller.name || 'User'}`,
-              onClick: goToSeller,
-              onKeyDown: (e: React.KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  goToSeller();
-                }
-              },
-            } : {})}
-            className={`glass-card p-6 rounded-[2rem] flex items-center gap-5 transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 ${sellerId ? 'cursor-pointer hover:shadow-lg' : ''}`}
-          >
-            <div className="relative">
-              <img src={product.seller.avatar} alt={product.seller.name} className="w-16 h-16 rounded-full border-2 border-white shadow-md object-cover" />
-              {product.seller.isVerified && (
-                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white p-1 rounded-full border-2 border-white">
-                  <ShieldCheck size={12} />
+              <div className="min-w-0 flex-1">
+                <Eyebrow>{t('detail.seller')}</Eyebrow>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="font-bold text-gray-900 truncate">{product.seller.name}</p>
+                  <CreditBadge score={sellerScore} size="sm" />
                 </div>
-              )}
-            </div>
-            <div>
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('detail.seller')}</div>
-              <div className="font-bold text-xl text-gray-900 flex items-center gap-1">
-                {product.seller.name}
-                <CreditBadge score={sellerScore} size="sm" />
+                <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-gray-600">
+                  <Star size={13} className="fill-yellow-400 text-yellow-400" />
+                  {sellerRatingStats.total_reviews > 0 ? `${Number(sellerRatingStats.average_rating).toFixed(1)} (${sellerRatingStats.total_reviews})` : t('rating.no_reviews')}
+                </p>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-600">
-                  <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                  {sellerRatingStats.total_reviews > 0
-                    ? `${Number(sellerRatingStats.average_rating).toFixed(1)} (${sellerRatingStats.total_reviews})`
-                    : t('rating.no_reviews')}
-                </span>
-                {!isOwnListing && (
-                  <button
-                    type="button"
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleOpenRating();
-                    }}
-                    onKeyDown={e => e.stopPropagation()}
-                    className="text-xs font-bold text-brand-600 border border-brand-200 px-3 py-1 rounded-full hover:bg-brand-50 transition-colors"
-                  >
-                    {t('product.rate_seller')}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+              {!isOwnListing ? (
+                <Button size="sm" variant="secondary" onClick={e => { e.stopPropagation(); handleOpenRating(); }} onKeyDown={e => e.stopPropagation()}>{t('product.rate_seller')}</Button>
+              ) : sellerId ? <ChevronRight size={18} className="text-gray-300" /> : null}
+            </Card>
 
-          {/* Location Card */}
-          <div className="glass-card p-6 rounded-[2rem] flex items-center gap-5">
-            <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-green-600 border-2 border-white shadow-sm">
-              <MapPin size={28} />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('detail.location')}</div>
-              <div className="font-bold text-xl text-gray-900">{product.locationName || 'Unknown'}</div>
-              <p className="text-sm text-gray-500 font-medium">
-                {isMeaningfulDistance(product.distance) ? t('detail.distance_away', { km: formatDistance(product.distance) }) : (product.locationName || t('list.loc_success'))}
-              </p>
+            {/* Share */}
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <Eyebrow>{t('product.share')}</Eyebrow>
+              <div className="flex items-center gap-2">
+                <IconButton onClick={shareWhatsApp} title="WhatsApp" aria-label="WhatsApp" className="bg-white border border-gray-100 shadow-sm hover:bg-gray-50" style={{ color: WHATSAPP_GREEN }}><MessageCircle size={18} className="fill-current" /></IconButton>
+                <IconButton onClick={shareFacebook} title="Facebook" aria-label="Facebook" className="bg-white border border-gray-100 shadow-sm hover:bg-gray-50" style={{ color: FACEBOOK_BLUE }}><Facebook size={18} className="fill-current" /></IconButton>
+                <IconButton onClick={copyLink} title={t('product.copy_link')} aria-label={t('product.copy_link')} className="bg-white border border-gray-100 shadow-sm hover:bg-gray-50 text-gray-700">{linkCopied ? <Check size={18} className="text-green-600" /> : <LinkIcon size={18} />}</IconButton>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
       {/* Mobile: the two actions stay reachable without scrolling past the description */}
       {!isOwnListing && (
-        <div className="md:hidden fixed inset-x-0 bottom-nav-offset z-sticky px-3 pt-2 pb-7 bg-white/90 backdrop-blur-md border-t border-gray-100 grid grid-cols-2 gap-3">
-          {actionButtons}
+        <div className="md:hidden fixed inset-x-0 bottom-nav-offset z-sticky px-3 pt-2 pb-3 bg-white/95 backdrop-blur-md border-t border-gray-100 grid grid-cols-2 gap-3">
+          {renderActions(true)}
         </div>
       )}
+
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} targetType="product" targetId={product.id} />
-      {user && (
-        <CheckoutModal
-          isOpen={isCheckoutOpen}
-          onClose={closeCheckout}
-          product={product}
-          user={user}
-        />
-      )}
-      {user && !isOwnListing && (
-        <RatingModal
-          isOpen={isRatingOpen}
-          onClose={() => setIsRatingOpen(false)}
-          targetUser={product.seller}
-          onSubmit={handleSubmitRating}
-        />
-      )}
+      {user && <CheckoutModal isOpen={isCheckoutOpen} onClose={closeCheckout} product={product} user={user} />}
+      {user && !isOwnListing && <RatingModal isOpen={isRatingOpen} onClose={() => setIsRatingOpen(false)} targetUser={product.seller} onSubmit={handleSubmitRating} />}
     </div>
   );
 };

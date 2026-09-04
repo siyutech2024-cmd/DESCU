@@ -11,7 +11,8 @@ import { OrderStatusCard } from './OrderStatusCard';
 import { DisputeModal } from './DisputeModal';
 import { ShipmentModal } from './ShipmentModal';
 import { ConfirmSheet } from '@/components/ui/Sheet';
-import { XCircle } from 'lucide-react';
+import { XCircle, Truck, ShoppingBag } from 'lucide-react';
+import { Button, EmptyState } from '@/components/ui/primitives';
 import type { Order } from '@/types';
 
 interface OrderListProps {
@@ -90,82 +91,40 @@ const OrderList: React.FC<OrderListProps> = ({ role, currentUser }) => {
         }
     };
 
-    if (isLoading) return <div className="p-8 text-center text-gray-500">{t('orders.loading')}</div>;
+    if (isLoading) return <p className="p-8 text-center text-sm text-gray-500">{t('orders.loading')}</p>;
 
     return (
-        <div className="space-y-4">
-            {orders.length === 0 && <div className="text-center text-gray-500 py-8">{t('orders.empty')}</div>}
+        <div className="space-y-3">
+            {orders.length === 0 && <EmptyState icon={<ShoppingBag size={26} />} title={t('orders.empty')} className="bg-white rounded-2xl border border-gray-100" />}
 
             {orders.map(order => {
                 const productId = order.product_id || (order.product as any)?.id;
-
+                const actions: React.ReactNode[] = [];
+                if (canCancel(order)) {
+                    actions.push(<Button key="cancel" size="sm" variant="ghost" className="text-gray-500" onClick={() => setCancelTarget(order)}>{t('orders.cancel')}</Button>);
+                }
+                if (role === 'buyer' && ['paid', 'escrow_held', 'meetup_arranged', 'shipped'].includes(order.status)) {
+                    actions.push(<Button key="dispute" size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => { setSelectedOrderId(order.id); setShowDisputeModal(true); }}>{t('orders.dispute')}</Button>);
+                }
+                if (role === 'seller' && (order.status === 'paid' || order.status === 'escrow_held') && order.order_type === 'shipping') {
+                    actions.push(<Button key="ship" size="sm" icon={<Truck size={16} />} onClick={() => handleOpenShipModal(order.id)}>{t('orders.ship_item')}</Button>);
+                }
+                if (role === 'buyer' && order.status === 'shipped') {
+                    actions.push(
+                        <Button key="confirm" size="sm" variant={armedOrderId === order.id ? 'danger' : 'primary'} loading={confirmingId === order.id} onClick={() => handleConfirmReceipt(order.id)}>
+                            {armedOrderId === order.id ? t('orders.confirm_receipt_again') : t('orders.confirm_receipt')}
+                        </Button>,
+                    );
+                }
                 return (
-                    <div key={order.id} className="relative group">
-                        <OrderStatusCard
-                            order={order}
-                            currentUser={currentUser}
-                            onStatusChange={refreshOrders}
-                            onOpenProduct={() => {
-                                if (productId) {
-                                    navigate(`/product/${productId}`);
-                                } else {
-                                    notify.error(t('orders.product_unavailable'));
-                                }
-                            }}
-                            className="hover:shadow-md transition-shadow bg-white"
-                        />
-
-                        {/* Extra actions (not part of the clickable product area) */}
-                        <div className="mt-2 flex gap-2 justify-end px-2">
-                            {canCancel(order) && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setCancelTarget(order); }}
-                                    className="px-3 py-2 text-gray-500 text-xs hover:bg-gray-100 rounded-lg transition-colors font-medium"
-                                >
-                                    {t('orders.cancel')}
-                                </button>
-                            )}
-
-                            {/* SELLER: Ship Button */}
-                            {role === 'seller' && (order.status === 'paid' || order.status === 'escrow_held') && order.order_type === 'shipping' && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); handleOpenShipModal(order.id); }}
-                                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                                >
-                                    {t('orders.ship_item')}
-                                </button>
-                            )}
-
-                            {/* BUYER: Dispute (if paid/shipped) */}
-                            {role === 'buyer' && ['paid', 'escrow_held', 'meetup_arranged', 'shipped'].includes(order.status) && (
-                                <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); setSelectedOrderId(order.id); setShowDisputeModal(true); }}
-                                    className="px-3 py-2 text-red-500 text-xs hover:bg-red-50 rounded-lg transition-colors font-medium"
-                                >
-                                    {t('orders.dispute')}
-                                </button>
-                            )}
-
-                            {/* BUYER: Confirm Receipt (if shipped) */}
-                            {role === 'buyer' && order.status === 'shipped' && (
-                                <button
-                                    type="button"
-                                    disabled={confirmingId === order.id}
-                                    onClick={(e) => { e.stopPropagation(); handleConfirmReceipt(order.id); }}
-                                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium disabled:opacity-60"
-                                >
-                                    {confirmingId === order.id
-                                        ? t('orders.confirming')
-                                        : armedOrderId === order.id
-                                            ? t('orders.confirm_receipt_again')
-                                            : t('orders.confirm_receipt')}
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                    <OrderStatusCard
+                        key={order.id}
+                        order={order}
+                        currentUser={currentUser}
+                        onStatusChange={refreshOrders}
+                        onOpenProduct={() => { if (productId) navigate(`/product/${productId}`); else notify.error(t('orders.product_unavailable')); }}
+                        actions={actions.length > 0 ? actions : undefined}
+                    />
                 );
             })}
 

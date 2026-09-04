@@ -1,11 +1,12 @@
-
 import React from 'react';
 import { MessageCircle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, Conversation } from '../types';
+import { useLanguage } from '@/i18n';
 import { ChatList } from '@/features/chat/components/ChatList';
 import { ChatWindow } from '@/features/chat/components/ChatWindow';
 import { SignedOutPlaceholder } from '@/components/SignedOutPlaceholder';
+import { EmptyState } from '@/components/ui/primitives';
 import { useBackNavigation } from '@/lib/useBackNavigation';
 
 interface ChatPageProps {
@@ -16,47 +17,53 @@ interface ChatPageProps {
     onSendMessage: (conversationId: string, text: string) => Promise<void>;
 }
 
-export const ChatPage: React.FC<ChatPageProps> = ({
-    conversations,
-    user,
-    onSendMessage
-}) => {
+/**
+ * Mobile: list OR thread (the thread is a fixed full-screen column).
+ * Desktop (md+): list on the left, thread on the right, like any mail client.
+ */
+export const ChatPage: React.FC<ChatPageProps> = ({ conversations, user }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const goBackToList = useBackNavigation('/chat');
 
     if (!user) {
         return <SignedOutPlaceholder hintKey="auth.signed_out_hint_chat" icon={MessageCircle} />;
     }
 
-    if (id) {
-        const activeConv = conversations.find(c => c.id === id);
-        if (!activeConv) {
-            // Redirect to list if not found, or show loading
-            // This might happen if conversations are still loading
-            // For now, consistent with App.tsx logic
-            return <div className="p-4 text-center">Loading or conversation not found...</div>;
-        }
-        return (
-            <div className="flex-1 md:py-8 md:px-4 flex justify-center bg-gray-50">
-                <div className="w-full max-w-4xl h-full md:h-[85vh] bg-white md:rounded-2xl shadow-xl overflow-hidden">
-                    <ChatWindow
-                        key={activeConv.id}
-                        conversation={activeConv}
-                        currentUser={user}
-                        onBack={goBackToList}
-                        onSendMessage={onSendMessage}
-                    />
-                </div>
-            </div>
-        );
-    }
+    const activeConv = id ? conversations.find(c => c.id === id) : undefined;
+    const select = (convId: string) => navigate(`/chat/${convId}`);
+
+    const thread = activeConv ? (
+        <ChatWindow key={activeConv.id} conversation={activeConv} currentUser={user} onBack={goBackToList} hideBack />
+    ) : id ? (
+        <EmptyState icon={<MessageCircle size={26} />} title={t('chat.loading')} className="h-full" />
+    ) : (
+        <EmptyState icon={<MessageCircle size={26} />} title={t('chat.pick_conversation')} hint={t('chat.pick_conversation_hint')} className="h-full" />
+    );
 
     return (
-        <ChatList
-            conversations={conversations}
-            currentUser={user}
-            onSelectConversation={(convId) => navigate(`/chat/${convId}`)}
-        />
+        <>
+            {/* Mobile */}
+            <div className="md:hidden flex-1">
+                {activeConv ? (
+                    <ChatWindow key={activeConv.id} conversation={activeConv} currentUser={user} onBack={goBackToList} />
+                ) : id ? (
+                    <EmptyState icon={<MessageCircle size={26} />} title={t('chat.loading')} className="min-h-[60vh]" />
+                ) : (
+                    <ChatList conversations={conversations} currentUser={user} onSelectConversation={select} />
+                )}
+            </div>
+
+            {/* Desktop two-pane */}
+            <div className="hidden md:flex flex-1 max-w-6xl w-full mx-auto px-4 py-6 min-h-0">
+                <div className="flex w-full h-[calc(100dvh-7.5rem)] min-h-[520px] rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+                    <aside className="w-[340px] lg:w-[380px] flex-shrink-0 border-r border-gray-100 overflow-y-auto modern-scrollbar bg-[#fafafc]">
+                        <ChatList conversations={conversations} currentUser={user} onSelectConversation={select} selectedId={activeConv?.id} compact />
+                    </aside>
+                    <section className="flex-1 min-w-0 flex flex-col">{thread}</section>
+                </div>
+            </div>
+        </>
     );
 };

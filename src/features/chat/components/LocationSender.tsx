@@ -1,211 +1,163 @@
 import React, { useState } from 'react';
-import { MapPin, X, Loader2, Search } from 'lucide-react';
+import { MapPin, LocateFixed, Search, Loader2, Check } from 'lucide-react';
 import { sendRichMessage } from '@/services/chatService';
 import { useLanguage } from '@/i18n';
+import { api } from '@/lib/api/client';
+import { notify } from '@/lib/toast';
+import { Sheet } from '@/components/ui/Sheet';
+import { Button, inputClass } from '@/components/ui/primitives';
 
 interface LocationSenderProps {
+    open: boolean;
     conversationId: string;
     onSent?: () => void;
-    onClose?: () => void;
+    onClose: () => void;
 }
 
-export const LocationSender: React.FC<LocationSenderProps> = ({
-    conversationId,
-    onSent,
-    onClose
-}) => {
-    const { t } = useLanguage();
+interface Place { name: string; address: string; lat: number; lng: number }
+
+/** Compact "street, neighbourhood, city" from a Nominatim address object. */
+const shortAddress = (a: Record<string, string> | undefined, fallback: string) => {
+    if (!a) return fallback;
+    const parts = [
+        a.road && a.house_number ? `${a.road} ${a.house_number}` : a.road,
+        a.suburb || a.neighbourhood || a.quarter,
+        a.city || a.town || a.village || a.municipality,
+        a.state,
+    ].filter(Boolean);
+    return parts.length ? parts.join(', ') : fallback;
+};
+
+/** Bottom sheet to share a meeting point: current position or a searched place. */
+export const LocationSender: React.FC<LocationSenderProps> = ({ open, conversationId, onSent, onClose }) => {
+    const { t, language } = useLanguage();
+    const [isLocating, setIsLocating] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
     const [isSending, setIsSending] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedLocation, setSelectedLocation] = useState<{
-        name: string;
-        address: string;
-        lat: number;
-        lng: number;
-    } | null>(null);
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState<Place[]>([]);
+    const [selected, setSelected] = useState<Place | null>(null);
 
-    const handleGetCurrentLocation = () => {
-        if (!navigator.geolocation) {
-            alert(t('location.geo_unsupported'));
-            return;
-        }
+    const reset = () => { setQuery(''); setResults([]); setSelected(null); };
+    const close = () => { reset(); onClose(); };
 
-        setIsSending(true);
+    const useCurrentLocation = () => {
+        if (!navigator.geolocation) { notify.error(t('location.geo_unsupported')); return; }
+        setIsLocating(true);
         navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                const { latitude, longitude } = position.coords;
-
+            async ({ coords }) => {
+                const { latitude: lat, longitude: lng } = coords;
+                let address = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                let name = t('location.current_name');
                 try {
-                    const response = await fetch(
-                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-                    );
-                    const data = await response.json();
-
-                    setSelectedLocation({
-                        name: t('location.current_name'),
-                        address: data.display_name || `${latitude}, ${longitude}`,
-                        lat: latitude,
-                        lng: longitude
-                    });
-                } catch (error) {
-                    console.error('Failed to get address:', error);
-                    setSelectedLocation({
-                        name: t('location.current_name'),
-                        address: t('location.lat_lng').replace('{0}', String(latitude)).replace('{1}', String(longitude)),
-                        lat: latitude,
-                        lng: longitude
-                    });
-                }
-                setIsSending(false);
+                    const data = await api.get<{ address?: Record<string, string>; name?: string }>('/api/location/reverse', { params: { lat, lon: lng } });
+                    address = shortAddress(data.address, address);
+                    if (data.address?.road) name = data.address.road;
+                } catch { /* keep coordinates */ }
+                setSelected({ name, address, lat, lng });
+                setResults([]);
+                setIsLocating(false);
             },
-            (error) => {
-                console.error('Error getting location:', error);
-                alert(t('location.geo_denied'));
-                setIsSending(false);
-            }
+            () => { notify.error(t('location.geo_denied')); setIsLocating(false); },
+            { enableHighAccuracy: true, timeout: 10000 },
         );
     };
 
-    const handleSearch = () => {
-        if (!searchQuery.trim()) return;
-
-        const popularPlaces = [
-            { name: 'Paseo de la Reforma', address: 'Paseo de la Reforma, Ciudad de México', lat: 19.4326, lng: -99.1332 },
-            { name: 'Plaza de la Constitución', address: 'Plaza de la Constitución, Centro Histórico', lat: 19.4326, lng: -99.1332 },
-            { name: 'Bosque de Chapultepec', address: 'Bosque de Chapultepec', lat: 19.4204, lng: -99.2024 },
-        ];
-
-        const found = popularPlaces.find(p =>
-            p.name.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-        if (found) {
-            setSelectedLocation(found);
-        } else {
-            alert(t('location.not_found'));
+    const search = async () => {
+        const q = query.trim();
+        if (q.length < 2) return;
+        setIsSearching(true);
+        try {
+            const rows = await api.get<Place[]>('/api/location/search', { params: { q, lang: language } });
+            setResults(rows);
+            if (rows.length === 0) notify.info(t('location.not_found'));
+        } catch {
+            notify.error(t('location.not_found'));
+        } finally {
+            setIsSearching(false);
         }
     };
 
-    const handleSendLocation = async () => {
-        if (!selectedLocation) return;
-
+    const send = async () => {
+        if (!selected) return;
         setIsSending(true);
         try {
-            await sendRichMessage(conversationId, 'location', {
-                name: selectedLocation.name,
-                address: selectedLocation.address,
-                lat: selectedLocation.lat,
-                lng: selectedLocation.lng,
-            }, `📍 ${t('location.shared')}: ${selectedLocation.name}`);
-
+            await sendRichMessage(conversationId, 'location', { ...selected }, `📍 ${t('location.shared')}: ${selected.name}`);
+            reset();
             onSent?.();
-            setSelectedLocation(null);
-            setSearchQuery('');
-        } catch (error) {
-            console.error('Error sending location:', error);
-            alert(t('location.send_failed'));
+        } catch {
+            notify.error(t('location.send_failed'));
         } finally {
             setIsSending(false);
         }
     };
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border-2 border-blue-200 shadow-lg max-w-md">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
-                        <MapPin className="text-white" size={20} />
-                    </div>
-                    <h4 className="font-bold text-gray-900">{t('location.title')}</h4>
+        <Sheet
+            open={open}
+            onClose={close}
+            variant="bottom"
+            title={t('location.title')}
+            closeLabel={t('modal.close')}
+            footer={<Button block size="lg" onClick={send} disabled={!selected} loading={isSending} icon={<MapPin size={18} />}>{t('location.send')}</Button>}
+        >
+            <div className="space-y-4 pb-2">
+                <Button block variant="secondary" size="lg" onClick={useCurrentLocation} loading={isLocating} icon={<LocateFixed size={18} />}>
+                    {t('location.current')}
+                </Button>
+
+                <div className="flex items-center gap-3 text-xs text-gray-400">
+                    <span className="flex-1 h-px bg-gray-200" />{t('location.or_search')}<span className="flex-1 h-px bg-gray-200" />
                 </div>
-                {onClose && (
-                    <button
-                        onClick={onClose}
-                        className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
+
+                <form className="flex gap-2" onSubmit={e => { e.preventDefault(); search(); }}>
+                    <input
+                        type="search"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder={t('location.search_placeholder')}
+                        className={inputClass}
+                        data-autofocus
+                    />
+                    <Button type="submit" variant="subtle" size="lg" aria-label={t('location.search_placeholder')} disabled={query.trim().length < 2} loading={isSearching} icon={<Search size={18} />} className="px-4" />
+                </form>
+
+                {results.length > 0 && (
+                    <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100 overflow-hidden">
+                        {results.map((r, i) => {
+                            const active = selected?.lat === r.lat && selected?.lng === r.lng;
+                            return (
+                                <li key={`${r.lat}-${r.lng}-${i}`}>
+                                    <button type="button" onClick={() => setSelected(r)} className={`w-full flex items-start gap-3 px-3 py-2.5 text-left transition-colors ${active ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
+                                        <MapPin size={16} className={`mt-0.5 flex-shrink-0 ${active ? 'text-brand-600' : 'text-gray-400'}`} />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-sm font-bold text-gray-900 truncate">{r.name}</span>
+                                            <span className="block text-xs text-gray-500 truncate">{r.address}</span>
+                                        </span>
+                                        {active && <Check size={16} className="text-brand-600 mt-0.5" />}
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 )}
-            </div>
 
-            {/* Current Location Button */}
-            <button
-                onClick={handleGetCurrentLocation}
-                disabled={isSending}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-md mb-4 disabled:opacity-50"
-            >
-                {isSending ? (
-                    <Loader2 size={20} className="animate-spin" />
-                ) : (
-                    <MapPin size={20} />
-                )}
-                <span>{t('location.current')}</span>
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 h-px bg-gray-300"></div>
-                <span className="text-sm text-gray-500">{t('location.or_search')}</span>
-                <div className="flex-1 h-px bg-gray-300"></div>
-            </div>
-
-            {/* Search */}
-            <div className="flex gap-2 mb-4">
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    placeholder={t('location.search_placeholder')}
-                    className="flex-1 px-4 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:border-blue-500"
-                />
-                <button
-                    onClick={handleSearch}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                    <Search size={20} />
-                </button>
-            </div>
-
-            {/* Selected Location Preview */}
-            {selectedLocation && (
-                <div className="bg-white rounded-xl p-4 mb-4 border-2 border-green-200">
-                    <div className="flex items-start gap-2 mb-2">
-                        <MapPin size={16} className="text-green-600 mt-1 flex-shrink-0" />
-                        <div className="flex-1">
-                            <h5 className="font-bold text-gray-900">{selectedLocation.name}</h5>
-                            <p className="text-sm text-gray-600">{selectedLocation.address}</p>
-                            <p className="text-xs text-gray-500 mt-1 font-mono">
-                                {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
-                            </p>
+                {selected && (
+                    <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-3 flex items-start gap-3">
+                        <MapPin size={18} className="text-brand-600 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0">
+                            <p className="text-sm font-bold text-gray-900 truncate">{selected.name}</p>
+                            <p className="text-xs text-gray-600 leading-relaxed">{selected.address}</p>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Send Button */}
-            {selectedLocation && (
-                <button
-                    onClick={handleSendLocation}
-                    disabled={isSending}
-                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                    {isSending ? (
-                        <>
-                            <Loader2 size={20} className="animate-spin" />
-                            <span>{t('location.sending')}</span>
-                        </>
-                    ) : (
-                        <span>{t('location.send')}</span>
-                    )}
-                </button>
-            )}
-
-            {/* Tips */}
-            <p className="text-xs text-gray-500 text-center mt-3">
-                💡 {t('location.tip')}
-            </p>
-        </div>
+                )}
+                {!selected && results.length === 0 && (
+                    <p className="text-xs text-gray-400 text-center">{t('location.tip')}</p>
+                )}
+                {isLocating && !selected && (
+                    <p className="text-xs text-gray-400 text-center flex items-center justify-center gap-1.5"><Loader2 size={12} className="animate-spin" />{t('list.loading_loc')}</p>
+                )}
+            </div>
+        </Sheet>
     );
 };

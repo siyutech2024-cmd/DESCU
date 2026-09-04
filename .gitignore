@@ -71,3 +71,4 @@ ios/App/build
 # Local scratch (bundles, build logs)
 _to_delete_*
 *.aab
+dist-gallery

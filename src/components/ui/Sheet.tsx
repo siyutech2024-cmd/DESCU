@@ -209,7 +209,7 @@ export const Sheet: React.FC<SheetProps> = ({
                                     type="button"
                                     onClick={onClose}
                                     aria-label={closeLabel}
-                                    className="p-2 -mr-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                                    className="p-2 -mr-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
                                 >
                                     <X size={20} />
                                 </button>

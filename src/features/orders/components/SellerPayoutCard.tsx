@@ -164,9 +164,9 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
 
     if (loading) {
         return (
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 p-6 mb-4 shadow-lg">
+            <div className="rounded-2xl bg-white border border-gray-100 p-6 mb-4 shadow-sm">
                 <div className="flex items-center justify-center py-8">
-                    <Loader2 size={32} className="text-white animate-spin" />
+                    <Loader2 size={28} className="text-brand-500 animate-spin" />
                 </div>
             </div>
         );
@@ -178,38 +178,26 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
     return (
         <div className="space-y-4 mb-4">
             {/* Summary Card */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 p-6 shadow-lg">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
-
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                            <Wallet size={24} className="text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-white">{t('payout.title')}</h2>
-                            <p className="text-emerald-100 text-sm">{t('payout.subtitle')}</p>
-                        </div>
+            <div className="rounded-2xl bg-brand-600 p-5 shadow-md shadow-brand-500/25 text-white">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 bg-white/15 rounded-xl flex items-center justify-center"><Wallet size={22} /></div>
+                    <div>
+                        <h2 className="text-lg font-bold leading-tight">{t('payout.title')}</h2>
+                        <p className="text-brand-100 text-xs">{t('payout.subtitle')}</p>
                     </div>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-3 gap-3 mb-4">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-emerald-100 text-xs">{t('payout.total')}</p>
-                            <p className="text-white font-bold text-lg">${summary.totalEarned.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-yellow-200 text-xs flex items-center gap-1">
-                                <Clock size={10} /> {t('payout.pending')}
-                            </p>
-                            <p className="text-white font-bold text-lg">${summary.pending.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
-                            <p className="text-green-200 text-xs flex items-center gap-1">
-                                <Check size={10} /> {t('payout.received')}
-                            </p>
-                            <p className="text-white font-bold text-lg">${summary.completed.toLocaleString()}</p>
-                        </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-white/10 rounded-xl p-3">
+                        <p className="text-brand-100 text-[11px] font-bold uppercase tracking-wide">{t('payout.total')}</p>
+                        <p className="font-black text-lg tabular-nums">${summary.totalEarned.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3">
+                        <p className="text-brand-100 text-[11px] font-bold uppercase tracking-wide flex items-center gap-1"><Clock size={10} />{t('payout.pending')}</p>
+                        <p className="font-black text-lg tabular-nums">${summary.pending.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white/10 rounded-xl p-3">
+                        <p className="text-brand-100 text-[11px] font-bold uppercase tracking-wide flex items-center gap-1"><Check size={10} />{t('payout.received')}</p>
+                        <p className="font-black text-lg tabular-nums">${summary.completed.toLocaleString()}</p>
                     </div>
                 </div>
             </div>
@@ -224,7 +212,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                     {bankInfo && !editingBank && (
                         <button
                             onClick={() => setEditingBank(true)}
-                            className="text-emerald-600 text-sm font-medium flex items-center gap-1"
+                            className="text-brand-600 text-sm font-bold flex items-center gap-1"
                         >
                             <Edit3 size={14} />
                             {t('payout.edit')}
@@ -246,7 +234,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                 value={bankForm.clabe}
                                 onChange={e => setBankForm({ ...bankForm, clabe: e.target.value.replace(/\D/g, '').slice(0, 18) })}
                                 placeholder={t('payout.clabe_placeholder')}
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono text-lg tracking-wider"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-4 focus:ring-brand-100 focus:border-brand-400 outline-none font-mono text-lg tracking-wider"
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -257,7 +245,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                     value={bankForm.bankName}
                                     onChange={e => setBankForm({ ...bankForm, bankName: e.target.value })}
                                     placeholder="BBVA, Santander..."
-                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-4 focus:ring-brand-100 focus:border-brand-400 outline-none"
                                 />
                             </div>
                             <div>
@@ -267,7 +255,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                     value={bankForm.holderName}
                                     onChange={e => setBankForm({ ...bankForm, holderName: e.target.value })}
                                     placeholder="Nombre completo"
-                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-4 focus:ring-brand-100 focus:border-brand-400 outline-none"
                                 />
                             </div>
                         </div>
@@ -275,7 +263,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                             onClick={handleSaveBank}
                             disabled={saving || bankForm.clabe.length !== 18}
                             className={`w-full font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 ${bankForm.clabe.length === 18
-                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                ? 'bg-brand-600 text-white hover:bg-brand-700'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                 }`}
                         >
@@ -356,7 +344,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                     {payouts.length > 3 && (
                         <button
                             onClick={() => setShowAll(!showAll)}
-                            className="w-full mt-3 text-emerald-600 text-sm font-medium flex items-center justify-center gap-1"
+                            className="w-full mt-3 text-brand-600 text-sm font-bold flex items-center justify-center gap-1"
                         >
                             {showAll ? (
                                 <>{t('payout.collapse')} <ChevronUp size={16} /></>

@@ -1,220 +1,123 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, TrendingDown, Loader2, Package } from 'lucide-react';
+import { Tag, Package } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { api, ApiError, getAccessToken } from '@/lib/api/client';
-import toast from 'react-hot-toast';
+import { useRegion } from '@/contexts/RegionContext';
+import { api, ApiError } from '@/lib/api/client';
+import { notify } from '@/lib/toast';
+import { Sheet } from '@/components/ui/Sheet';
+import { Button, ChoiceChip, Field, inputClass } from '@/components/ui/primitives';
 
 interface PriceNegotiationSenderProps {
+    open: boolean;
     currentPrice: number;
     productId: string;
     conversationId: string;
     onSent?: () => void;
+    onClose: () => void;
 }
 
-interface ProductInfo {
-    title: string;
-    images: string[];
-    price: number;
-}
+interface ProductInfo { title: string; image?: string; price: number; currency: string }
 
-export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
-    currentPrice,
-    productId,
-    conversationId,
-    onSent
-}) => {
+/** Offers below this share of the asking price are refused (the seller would just decline). */
+const MIN_OFFER_RATIO = 0.3;
+const QUICK_DISCOUNTS = [5, 10, 15, 20];
+
+/** Bottom sheet for the buyer to propose a price. */
+export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({ open, currentPrice, productId, conversationId, onSent, onClose }) => {
     const { t } = useLanguage();
-    const [proposedPrice, setProposedPrice] = useState('');
+    const { formatCurrency } = useRegion();
+    const [proposed, setProposed] = useState('');
     const [isSending, setIsSending] = useState(false);
-    const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [product, setProduct] = useState<ProductInfo | null>(null);
 
-    // Fetch product info
     useEffect(() => {
-        const fetchProduct = async () => {
-            try {
-                const data = await api.get<{ title: string; images: string[]; price: number }>(`/api/products/${productId}`, { auth: 'optional' });
-                if (data) {
-                    setProductInfo({ title: data.title, images: data.images ?? [], price: Number(data.price) || 0 });
-                }
-            } catch (err) {
-                console.error('Error fetching product:', err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchProduct();
-    }, [productId]);
+        if (!open) return;
+        api.get<{ title: string; images?: string[]; price: number; currency?: string }>(`/api/products/${productId}`, { auth: 'optional' })
+            .then(d => setProduct({ title: d.title, image: d.images?.[0], price: Number(d.price) || 0, currency: d.currency || 'MXN' }))
+            .catch(() => setProduct(null));
+    }, [productId, open]);
 
-    const actualPrice = productInfo?.price || currentPrice;
-    const discountPercent = proposedPrice && actualPrice > 0
-        ? ((actualPrice - parseFloat(proposedPrice)) / actualPrice * 100).toFixed(0)
-        : '0';
+    const price = product?.price || currentPrice;
+    const currency = product?.currency || 'MXN';
+    const value = parseFloat(proposed);
+    const valid = Number.isFinite(value) && value > 0;
+    const minOffer = Math.ceil(price * MIN_OFFER_RATIO);
+    const tooLow = valid && price > 0 && value < minOffer;
+    const notBelow = valid && price > 0 && value >= price;
+    const blocked = tooLow || notBelow;
+    const discount = valid && price > 0 ? Math.round((1 - value / price) * 100) : 0;
 
-    const handlePropose = async () => {
-        if (!proposedPrice || parseFloat(proposedPrice) <= 0) {
-            toast.error(t('negotiate.invalid_price'));
-            return;
-        }
+    const close = () => { setProposed(''); onClose(); };
 
+    const propose = async () => {
+        if (!valid) { notify.error(t('negotiate.invalid_price')); return; }
+        if (blocked) return;
         setIsSending(true);
         try {
-            const token = await getAccessToken();
-            if (!token) {
-                toast.error(t('negotiate.login_first'));
-                return;
-            }
-
-            console.log('[Negotiation] Sending proposal:', {
-                conversationId,
-                productId,
-                proposedPrice: parseFloat(proposedPrice)
-            });
-
-            const result = await api.post('/api/negotiations/propose', {
-                conversationId,
-                productId,
-                proposedPrice: parseFloat(proposedPrice)
-            }, { auth: 'required' });
-
-            console.log('[Negotiation] Success:', result);
-
-            setProposedPrice('');
-            toast.success(t('negotiate.sent'));
+            await api.post('/api/negotiations/propose', { conversationId, productId, proposedPrice: value }, { auth: 'required' });
+            notify.success(t('negotiate.sent'));
+            setProposed('');
             onSent?.();
-        } catch (error: any) {
-            let message: string | undefined = error?.message;
-
-            if (error instanceof ApiError) {
-                const err = error.body as any;
-                console.log('[Negotiation] Response status:', error.status);
-                console.error('[Negotiation] Error response:', JSON.stringify(err, null, 2));
-
-                // 显示详细的错误信息
-                if (err?.debug) {
-                    console.error('[Negotiation] Your role:', err.debug.yourRole);
-                    console.error('[Negotiation] Required role:', err.debug.requiredRole);
-                }
-
-                message = err?.message || err?.error || 'Failed to propose';
-            }
-
-            console.error('[Negotiation] Error proposing price:', error);
-            toast.error(message || t('negotiate.send_failed'));
+        } catch (error) {
+            const detail = error instanceof ApiError ? ((error.body as any)?.message || (error.body as any)?.error) : undefined;
+            notify.error(detail || t('negotiate.send_failed'));
         } finally {
             setIsSending(false);
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200 shadow-lg">
-                <div className="flex items-center justify-center py-4">
-                    <Loader2 size={24} className="animate-spin text-blue-500" />
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-4 border border-blue-200 shadow-lg animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                        <DollarSign className="text-white" size={20} />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-gray-900">{t('chat.offer_title')}</h4>
-                        <p className="text-xs text-gray-500">{t('negotiate.subtitle')}</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Product Card */}
-            {productInfo && (
-                <div className="bg-white rounded-xl p-3 mb-4 flex items-center gap-3 shadow-sm border border-gray-100">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        {productInfo.images?.[0] ? (
-                            <img src={productInfo.images[0]} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                                <Package size={24} className="text-gray-300" />
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate text-sm">{productInfo.title}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-lg font-bold text-orange-600">${actualPrice.toLocaleString()}</span>
-                            <span className="text-xs text-gray-400 line-through">{t('chat.current_price')}</span>
-                        </div>
+        <Sheet
+            open={open}
+            onClose={close}
+            variant="bottom"
+            title={t('chat.offer_title')}
+            closeLabel={t('modal.close')}
+            footer={<Button block size="lg" onClick={propose} disabled={!valid || blocked} loading={isSending} icon={<Tag size={18} />}>{t('chat.send_offer')}</Button>}
+        >
+            <div className="space-y-4 pb-2">
+                <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3">
+                    {product?.image ? (
+                        <img src={product.image} alt="" className="w-14 h-14 rounded-lg object-cover bg-gray-200" />
+                    ) : (
+                        <span className="w-14 h-14 rounded-lg bg-gray-200 flex items-center justify-center text-gray-400"><Package size={22} /></span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-gray-900 truncate">{product?.title ?? '…'}</p>
+                        <p className="text-xs text-gray-500">{t('chat.current_price')} · <span className="font-bold text-gray-800 tabular-nums">{formatCurrency(price, currency)}</span></p>
                     </div>
                 </div>
-            )}
 
-            {/* Price Input */}
-            <div className="space-y-3">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('negotiate.your_offer')}:
-                    </label>
+                <Field label={t('negotiate.your_offer')} hint={blocked ? undefined : discount > 0 ? `−${discount}% · ${t('negotiate.save_amount')} ${formatCurrency(price - value, currency)}` : undefined} error={tooLow ? t('negotiate.too_low', { min: formatCurrency(minOffer, currency) }) : notBelow ? t('negotiate.not_below') : undefined}>
                     <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">$</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-gray-400">$</span>
                         <input
                             type="number"
-                            value={proposedPrice}
-                            onChange={(e) => setProposedPrice(e.target.value)}
-                            placeholder="0.00"
-                            className="w-full pl-10 pr-4 py-4 border-2 border-blue-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-2xl font-bold text-gray-900 bg-white"
-                            step="1"
-                            min="0"
+                            inputMode="decimal"
+                            min={1}
+                            step={1}
+                            value={proposed}
+                            onChange={e => setProposed(e.target.value)}
+                            placeholder="0"
+                            className={`${inputClass} pl-9 text-2xl font-black tabular-nums`}
+                            data-autofocus
                         />
                     </div>
+                </Field>
 
-                    {/* Discount Badge */}
-                    {proposedPrice && parseFloat(proposedPrice) > 0 && parseFloat(proposedPrice) < actualPrice && (
-                        <div className="flex items-center gap-2 mt-2 animate-fade-in">
-                            <div className="flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                                <TrendingDown size={14} />
-                                <span>-{discountPercent}% {t('negotiate.discount')}</span>
-                            </div>
-                            <span className="text-sm text-gray-500">
-                                {t('negotiate.save_amount')} ${(actualPrice - parseFloat(proposedPrice)).toLocaleString()}
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Warning if price too low */}
-                    {proposedPrice && parseFloat(discountPercent) > 50 && (
-                        <p className="text-xs text-orange-600 mt-2">
-                            ⚠️ {t('negotiate.low_warning')}
-                        </p>
-                    )}
+                <div className="flex flex-wrap gap-2">
+                    {QUICK_DISCOUNTS.map(pct => {
+                        const v = Math.round(price * (1 - pct / 100));
+                        return (
+                            <ChoiceChip key={pct} selected={valid && value === v} onClick={() => setProposed(String(v))} disabled={price <= 0}>
+                                −{pct}% · {formatCurrency(v, currency)}
+                            </ChoiceChip>
+                        );
+                    })}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
-                    <button
-                        onClick={handlePropose}
-                        disabled={isSending || !proposedPrice || parseFloat(proposedPrice) <= 0}
-                        className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-3.5 rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
-                    >
-                        {isSending ? (
-                            <Loader2 size={18} className="animate-spin" />
-                        ) : (
-                            <DollarSign size={18} />
-                        )}
-                        {isSending ? t('negotiate.sending') : t('chat.send_offer')}
-                    </button>
-                    <button
-                        onClick={() => onSent?.()}
-                        className="px-6 py-3 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors font-medium"
-                    >
-                        {t('chat.cancel')}
-                    </button>
-                </div>
-            </div >
-        </div >
+                <p className="text-xs text-gray-400">{t('negotiate.subtitle_hint')}</p>
+            </div>
+        </Sheet>
     );
 };

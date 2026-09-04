@@ -25,6 +25,7 @@ export interface ApiProduct {
     images?: string[];
     category: string;
     subcategory?: string;
+    condition?: string | null;
     delivery_type: string;
     latitude?: number;
     longitude?: number;
@@ -70,6 +71,7 @@ export const mapApiProduct = (p: ApiProduct, origin: Coordinates | null): Produc
         images: p.images || [],
         category: normalizeCategory(p.category),
         subcategory: p.subcategory,
+        condition: p.condition === 'new' ? 'new' : 'used',
         deliveryType: p.delivery_type as Product['deliveryType'],
         location,
         locationName: p.location_name || 'Unknown',

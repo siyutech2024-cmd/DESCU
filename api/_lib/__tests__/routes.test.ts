@@ -43,7 +43,7 @@ const EXPECTED_ROUTES = [
     'POST /api/negotiations/propose', 'POST /api/negotiations/:id/respond', 'GET /api/negotiations/product/:productId',
     'POST /api/ratings', 'GET /api/ratings/:userId/stats',
     'POST /api/reports', 'GET /api/blocks', 'POST /api/blocks', 'DELETE /api/blocks/:userId',
-    'GET /api/location/reverse', 'GET /api/location/ip',
+    'GET /api/location/reverse', 'GET /api/location/ip', 'GET /api/location/search',
     'GET /api/cron/auto-review', 'POST /api/cron/auto-review', 'GET /api/cron/expire-orders', 'POST /api/cron/expire-orders',
     'GET /api/admin/dashboard/stats', 'GET /api/admin/auth/me', 'GET /api/admin/logs', 'GET /api/admin/orders', 'POST /api/admin/orders/:id/mark-paid',
     'GET /api/admin/disputes', 'POST /api/admin/disputes/resolve',

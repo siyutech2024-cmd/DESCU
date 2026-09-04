@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, CheckCircle, XCircle, RefreshCw, Sparkles } from 'lucide-react';
-import { api, ApiError, getAccessToken } from '@/lib/api/client';
+import { Tag, CheckCircle, XCircle, RefreshCw, Clock } from 'lucide-react';
+import { api, ApiError } from '@/lib/api/client';
 import { useLanguage } from '@/i18n';
+import { useRegion } from '@/contexts/RegionContext';
+import { notify } from '@/lib/toast';
+import { Button, inputClass, type ChipTone } from '@/components/ui/primitives';
+import { MessageCard, CardRow, CardFooter } from './MessageCard';
 
 interface PriceNegotiationCardProps {
     content: {
@@ -12,221 +16,115 @@ interface PriceNegotiationCardProps {
         productTitle: string;
         status: 'pending' | 'accepted' | 'rejected' | 'countered';
         finalPrice?: number;
+        currency?: string;
     };
     isSeller: boolean;
     onUpdate?: () => void;
 }
 
-export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({
-    content,
-    isSeller,
-    onUpdate
-}) => {
-    const { negotiationId, originalPrice = 0, proposedPrice = 0, counterPrice, productTitle, status, finalPrice } = content;
+const STATUS_TONE: Record<PriceNegotiationCardProps['content']['status'], ChipTone> = {
+    pending: 'warning', accepted: 'success', rejected: 'neutral', countered: 'info',
+};
+
+export const PriceNegotiationCard: React.FC<PriceNegotiationCardProps> = ({ content, isSeller, onUpdate }) => {
+    const { negotiationId, originalPrice = 0, proposedPrice = 0, counterPrice, productTitle, status, finalPrice, currency = 'MXN' } = content;
     const { t } = useLanguage();
+    const { formatCurrency } = useRegion();
     const [isResponding, setIsResponding] = useState(false);
     const [counterInput, setCounterInput] = useState('');
     const [showCounterInput, setShowCounterInput] = useState(false);
 
-    const priceChange = originalPrice > 0 ? ((proposedPrice - originalPrice) / originalPrice * 100).toFixed(1) : '0';
-    const isDiscount = proposedPrice < originalPrice;
+    const money = (v: number) => formatCurrency(v, currency);
+    const discount = originalPrice > 0 ? Math.round((1 - proposedPrice / originalPrice) * 100) : 0;
 
     const handleRespond = async (action: 'accept' | 'reject' | 'counter') => {
         setIsResponding(true);
         try {
-            const token = await getAccessToken();
-            if (!token) {
-                console.error('[Negotiation Response] No session');
-                return;
+            const body: { action: string; counterPrice?: number } = { action };
+            if (action === 'counter') {
+                const value = parseFloat(counterInput);
+                if (!Number.isFinite(value) || value <= 0) { notify.error(t('negotiate.invalid_price')); return; }
+                body.counterPrice = value;
             }
-
-            const body: any = { action };
-            if (action === 'counter' && counterInput) {
-                body.counterPrice = parseFloat(counterInput);
-            }
-
-            console.log('[Negotiation Response] Sending:', { negotiationId, action, body });
-
-            const result = await api.post(`/api/negotiations/${negotiationId}/respond`, body, { auth: 'required' });
-            console.log('[Negotiation Response] Success:', result);
-
+            await api.post(`/api/negotiations/${negotiationId}/respond`, body, { auth: 'required' });
             setShowCounterInput(false);
             setCounterInput('');
             onUpdate?.();
-        } catch (error: any) {
-            let message: string | undefined = error?.message;
-
-            if (error instanceof ApiError) {
-                const errorData = error.body as any;
-                console.log('[Negotiation Response] Status:', error.status);
-                console.error('[Negotiation Response] Error:', JSON.stringify(errorData, null, 2));
-                message = errorData?.message || errorData?.error || 'Failed to respond';
-            }
-
-            console.error('[Negotiation Response] Error:', error);
-            alert(message || t('nego.failed'));
+        } catch (error) {
+            const detail = error instanceof ApiError ? ((error.body as any)?.message || (error.body as any)?.error) : undefined;
+            notify.error(detail || t('nego.failed'));
         } finally {
             setIsResponding(false);
         }
     };
 
-    const getStatusBadge = () => {
-        const badges = {
-            accepted: { bg: 'from-green-400 to-emerald-500', icon: CheckCircle, text: t('nego.status.accepted') },
-            rejected: { bg: 'from-red-400 to-rose-500', icon: XCircle, text: t('nego.status.rejected') },
-            countered: { bg: 'from-blue-400 to-indigo-500', icon: RefreshCw, text: t('nego.status.countered') },
-            pending: { bg: 'from-amber-400 to-orange-500', icon: DollarSign, text: t('nego.status.pending') }
-        };
-        const config = badges[status];
-        const Icon = config.icon;
-        return (
-            <div className={`flex items-center gap-1.5 bg-gradient-to-r ${config.bg} text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg`}>
-                <Icon size={14} />
-                <span>{config.text}</span>
-            </div>
-        );
-    };
+    const StatusIcon = { pending: Clock, accepted: CheckCircle, rejected: XCircle, countered: RefreshCw }[status];
+    const statusText = t(`nego.status.${status}`);
 
     return (
-        <div className="relative overflow-hidden rounded-3xl shadow-xl max-w-sm">
-            {/* 渐变背景 */}
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-pink-500 opacity-95" />
-
-            {/* 装饰性气泡 */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-            <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-
-            {/* Header */}
-            <div className="relative flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg">
-                        <DollarSign className="text-white drop-shadow-lg" size={24} />
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-1.5">
-                            <Sparkles size={12} className="text-yellow-300" />
-                            <span className="text-xs font-bold text-white/90 uppercase tracking-wider">{t('nego.title')}</span>
-                        </div>
-                        <p className="text-sm text-white/80 truncate max-w-[140px]">{productTitle}</p>
-                    </div>
-                </div>
-                {getStatusBadge()}
-            </div>
-
-            {/* Price Comparison */}
-            <div className="relative px-4 space-y-3 mb-4">
-                <div className="flex justify-between items-center bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2">
-                    <span className="text-sm text-white/80">{t('nego.original_price')}</span>
-                    <span className="text-white/60 line-through font-medium">${originalPrice.toFixed(2)}</span>
-                </div>
-
-                <div className="flex justify-between items-center bg-white/20 backdrop-blur-sm rounded-xl px-4 py-3">
-                    <span className="text-sm font-bold text-white">{t('nego.your_offer')}</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl font-black text-white">${proposedPrice.toFixed(2)}</span>
-                        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${isDiscount ? 'bg-green-400/30 text-green-100' : 'bg-red-400/30 text-red-100'}`}>
-                            {isDiscount ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
-                            {Math.abs(parseFloat(priceChange))}%
-                        </div>
-                    </div>
-                </div>
-
-                {counterPrice && (
-                    <div className="flex justify-between items-center bg-blue-500/30 backdrop-blur-sm rounded-xl px-4 py-3 border border-blue-300/30">
-                        <span className="text-sm font-bold text-white">{t('nego.counter_price')}</span>
-                        <span className="text-2xl font-black text-white">${counterPrice.toFixed(2)}</span>
-                    </div>
+        <MessageCard
+            icon={<Tag size={16} />}
+            label={t('nego.title')}
+            title={productTitle}
+            status={{ text: statusText, tone: STATUS_TONE[status], icon: <StatusIcon size={12} /> }}
+        >
+            <div className="pb-2">
+                <CardRow label={t('nego.original_price')} value={money(originalPrice)} muted />
+                <CardRow
+                    label={isSeller ? t('nego.buyer_offer') : t('nego.your_offer')}
+                    value={<>{money(proposedPrice)}{discount > 0 && <span className="ml-2 text-xs font-bold text-green-600 align-middle">−{discount}%</span>}</>}
+                    strong={status === 'pending' && !counterPrice}
+                />
+                {counterPrice !== undefined && counterPrice !== null && (
+                    <CardRow label={t('nego.counter_price')} value={money(counterPrice)} strong={status === 'countered'} />
                 )}
-
-                {finalPrice && (
-                    <div className="flex justify-between items-center bg-green-500/40 backdrop-blur-sm rounded-xl px-4 py-3 border-2 border-green-300/50">
-                        <span className="text-sm font-black text-white">{t('nego.final_price')}</span>
-                        <span className="text-2xl font-black text-white">${finalPrice.toFixed(2)}</span>
-                    </div>
+                {finalPrice !== undefined && finalPrice !== null && status === 'accepted' && (
+                    <CardRow label={t('nego.final_price')} value={money(finalPrice)} strong />
                 )}
             </div>
 
-            {/* Actions for Seller */}
             {status === 'pending' && isSeller && !showCounterInput && (
-                <div className="relative px-4 pb-4 space-y-2">
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            onClick={() => handleRespond('accept')}
-                            disabled={isResponding}
-                            className="bg-white text-green-600 py-3 rounded-xl font-bold text-sm hover:bg-green-50 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-lg active:scale-95"
-                        >
-                            <CheckCircle size={16} />
-                            {t('nego.action.accept')}
-                        </button>
-                        <button
-                            onClick={() => setShowCounterInput(true)}
-                            disabled={isResponding}
-                            className="bg-white/20 backdrop-blur-sm text-white py-3 rounded-xl font-bold text-sm hover:bg-white/30 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 border border-white/30 active:scale-95"
-                        >
-                            <RefreshCw size={16} />
-                            {t('nego.action.counter')}
-                        </button>
-                        <button
-                            onClick={() => handleRespond('reject')}
-                            disabled={isResponding}
-                            className="bg-white/10 backdrop-blur-sm text-white/80 py-3 rounded-xl font-bold text-sm hover:bg-white/20 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                            <XCircle size={16} />
-                            {t('nego.action.reject')}
-                        </button>
-                    </div>
-                </div>
+                <CardFooter className="grid grid-cols-2 gap-2">
+                    <Button size="sm" onClick={() => handleRespond('accept')} loading={isResponding} icon={<CheckCircle size={16} />} className="col-span-2">{t('nego.action.accept')}</Button>
+                    <Button size="sm" variant="secondary" onClick={() => setShowCounterInput(true)} disabled={isResponding} icon={<RefreshCw size={16} />}>{t('nego.action.counter')}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleRespond('reject')} disabled={isResponding} icon={<XCircle size={16} />}>{t('nego.action.reject')}</Button>
+                </CardFooter>
             )}
 
-            {/* Counter Price Input */}
             {showCounterInput && (
-                <div className="relative px-4 pb-4 space-y-2">
+                <CardFooter className="space-y-2">
                     <div className="relative">
-                        <span className="absolute left-4 top-3 text-white/60 font-bold">$</span>
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">$</span>
                         <input
                             type="number"
+                            inputMode="decimal"
+                            min={1}
                             value={counterInput}
-                            onChange={(e) => setCounterInput(e.target.value)}
+                            onChange={e => setCounterInput(e.target.value)}
                             placeholder={t('nego.enter_price')}
-                            className="w-full pl-8 pr-4 py-3 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-xl focus:outline-none focus:border-white/50 text-white placeholder-white/50 font-bold"
+                            className={`${inputClass} pl-8 font-bold`}
+                            autoFocus
                         />
                     </div>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => handleRespond('counter')}
-                            disabled={!counterInput || isResponding}
-                            className="flex-1 bg-white text-orange-600 py-3 rounded-xl font-bold hover:bg-orange-50 disabled:opacity-50 shadow-lg active:scale-95"
-                        >
-                            {t('nego.confirm_counter')}
-                        </button>
-                        <button
-                            onClick={() => setShowCounterInput(false)}
-                            className="px-6 py-3 bg-white/20 text-white rounded-xl font-medium hover:bg-white/30 active:scale-95"
-                        >
-                            {t('nego.cancel')}
-                        </button>
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button size="sm" onClick={() => handleRespond('counter')} loading={isResponding} disabled={!counterInput}>{t('nego.confirm_counter')}</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setShowCounterInput(false); setCounterInput(''); }}>{t('nego.cancel')}</Button>
                     </div>
-                </div>
+                </CardFooter>
             )}
 
-            {/* Status Messages */}
+            {status === 'pending' && !isSeller && (
+                <CardFooter><p className="text-xs text-gray-500">{t('meetup.waiting')}</p></CardFooter>
+            )}
             {status === 'accepted' && (
-                <div className="relative mx-4 mb-4 bg-green-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center font-bold border border-green-300/30">
-                    ✅ {t('nego.success.accepted')} ${finalPrice?.toFixed(2) || proposedPrice.toFixed(2)}
-                </div>
+                <CardFooter className="bg-green-50/60"><p className="text-sm font-bold text-green-700">{t('nego.success.accepted')} {money(finalPrice ?? proposedPrice)}</p></CardFooter>
             )}
-
             {status === 'rejected' && (
-                <div className="relative mx-4 mb-4 bg-red-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center font-bold border border-red-300/30">
-                    ❌ {t('nego.success.rejected')}
-                </div>
+                <CardFooter><p className="text-sm text-gray-500">{t('nego.success.rejected')}</p></CardFooter>
             )}
-
-            {status === 'countered' && !isSeller && (
-                <div className="relative mx-4 mb-4 bg-blue-500/40 backdrop-blur-sm text-white px-4 py-3 rounded-xl text-center text-sm border border-blue-300/30">
-                    💬 {t('nego.success.countered')} <span className="font-bold">${counterPrice?.toFixed(2)}</span>
-                </div>
+            {status === 'countered' && !isSeller && counterPrice !== undefined && (
+                <CardFooter className="bg-blue-50/60"><p className="text-sm text-blue-800">{t('nego.success.countered')} <span className="font-bold">{money(counterPrice)}</span></p></CardFooter>
             )}
-        </div>
+        </MessageCard>
     );
 };

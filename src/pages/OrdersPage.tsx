@@ -7,6 +7,7 @@ import { useBackNavigation } from '@/lib/useBackNavigation';
 import OrderList from '@/features/orders/components/OrderList';
 import { SignedOutPlaceholder } from '@/components/SignedOutPlaceholder';
 import type { User } from '../types';
+import { Button, IconButton } from '@/components/ui/primitives';
 
 type Role = 'buyer' | 'seller';
 
@@ -44,15 +45,13 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ user }) => {
     const setRole = (next: Role) => setParams({ role: next }, { replace: true });
 
     return (
-        <div className="max-w-3xl mx-auto w-full px-4 pt-4 animate-fade-in">
-            <div className="flex items-center gap-3 mb-4">
-                <button type="button" onClick={goBack} className="p-2 -ml-2 rounded-full text-gray-500 hover:bg-white/70 hover:text-gray-900 transition-colors" aria-label={t('detail.back')}>
-                    <ArrowLeft size={22} />
-                </button>
-                <h1 className="text-2xl font-black text-gray-900">{t('orders.title')}</h1>
+        <div className="max-w-3xl mx-auto w-full px-4 pt-4 pb-8 animate-fade-in">
+            <div className="flex items-center gap-2 mb-4">
+                <IconButton onClick={goBack} aria-label={t('detail.back')} className="-ml-2"><ArrowLeft size={22} /></IconButton>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">{t('orders.title')}</h1>
             </div>
 
-            <div className="flex border-b border-gray-200 mb-6" role="tablist">
+            <div className="flex gap-2 mb-5" role="tablist">
                 {(['buyer', 'seller'] as Role[]).map(r => {
                     const active = role === r;
                     const badge = counts[r];
@@ -63,11 +62,11 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ user }) => {
                             role="tab"
                             aria-selected={active}
                             onClick={() => setRole(r)}
-                            className={`flex-1 pb-3 text-sm font-bold transition-colors flex items-center justify-center gap-2 ${active ? 'text-brand-600 border-b-2 border-brand-600' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`flex-1 h-10 rounded-full text-sm font-bold transition-colors flex items-center justify-center gap-2 border ${active ? 'bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-500/25' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-200 hover:text-brand-700'}`}
                         >
                             {r === 'buyer' ? t('profile.buying') : t('profile.selling')}
                             {badge > 0 && (
-                                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{badge}</span>
+                                <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center ${active ? 'bg-white/25 text-white' : 'bg-brand-600 text-white'}`}>{badge}</span>
                             )}
                         </button>
                     );
@@ -76,13 +75,9 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ user }) => {
 
             <OrderList role={role} currentUser={user} />
 
-            <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="mt-8 mb-4 mx-auto block text-sm font-bold text-brand-600 hover:text-brand-700"
-            >
-                {t('orders.keep_shopping')}
-            </button>
+            <div className="mt-8 flex justify-center">
+                <Button variant="secondary" onClick={() => navigate('/')}>{t('orders.keep_shopping')}</Button>
+            </div>
         </div>
     );
 };

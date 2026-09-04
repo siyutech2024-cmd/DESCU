@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { ipLocationProxy, reverseGeocodeProxy } from '../controllers/locationController.js';
+import { ipLocationProxy, placeSearchProxy, reverseGeocodeProxy } from '../controllers/locationController.js';
 
 /**
  * Geo-location proxies.
@@ -12,3 +12,4 @@ const router = seoLocationRouter;
 
 router.get('/api/location/reverse', reverseGeocodeProxy);
 router.get('/api/location/ip', ipLocationProxy);
+router.get('/api/location/search', placeSearchProxy);

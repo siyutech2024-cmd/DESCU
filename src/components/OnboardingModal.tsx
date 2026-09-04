@@ -12,18 +12,6 @@ const LANGUAGE_NAMES: Record<Language, string> = {
     zh: '中文',
 };
 
-/** Decorative card colours per region (presentation only). */
-const REGION_STYLES: Record<Region, { bg: string; border: string }> = {
-    MX: { bg: 'from-green-50 to-green-100', border: 'border-green-200' },
-    US: { bg: 'from-blue-50 to-blue-100', border: 'border-blue-200' },
-    CN: { bg: 'from-red-50 to-red-100', border: 'border-red-200' },
-    EU: { bg: 'from-indigo-50 to-indigo-100', border: 'border-indigo-200' },
-    JP: { bg: 'from-pink-50 to-pink-100', border: 'border-pink-200' },
-    Global: { bg: 'from-gray-50 to-gray-100', border: 'border-gray-200' },
-};
-
-const DEFAULT_STYLE = REGION_STYLES.Global;
-
 export const OnboardingModal: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
     const { setRegion } = useRegion();
@@ -63,46 +51,36 @@ export const OnboardingModal: React.FC = () => {
             className="max-w-md"
             bodyClassName="p-0"
         >
-            {/* Decorative Header */}
-            <div className="bg-gradient-to-r from-brand-600 to-brand-500 p-8 text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                <div className="relative z-10">
-                    <div className="w-16 h-16 bg-white/20 backdrop-blur-lg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner ring-1 ring-white/30">
-                        <Globe size={32} className="text-white" />
-                    </div>
-                    <h2 id="onboarding-title" className="text-2xl font-black text-white mb-2 tracking-tight">{t('onboarding.title')}</h2>
-                    <p className="text-brand-100 text-sm font-medium">{t('onboarding.subtitle')}</p>
+            <div className="bg-brand-600 px-6 pt-8 pb-7 text-center text-white">
+                <div className="w-14 h-14 bg-white/15 rounded-2xl flex items-center justify-center mx-auto mb-4 ring-1 ring-white/20">
+                    <Globe size={28} />
                 </div>
+                <h2 id="onboarding-title" className="text-2xl font-black tracking-tight" style={{ textWrap: 'balance' } as React.CSSProperties}>{t('onboarding.title')}</h2>
+                <p className="text-brand-100 text-sm font-medium mt-1.5">{t('onboarding.subtitle')}</p>
             </div>
 
-            {/* Content */}
-            <div className="p-6">
-                <div className="grid grid-cols-2 gap-3">
+            <div className="p-5">
+                <div className="grid grid-cols-2 gap-2.5">
                     {REGIONS.map((r) => {
-                        const style = REGION_STYLES[r.code] ?? DEFAULT_STYLE;
-                        const sub = `${LANGUAGE_NAMES[REGION_LANGUAGE[r.code]]} • ${r.currency}`;
+                        const sub = `${LANGUAGE_NAMES[REGION_LANGUAGE[r.code]]} · ${r.currency}`;
                         return (
                             <button
                                 key={r.code}
                                 type="button"
                                 onClick={() => handleSelectRegion(r.code)}
-                                className={`relative group p-4 rounded-2xl border-2 text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-95 ${style.border} bg-gradient-to-br ${style.bg}`}
+                                className="group flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50/50 active:bg-brand-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
                             >
-                                <div className="text-3xl mb-2 filter drop-shadow-sm group-hover:scale-110 transition-transform origin-left">{r.flag}</div>
-                                <div className="font-bold text-gray-900 leading-tight">{r.name}</div>
-                                <div className="text-[10px] font-bold text-gray-500 opacity-80 uppercase tracking-wide mt-1">{sub}</div>
-
-                                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
-                                    <Check size={16} />
-                                </div>
+                                <span className="text-2xl leading-none">{r.flag}</span>
+                                <span className="min-w-0">
+                                    <span className="block font-bold text-gray-900 leading-tight truncate">{r.name}</span>
+                                    <span className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mt-0.5">{sub}</span>
+                                </span>
+                                <Check size={16} className="ml-auto text-brand-600 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                             </button>
                         );
                     })}
                 </div>
-            </div>
-
-            <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
-                <p className="text-xs text-gray-400">{t('onboarding.change_later')}</p>
+                <p className="mt-4 text-center text-xs text-gray-400">{t('onboarding.change_later')}</p>
             </div>
         </Sheet>
     );
