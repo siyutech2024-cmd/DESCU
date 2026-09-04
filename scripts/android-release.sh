@@ -63,6 +63,9 @@ if [ "$SKIP_WEB" -eq 0 ]; then
   npx cap sync android
 fi
 
+step "Patching Capacitor ProGuard config for AGP 9"
+bash "$PROJECT_ROOT/scripts/fix-capacitor-proguard.sh"
+
 step "Building signed release bundle (gradle bundleRelease)"
 cd "$ANDROID_DIR"
 ./gradlew --no-daemon bundleRelease

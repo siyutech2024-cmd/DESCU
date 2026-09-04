@@ -67,3 +67,7 @@ ios/App/build
 
 # Misc
 *.tsbuildinfo
+
+# Local scratch (bundles, build logs)
+_to_delete_*
+*.aab

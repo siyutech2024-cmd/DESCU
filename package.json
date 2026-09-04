@@ -13,7 +13,8 @@
     "android:open": "npx cap open android",
     "android:build": "npm run build && npx cap sync android",
     "ios:sync": "npx cap sync ios",
-    "ios:open": "npx cap open ios"
+    "ios:open": "npx cap open ios",
+    "postinstall": "bash scripts/fix-capacitor-proguard.sh || true"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",
