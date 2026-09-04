@@ -1,5 +1,8 @@
 
 import { createClient } from '@supabase/supabase-js';
+// Circular with '@/lib/api/client' (it reads `supabase` for the bearer token); both sides only
+// touch the other's export at call time, so the cycle is safe.
+import { api } from '@/lib/api/client';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -56,40 +59,21 @@ export const uploadAvatarImage = async (file: File, userId: string): Promise<str
     }
 };
 
+/** Owner-only status change via the API; resolves `true` on success. */
+const setOwnProductStatus = async (productId: string, status: 'sold' | 'active', label: string): Promise<boolean> => {
+    try {
+        await api.patch(`/api/products/${encodeURIComponent(productId)}/status`, { status }, { auth: 'required' });
+        return true;
+    } catch (error) {
+        console.error(`Error ${label}:`, error);
+        return false;
+    }
+};
+
 // 标记产品为已售出
-export const markProductAsSold = async (productId: string): Promise<boolean> => {
-    try {
-        const { error } = await supabase
-            .from('products')
-            .update({ status: 'sold' })
-            .eq('id', productId);
+export const markProductAsSold = (productId: string): Promise<boolean> =>
+    setOwnProductStatus(productId, 'sold', 'marking product as sold');
 
-        if (error) {
-            console.error('Error marking product as sold:', error);
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error('Error marking product as sold:', error);
-        return false;
-    }
-};
-
-// 重新上架产品（需要重新审核）
-export const relistProduct = async (productId: string): Promise<boolean> => {
-    try {
-        const { error } = await supabase
-            .from('products')
-            .update({ status: 'pending_review' })
-            .eq('id', productId);
-
-        if (error) {
-            console.error('Error relisting product:', error);
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error('Error relisting product:', error);
-        return false;
-    }
-};
+// 重新上架产品（服务端会将状态置为 pending_review，需要重新审核）
+export const relistProduct = (productId: string): Promise<boolean> =>
+    setOwnProductStatus(productId, 'active', 'relisting product');

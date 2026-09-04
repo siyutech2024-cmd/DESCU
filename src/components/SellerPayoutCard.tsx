@@ -10,8 +10,9 @@ import {
     Building2,
     Edit3
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api/client';
-import { supabase } from '../services/supabase';
+import { queryKeys } from '@/lib/queryClient';
 import { useLanguage } from '@/i18n';
 
 interface SellerPayoutCardProps {
@@ -43,42 +44,48 @@ interface BankInfo {
     bank_holder_name: string;
 }
 
+interface PayoutData {
+    payouts: PayoutItem[];
+    summary: PayoutSummary;
+}
+
+const EMPTY_PAYOUTS: PayoutData = { payouts: [], summary: { totalEarned: 0, pending: 0, completed: 0 } };
+
+const fetchPayouts = async (): Promise<PayoutData> => {
+    try {
+        const data = await api.get<{ payouts?: PayoutItem[]; summary?: PayoutSummary }>('/api/users/payouts', { auth: 'required' });
+        return { payouts: data?.payouts || [], summary: data?.summary || EMPTY_PAYOUTS.summary };
+    } catch (err) {
+        // Old code ignored non-2xx responses (and skipped the call without a session); keep that quiet
+        if (err instanceof ApiError) return EMPTY_PAYOUTS;
+        throw err;
+    }
+};
+
 export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) => {
     const { t } = useLanguage();
-    const [payouts, setPayouts] = useState<PayoutItem[]>([]);
-    const [summary, setSummary] = useState<PayoutSummary>({ totalEarned: 0, pending: 0, completed: 0 });
+    const { data: payoutData = EMPTY_PAYOUTS, isLoading: payoutsLoading } = useQuery({
+        queryKey: queryKeys.payouts(userId),
+        queryFn: fetchPayouts,
+        enabled: !!userId,
+    });
+    const { payouts, summary } = payoutData;
     const [bankInfo, setBankInfo] = useState<BankInfo | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [bankLoading, setBankLoading] = useState(true);
     const [showAll, setShowAll] = useState(false);
     const [editingBank, setEditingBank] = useState(false);
     const [bankForm, setBankForm] = useState({ clabe: '', bankName: '', holderName: '' });
     const [saving, setSaving] = useState(false);
+    const loading = payoutsLoading || bankLoading;
 
     useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
-        try {
-            // Fetch payouts
+        let cancelled = false;
+        // Fetch bank info (may fail if sellers table doesn't exist yet)
+        const fetchBankInfo = async () => {
             try {
-                const data = await api.get<{ payouts?: PayoutItem[]; summary?: PayoutSummary }>('/api/users/payouts', { auth: 'required' });
-                setPayouts(data?.payouts || []);
-                setSummary(data?.summary || { totalEarned: 0, pending: 0, completed: 0 });
-            } catch (err) {
-                // Old code ignored non-2xx responses (and skipped the call without a session); keep that quiet
-                if (!(err instanceof ApiError)) throw err;
-            }
+                const { bankInfo: seller } = await api.get<{ bankInfo: { bank_clabe: string; bank_name: string | null; bank_holder_name: string | null } | null }>('/api/users/bank-info', { auth: 'required' });
 
-            // Fetch bank info (may fail if sellers table doesn't exist yet)
-            try {
-                const { data: seller } = await supabase
-                    .from('sellers')
-                    .select('bank_clabe, bank_name, bank_holder_name')
-                    .eq('user_id', userId)
-                    .single();
-
-                if (seller?.bank_clabe) {
+                if (!cancelled && seller?.bank_clabe) {
                     setBankInfo({
                         bank_clabe: seller.bank_clabe,
                         bank_name: seller.bank_name || '',
@@ -91,14 +98,16 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                     });
                 }
             } catch {
-                // sellers table may not exist yet, ignore
+                // no bank info yet / endpoint unavailable — the form starts empty
+            } finally {
+                if (!cancelled) setBankLoading(false);
             }
-        } catch (err) {
-            console.error('Fetch payout data error:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+        };
+        fetchBankInfo();
+        return () => {
+            cancelled = true;
+        };
+    }, [userId]);
 
     const handleSaveBank = async () => {
         if (!bankForm.clabe || bankForm.clabe.length !== 18) {
@@ -108,16 +117,11 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
 
         setSaving(true);
         try {
-            const { error } = await supabase
-                .from('sellers')
-                .upsert({
-                    user_id: userId,
-                    bank_clabe: bankForm.clabe,
-                    bank_name: bankForm.bankName,
-                    bank_holder_name: bankForm.holderName
-                }, { onConflict: 'user_id' });
-
-            if (error) throw error;
+            await api.post('/api/users/bank-info', {
+                clabe: bankForm.clabe,
+                bankName: bankForm.bankName,
+                holderName: bankForm.holderName,
+            }, { auth: 'required' });
 
             setBankInfo({
                 bank_clabe: bankForm.clabe,

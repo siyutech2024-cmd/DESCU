@@ -261,6 +261,7 @@ export const es: TranslationTable = {
   'profile.trust': 'Confianza',
   'profile.user_products': 'Productos en venta',
   'profile.no_products': 'Aún no tiene productos',
+  'profile.user_not_found': 'Usuario no encontrado',
   'profile.rate_user': 'Calificar a este usuario',
   'profile.rate_comment': 'Deja un comentario (opcional)',
   'profile.submitting': 'Enviando...',

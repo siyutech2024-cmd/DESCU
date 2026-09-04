@@ -29,7 +29,7 @@ const collectRoutes = (app: any): Route[] => {
 
 const EXPECTED_ROUTES = [
     'GET /', 'GET /api/health',
-    'POST /api/analyze', 'GET /api/products', 'POST /api/products', 'GET /api/products/:id',
+    'POST /api/analyze', 'GET /api/products', 'POST /api/products', 'GET /api/products/:id', 'PATCH /api/products/:id/status',
     'POST /api/conversations', 'DELETE /api/conversations/:conversationId',
     'GET /api/users/:userId/conversations', 'POST /api/messages', 'GET /api/messages/:conversationId', 'PUT /api/messages/:conversationId/read',
     'GET /api/orders', 'POST /api/orders/create', 'GET /api/orders/:id', 'POST /api/orders/:id/confirm', 'POST /api/orders/:id/arrange-meetup', 'POST /api/orders/:id/cancel',
@@ -37,8 +37,9 @@ const EXPECTED_ROUTES = [
     'POST /api/payment/webhook',
     'POST /api/stripe/v2/create-account', 'GET /api/stripe/v2/account-status', 'GET /api/stripe/v2/dashboard-link', 'POST /api/stripe/v2/webhook',
     'POST /api/stripe/create-payment-intent', 'POST /api/stripe/confirm-payment',
-    'GET /api/users/:userId/credit', 'GET /api/users/payouts', 'POST /api/users/update-location', 'POST /api/users/bank-info',
+    'GET /api/users/:userId/credit', 'GET /api/users/payouts', 'POST /api/users/update-location', 'GET /api/users/bank-info', 'POST /api/users/bank-info',
     'GET /api/users/addresses', 'POST /api/users/addresses', 'PUT /api/users/addresses/:id', 'DELETE /api/users/addresses/:id',
+    'POST /api/users/me', 'GET /api/users/favorites', 'POST /api/users/favorites/:productId/toggle', 'GET /api/users/:userId',
     'POST /api/negotiations/propose', 'POST /api/negotiations/:id/respond', 'GET /api/negotiations/product/:productId',
     'POST /api/ratings', 'GET /api/ratings/:userId/stats',
     'POST /api/reports', 'GET /api/blocks', 'POST /api/blocks', 'DELETE /api/blocks/:userId',

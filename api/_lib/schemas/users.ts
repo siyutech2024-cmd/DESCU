@@ -45,3 +45,12 @@ export type CreateAddressInput = z.infer<typeof CreateAddressSchema>;
 /** PUT body: any subset of the whitelisted columns; unknown keys are stripped. */
 export const UpdateAddressSchema = z.object(addressFields).partial();
 export type UpdateAddressInput = z.infer<typeof UpdateAddressSchema>;
+
+/** Body of POST /api/users/me — mirror of the auth user into public.users (name/avatar only; email comes from the token). */
+export const SyncProfileSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+    avatar_url: z.string().url().max(2000).nullable().optional(),
+});
+export type SyncProfileInput = z.infer<typeof SyncProfileSchema>;
+
+export const FavoriteProductParamSchema = z.object({ productId: z.string().uuid() });

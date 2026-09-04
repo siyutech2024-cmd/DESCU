@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingDown, Loader2, Package } from 'lucide-react';
-import { supabase } from '../../services/supabase';
 import { useLanguage } from '@/i18n';
 import { api, ApiError, getAccessToken } from '@/lib/api/client';
 import toast from 'react-hot-toast';
@@ -34,13 +33,9 @@ export const PriceNegotiationSender: React.FC<PriceNegotiationSenderProps> = ({
     useEffect(() => {
         const fetchProduct = async () => {
             try {
-                const { data } = await supabase
-                    .from('products')
-                    .select('title, images, price')
-                    .eq('id', productId)
-                    .single();
+                const data = await api.get<{ title: string; images: string[]; price: number }>(`/api/products/${productId}`, { auth: 'optional' });
                 if (data) {
-                    setProductInfo(data);
+                    setProductInfo({ title: data.title, images: data.images ?? [], price: Number(data.price) || 0 });
                 }
             } catch (err) {
                 console.error('Error fetching product:', err);

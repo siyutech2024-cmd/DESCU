@@ -261,6 +261,7 @@ export const zh: TranslationTable = {
   'profile.trust': '信任',
   'profile.user_products': '在售商品',
   'profile.no_products': '还没有上架商品',
+  'profile.user_not_found': '未找到该用户',
   'profile.rate_user': '为这位用户评分',
   'profile.rate_comment': '留下你的评价（可选）',
   'profile.submitting': '提交中...',

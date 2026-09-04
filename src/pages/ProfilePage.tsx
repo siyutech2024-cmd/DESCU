@@ -5,8 +5,35 @@ import { User, Product } from '../types';
 import { UserProfile } from '../components/UserProfile';
 import { SignedOutPlaceholder } from '../components/SignedOutPlaceholder';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useBackNavigation } from '@/lib/useBackNavigation';
 import { api } from '@/lib/api/client';
+import { queryKeys } from '@/lib/queryClient';
+
+/**
+ * The signed-in seller's listings across all statuses. Fetched from the API directly to bypass
+ * the feed's 'active' filter and pagination limits.
+ */
+const fetchMyProducts = async (user: User): Promise<Product[]> => {
+    const data = await api.get<any>('/api/products', { params: { seller_id: user.id, status: 'all', limit: 100 } });
+    if (!Array.isArray(data)) return [];
+    return data.map((p: any): Product => ({
+        id: p.id,
+        seller: user, // user is self
+        title: p.title,
+        description: p.description,
+        price: p.price,
+        currency: p.currency,
+        images: p.images || [],
+        category: p.category,
+        deliveryType: p.delivery_type,
+        location: { latitude: p.latitude || 0, longitude: p.longitude || 0 },
+        locationName: p.location_name,
+        createdAt: new Date(p.created_at).getTime(),
+        isPromoted: p.is_promoted,
+        status: p.status
+    }));
+};
 
 interface ProfilePageProps {
     user: User | null;
@@ -31,38 +58,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 }) => {
     const navigate = useNavigate();
     const goBack = useBackNavigation('/');
-    const [myProducts, setMyProducts] = React.useState<Product[]>([]);
-
-    React.useEffect(() => {
-        if (user) {
-            // Fetch my products including all statuses
-            // We need to fetch from API directly to bypass the frontend 'active' filters and pagination limits
-            api.get<any>('/api/products', { params: { seller_id: user.id, status: 'all', limit: 100 } })
-                .then(data => {
-                    if (Array.isArray(data)) {
-                        // Simple mapping
-                        const mapped: Product[] = data.map((p: any) => ({
-                            id: p.id,
-                            seller: user, // user is self
-                            title: p.title,
-                            description: p.description,
-                            price: p.price,
-                            currency: p.currency,
-                            images: p.images || [],
-                            category: p.category,
-                            deliveryType: p.delivery_type,
-                            location: { latitude: p.latitude || 0, longitude: p.longitude || 0 },
-                            locationName: p.location_name,
-                            createdAt: new Date(p.created_at).getTime(),
-                            isPromoted: p.is_promoted,
-                            status: p.status
-                        }));
-                        setMyProducts(mapped);
-                    }
-                })
-                .catch(err => console.error("Failed to fetch my products", err));
-        }
-    }, [user]);
+    const userId = user?.id ?? '';
+    const { data: myProducts = [] } = useQuery({
+        queryKey: queryKeys.products.mine(userId),
+        queryFn: () => fetchMyProducts(user as User),
+        enabled: !!user,
+    });
 
     if (!user) {
         return <SignedOutPlaceholder hintKey="auth.signed_out_hint_profile" icon={UserCircle} />;

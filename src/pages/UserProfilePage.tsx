@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Calendar, Shield, MessageCircle, ShoppingBag, MapPin } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Star, Calendar, Shield, MessageCircle, ShoppingBag } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { supabase } from '../services/supabase';
 import { api } from '@/lib/api/client';
-import { getUserRatingStats } from '@/services/ratingService';
+import { queryKeys } from '@/lib/queryClient';
+import { getUserRatingStats, EMPTY_RATING_STATS } from '@/services/ratingService';
 import { useBackNavigation } from '@/lib/useBackNavigation';
 
 const localeMap: Record<string, string> = {
@@ -13,49 +14,68 @@ const localeMap: Record<string, string> = {
     es: 'es-MX'
 };
 
+/** Public profile as served by `GET /api/users/:userId`. */
+interface PublicUser {
+    id: string;
+    name: string | null;
+    avatar_url: string | null;
+    created_at: string | null;
+}
+
+interface SellerProduct {
+    id: string;
+    title?: string;
+    price?: number;
+    currency?: string | null;
+    images?: string[] | null;
+}
+
+const fetchPublicUser = async (userId: string): Promise<PublicUser | null> => {
+    const data = await api.get<{ user?: PublicUser | null }>(`/api/users/${encodeURIComponent(userId)}`);
+    return data?.user ?? null;
+};
+
+const fetchSellerProducts = async (sellerId: string): Promise<SellerProduct[]> => {
+    const data = await api.get<SellerProduct[]>('/api/products', { params: { seller_id: sellerId, limit: 20 } });
+    return Array.isArray(data) ? data : [];
+};
+
 interface UserProfilePageProps {
     currentUserId?: string;
 }
 
 export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId }) => {
-    const { id } = useParams<{ id: string }>();
+    const { id = '' } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const goBack = useBackNavigation('/');
     const { t, language } = useLanguage();
+    const queryClient = useQueryClient();
 
-    const [userInfo, setUserInfo] = useState<any>(null);
-    const [ratingStats, setRatingStats] = useState({ total_reviews: 0, average_rating: 0 });
-    const [products, setProducts] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [myRating, setMyRating] = useState(0);
     const [hoveredStar, setHoveredStar] = useState(0);
     const [comment, setComment] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [hasRated, setHasRated] = useState(false);
 
-    useEffect(() => {
-        if (!id) return;
-        setIsLoading(true);
+    const userQuery = useQuery({
+        queryKey: queryKeys.publicUser(id),
+        queryFn: () => fetchPublicUser(id),
+        enabled: !!id,
+    });
+    const { data: ratingStats = EMPTY_RATING_STATS } = useQuery({
+        queryKey: queryKeys.ratings(id),
+        queryFn: () => getUserRatingStats(id),
+        enabled: !!id,
+    });
+    const productsQuery = useQuery({
+        queryKey: queryKeys.products.bySeller(id),
+        queryFn: () => fetchSellerProducts(id),
+        enabled: !!id,
+    });
 
-        // Fetch user profile
-        supabase.from('users').select('*').eq('id', id).single()
-            .then(({ data }) => {
-                if (data) setUserInfo(data);
-            });
-
-        // Fetch rating stats
-        getUserRatingStats(id)
-            .then(data => setRatingStats(data || { total_reviews: 0, average_rating: 0 }))
-            .catch(console.error);
-
-        // Fetch user products
-        api.get<any[]>('/api/products', { params: { seller_id: id, limit: 20 } })
-            .then(data => {
-                if (Array.isArray(data)) setProducts(data);
-            })
-            .catch(console.error)
-            .finally(() => setIsLoading(false));
-    }, [id]);
+    const userInfo = userQuery.data ?? null;
+    const products = productsQuery.data ?? [];
+    const isLoading = userQuery.isLoading || productsQuery.isLoading;
 
     const handleSubmitRating = async () => {
         if (myRating === 0 || isSubmitting || !currentUserId || !id) return;
@@ -69,8 +89,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
             }, { auth: 'required' });
             setHasRated(true);
             // Refresh stats
-            const stats = await getUserRatingStats(id);
-            setRatingStats(stats || { total_reviews: 0, average_rating: 0 });
+            await queryClient.invalidateQueries({ queryKey: queryKeys.ratings(id) });
         } catch (err) {
             console.error('Rating error:', err);
         } finally {
@@ -96,10 +115,25 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
         </div>
     );
 
-    if (isLoading || !userInfo) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="w-8 h-8 border-3 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!userInfo) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
+                <p className="text-sm text-gray-500">{t('profile.user_not_found')}</p>
+                <button
+                    onClick={goBack}
+                    className="flex items-center gap-2 text-sm font-bold text-brand-600 hover:text-brand-700"
+                >
+                    <ArrowLeft size={16} />
+                    {t('detail.back')}
+                </button>
             </div>
         );
     }
@@ -123,8 +157,8 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
                 {/* Avatar */}
                 <div className="absolute -bottom-14 left-1/2 -translate-x-1/2">
                     <img
-                        src={userInfo.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${id}`}
-                        alt={userInfo.name}
+                        src={userInfo.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${id}`}
+                        alt={userInfo.name ?? ''}
                         className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-xl"
                     />
                 </div>
@@ -132,14 +166,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
 
             {/* User Info */}
             <div className="pt-16 pb-4 px-6 text-center">
-                <h1 className="text-2xl font-black text-gray-900">{userInfo.name || id?.slice(0, 8)}</h1>
-
-                {userInfo.city && (
-                    <div className="flex items-center justify-center gap-1 mt-1 text-sm text-gray-500">
-                        <MapPin size={14} />
-                        <span>{userInfo.city}{userInfo.country ? `, ${userInfo.country}` : ''}</span>
-                    </div>
-                )}
+                <h1 className="text-2xl font-black text-gray-900">{userInfo.name || id.slice(0, 8)}</h1>
 
                 <div className="flex items-center justify-center gap-2 mt-3">
                     {renderStars(ratingStats.average_rating, 20)}
@@ -226,7 +253,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 gap-3">
-                        {products.map((p: any) => (
+                        {products.map(p => (
                             <div
                                 key={p.id}
                                 onClick={() => navigate(`/product/${p.id}`)}

@@ -2,9 +2,9 @@ import type { Request } from 'express';
 import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 import { t } from '../utils/i18n.js';
-import { asyncHandler, notFound, parseBody, parseQuery, unauthorized } from '../lib/http.js';
+import { asyncHandler, conflict, forbidden, notFound, parseBody, parseParams, parseQuery, unauthorized } from '../lib/http.js';
 import type { AuthenticatedRequest } from '../middleware/userAuth.js';
-import { CreateProductSchema, ListProductsQuerySchema } from '../schemas/products.js';
+import { CreateProductSchema, ListProductsQuerySchema, ProductIdParamSchema, UpdateOwnProductStatusSchema } from '../schemas/products.js';
 
 /** Supabase client scoped to the caller's JWT so RLS applies (anon key + Bearer token). */
 const scopedClient = (authHeader: string) => {
@@ -121,4 +121,40 @@ export const getProductById = asyncHandler<Request>(async (req, res) => {
 
     // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
     res.json(product);
+});
+
+/**
+ * PATCH /api/products/:id/status — the seller marks their own listing sold, or relists it.
+ * A relisted item goes back to `pending_review` (same path as a new listing) — never straight to active.
+ */
+export const updateOwnProductStatus = asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    const userId = req.user!.id;
+    const { id } = parseParams(ProductIdParamSchema, req.params);
+    const { status } = parseBody(UpdateOwnProductStatusSchema, req.body);
+
+    const { data: product, error } = await supabase
+        .from('products')
+        .select('id, seller_id, status, deleted_at')
+        .eq('id', id)
+        .maybeSingle();
+    if (error) throw error;
+    if (!product || product.deleted_at) throw notFound(t(req, 'PRODUCT_NOT_FOUND'));
+    if (product.seller_id !== userId) throw forbidden('Only the seller can change this listing');
+
+    const nextStatus = status === 'sold' ? 'sold' : 'pending_review';
+    // Conditional on the current status so a stale button cannot flip an admin decision.
+    const allowedFrom = status === 'sold' ? ['active', 'pending_review'] : ['sold', 'inactive'];
+    if (!allowedFrom.includes(product.status)) {
+        throw conflict(`Listing is ${product.status}; cannot set it to ${nextStatus}`);
+    }
+    const { data: updated, error: updateError } = await supabase
+        .from('products')
+        .update({ status: nextStatus, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('seller_id', userId)
+        .in('status', allowedFrom)
+        .select('id, status')
+        .single();
+    if (updateError) throw updateError;
+    res.json({ success: true, product: updated });
 });

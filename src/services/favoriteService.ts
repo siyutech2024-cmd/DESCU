@@ -1,41 +1,26 @@
-import { supabase } from './supabase';
+import { api } from '@/lib/api/client';
 
-export const getFavorites = async (userId: string) => {
-    const { data, error } = await supabase
-        .from('favorites')
-        .select('product_id')
-        .eq('user_id', userId);
-
-    if (error) {
+/**
+ * The signed-in user's favourite product ids.
+ * `userId` is kept for call-site compatibility; the API derives the user from the bearer token.
+ * Returns `[]` on failure (matches the previous direct-table behaviour).
+ */
+export const getFavorites = async (_userId: string): Promise<string[]> => {
+    try {
+        const data = await api.get<{ productIds?: string[] }>('/api/users/favorites', { auth: 'required' });
+        return Array.isArray(data?.productIds) ? data.productIds : [];
+    } catch (error) {
         console.error('Error fetching favorites:', error);
         return [];
     }
-    return data.map(f => f.product_id);
 };
 
-export const toggleFavorite = async (userId: string, productId: string) => {
-    // Check if exists
-    const { data: existing } = await supabase
-        .from('favorites')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('product_id', productId)
-        .single();
-
-    if (existing) {
-        // Remove
-        const { error } = await supabase
-            .from('favorites')
-            .delete()
-            .eq('id', existing.id);
-        if (error) throw error;
-        return false; // Not favorited anymore
-    } else {
-        // Add
-        const { error } = await supabase
-            .from('favorites')
-            .insert({ user_id: userId, product_id: productId });
-        if (error) throw error;
-        return true; // Favorited
-    }
+/** Toggle a favourite; resolves `true` when the product is now favourited, `false` when removed. Throws on failure. */
+export const toggleFavorite = async (_userId: string, productId: string): Promise<boolean> => {
+    const data = await api.post<{ favorited: boolean }>(
+        `/api/users/favorites/${encodeURIComponent(productId)}/toggle`,
+        undefined,
+        { auth: 'required' }
+    );
+    return !!data?.favorited;
 };

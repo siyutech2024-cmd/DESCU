@@ -30,16 +30,7 @@ export const userFromSession = (session: Session | null | undefined): User | nul
 /** Mirror the auth user into public.users (used by chat & order notifications). */
 export const syncUserProfile = async (user: Pick<User, 'id' | 'name' | 'avatar' | 'email'>): Promise<void> => {
     try {
-        await supabase.from('users').upsert(
-            {
-                id: user.id,
-                name: user.name,
-                avatar_url: user.avatar,
-                email: user.email,
-                updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'id' }
-        );
+        await api.post('/api/users/me', { name: user.name, avatar_url: user.avatar }, { auth: 'required' });
     } catch (error) {
         console.warn('[auth] Failed to sync user to public.users:', error);
     }

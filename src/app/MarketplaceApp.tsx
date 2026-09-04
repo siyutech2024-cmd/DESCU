@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Routes, Route, useNavigate, useLocation, useSearchParams, Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
 import { useLanguage } from '@/i18n';
@@ -43,6 +43,7 @@ export const MarketplaceApp: React.FC = () => {
     const { t, language } = useLanguage();
     const navigate = useNavigate();
     const { pathname } = useLocation();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const { user, login, updateUser, markVerified, isLoginModalOpen, openLoginModal, closeLoginModal, requireUser } = useAuth();
     const geo = useGeolocation();
@@ -57,12 +58,25 @@ export const MarketplaceApp: React.FC = () => {
     const chat = useConversations();
     const { actionRequiredCount } = useOrders();
 
-    const [isSellModalOpen, setIsSellModalOpen] = useState(false);
+    // The sell sheet lives in the URL (`?sell=1`) so the back button closes it and deep links open it.
+    const isSellModalOpen = searchParams.get('sell') === '1';
+    const openSellModal = useCallback(() => {
+        setSearchParams(prev => {
+            prev.set('sell', '1');
+            return prev;
+        });
+    }, [setSearchParams]);
+    const closeSellModal = useCallback(() => {
+        setSearchParams(prev => {
+            prev.delete('sell');
+            return prev;
+        }, { replace: true });
+    }, [setSearchParams]);
 
     const { createProduct } = useCreateProduct(user, {
         onCreated: product => {
             feed.prependProduct(product);
-            setIsSellModalOpen(false);
+            closeSellModal();
             navigate('/');
         },
     });
@@ -81,7 +95,7 @@ export const MarketplaceApp: React.FC = () => {
 
     const currentView = useMemo(() => viewFromPath(pathname), [pathname]);
 
-    const handleSellClick = () => requireUser(() => setIsSellModalOpen(true));
+    const handleSellClick = () => requireUser(openSellModal);
 
     return (
         <div className="min-h-dvh bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
@@ -185,7 +199,7 @@ export const MarketplaceApp: React.FC = () => {
                 {isSellModalOpen && user && (
                     <SellModal
                         isOpen={isSellModalOpen}
-                        onClose={() => setIsSellModalOpen(false)}
+                        onClose={closeSellModal}
                         onSubmit={createProduct}
                         user={user}
                         userLocation={origin}

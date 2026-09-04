@@ -7,10 +7,9 @@ import {
 } from 'lucide-react';
 import { Conversation, User } from '../types';
 import { useLanguage } from '@/i18n';
-import { supabase } from '../services/supabase';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '../services/chatService';
 import { blockUser } from '@/services/moderationService';
-import { ApiError } from '@/lib/api/client';
+import { api, ApiError } from '@/lib/api/client';
 import { queryKeys } from '@/lib/queryClient';
 import { notify } from '@/lib/toast';
 import { useOrders } from '@/features/orders';
@@ -192,13 +191,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     if (conversation.productId) {
       const fetchProductInfo = async () => {
         try {
-          const { data } = await supabase
-            .from('products')
-            .select('price, seller_id')
-            .eq('id', conversation.productId)
-            .single();
+          const data = await api.get<{ price?: number; seller_id?: string }>(`/api/products/${conversation.productId}`, { auth: 'optional' });
           if (data) {
-            setProductPrice(data.price || 0);
+            setProductPrice(Number(data.price) || 0);
             setProductSellerId(data.seller_id || '');
           }
         } catch (err) {

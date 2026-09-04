@@ -62,3 +62,11 @@ export const AnalyzeImageSchema = z.object({
     language: z.enum(PRODUCT_LANGUAGES).optional().catch(undefined),
 });
 export type AnalyzeImageInput = z.infer<typeof AnalyzeImageSchema>;
+
+export const ProductIdParamSchema = z.object({ id: z.string().uuid() });
+
+/** Seller-side status changes: mark sold, or relist (goes back through review). */
+export const UpdateOwnProductStatusSchema = z.object({
+    status: z.enum(['sold', 'active']),
+});
+export type UpdateOwnProductStatusInput = z.infer<typeof UpdateOwnProductStatusSchema>;

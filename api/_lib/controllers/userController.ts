@@ -1,5 +1,5 @@
 import { supabase } from '../db/supabase.js';
-import { asyncHandler, parseBody, parseParams } from '../lib/http.js';
+import { asyncHandler, notFound, parseBody, parseParams } from '../lib/http.js';
 import type { AuthenticatedRequest } from '../middleware/userAuth.js';
 import {
     AddressIdParamSchema,
@@ -8,6 +8,8 @@ import {
     UpdateAddressSchema,
     UpdateLocationSchema,
     UserIdParamSchema,
+    SyncProfileSchema,
+    FavoriteProductParamSchema,
 } from '../schemas/users.js';
 
 /**
@@ -92,6 +94,17 @@ export const updateLocation = asyncHandler<AuthenticatedRequest>(async (req, res
 });
 
 /** Save seller bank details (manual payouts — no Stripe Connect). Upserts the caller's sellers row. */
+/** The caller's own SPEI bank details (null when none saved yet). */
+export const getBankInfo = asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    const { data, error } = await supabase
+        .from('sellers')
+        .select('bank_clabe, bank_name, bank_holder_name, bank_info_updated_at')
+        .eq('user_id', req.user!.id)
+        .maybeSingle();
+    if (error && error.code !== '42P01') throw error; // table may not exist in a fresh environment
+    res.json({ bankInfo: data?.bank_clabe ? data : null });
+});
+
 export const saveBankInfo = asyncHandler<AuthenticatedRequest>(async (req, res) => {
     const userId = req.user!.id;
     const { bankName, clabe, holderName } = parseBody(BankInfoSchema, req.body);
@@ -183,4 +196,53 @@ export const deleteAddress = asyncHandler<AuthenticatedRequest>(async (req, res)
     if (error) throw error;
 
     res.json({ success: true });
+});
+
+/** Columns of public.users that anyone may see (the row also holds email/phone/location — never returned here). */
+const PUBLIC_USER_COLUMNS = 'id, name, avatar_url, created_at';
+
+/** Public: another user's profile card. */
+export const getPublicUser = asyncHandler(async (req, res) => {
+    const { userId } = parseParams(UserIdParamSchema, req.params);
+    const { data, error } = await supabase.from('users').select(PUBLIC_USER_COLUMNS).eq('id', userId).maybeSingle();
+    if (error) throw error;
+    if (!data) throw notFound('User not found');
+    res.json({ user: data });
+});
+
+/** Upsert the caller's own public.users row from their auth session (called after sign-in). */
+export const syncOwnProfile = asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    const { id, email } = req.user!;
+    const body = parseBody(SyncProfileSchema, req.body);
+    const { data, error } = await supabase
+        .from('users')
+        .upsert({ id, name: body.name, avatar_url: body.avatar_url ?? null, email: email ?? null, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+        .select(PUBLIC_USER_COLUMNS)
+        .single();
+    if (error) throw error;
+    res.json({ user: data });
+});
+
+/** The caller's favourite product ids. */
+export const listFavorites = asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    const { data, error } = await supabase.from('favorites').select('product_id').eq('user_id', req.user!.id);
+    if (error) throw error;
+    res.json({ productIds: (data ?? []).map(f => f.product_id) });
+});
+
+/** Toggle a favourite; returns the resulting state. */
+export const toggleFavorite = asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    const userId = req.user!.id;
+    const { productId } = parseParams(FavoriteProductParamSchema, req.params);
+    const { data: existing, error } = await supabase
+        .from('favorites').select('id').eq('user_id', userId).eq('product_id', productId).maybeSingle();
+    if (error) throw error;
+    if (existing) {
+        const { error: delError } = await supabase.from('favorites').delete().eq('id', existing.id).eq('user_id', userId);
+        if (delError) throw delError;
+        return res.json({ favorited: false });
+    }
+    const { error: insError } = await supabase.from('favorites').insert({ user_id: userId, product_id: productId });
+    if (insError && insError.code !== '23505') throw insError; // a concurrent double-tap already added it
+    res.json({ favorited: true });
 });

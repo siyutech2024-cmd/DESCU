@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle, Star } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '@/i18n';
@@ -36,6 +36,22 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const { openLoginModal } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Checkout lives in the URL (`?checkout=1`) so the back button closes it and deep links open it.
+  const isCheckoutOpen = searchParams.get('checkout') === '1';
+  const openCheckout = () => {
+    setSearchParams(prev => {
+      prev.set('checkout', '1');
+      return prev;
+    });
+  };
+  const closeCheckout = () => {
+    setSearchParams(prev => {
+      prev.delete('checkout');
+      return prev;
+    }, { replace: true });
+  };
 
   const sellerId = product.seller?.id ?? '';
   const goToSeller = () => {
@@ -59,7 +75,6 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const showDual = productCurrency !== userCurrency;
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isRatingOpen, setIsRatingOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -170,7 +185,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
           if (!user) {
             onRequireLogin();
           } else {
-            setIsCheckoutOpen(true);
+            openCheckout();
           }
         }}
         disabled={cannotBuy}
@@ -485,7 +500,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
       {user && (
         <CheckoutModal
           isOpen={isCheckoutOpen}
-          onClose={() => setIsCheckoutOpen(false)}
+          onClose={closeCheckout}
           product={product}
           user={user}
         />
