@@ -65,7 +65,7 @@ export const MeetupTimeMessage: React.FC<MeetupTimeMessageProps> = ({ content, c
     return (
         <MessageCard icon={<CalendarClock size={16} />} label={t('meetup.title')} title={product_title} status={{ text: plain(t(st.key)), tone: st.tone }}>
             <div className="px-4 pb-3">
-                <p className="text-xl font-black text-gray-900 capitalize leading-tight">{dateFormatted}</p>
+                <p className="text-xl font-black text-gray-900 first-letter:uppercase leading-tight">{dateFormatted}</p>
                 <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-gray-700 tabular-nums"><Clock size={14} className="text-brand-600" />{time}</p>
                 {hasLocation && <p className="mt-1.5 flex items-start gap-1.5 text-sm text-gray-600"><MapPin size={14} className="text-brand-600 mt-0.5 flex-shrink-0" /><span>{location}</span></p>}
                 {note && <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">{note}</p>}

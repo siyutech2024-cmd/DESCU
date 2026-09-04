@@ -336,7 +336,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, currentUse
 
           const daySeparator = showDay && (
             <div className="flex justify-center py-1">
-              <span className="rounded-full bg-white border border-gray-100 px-3 py-1 text-[11px] font-bold text-gray-400 capitalize">
+              <span className="rounded-full bg-white border border-gray-100 px-3 py-1 text-[11px] font-bold text-gray-400 first-letter:uppercase">
                 {new Date(msg.created_at).toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short' })}
               </span>
             </div>

@@ -119,8 +119,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               </span>
             </button>
 
-            {/* 3. Floating Action Button (FAB) - Centered */}
-            <div className="absolute left-1/2 -translate-x-1/2 -top-7">
+            {/* 3. Floating Action Button (FAB) - Centered. Hidden on the product page, whose own CTA bar sits right above the nav. */}
+            <div className={`absolute left-1/2 -translate-x-1/2 -top-7 ${currentView === 'product' ? 'hidden' : ''}`}>
               <button
                 onClick={onSellClick}
                 aria-label={t('nav.sell')}
