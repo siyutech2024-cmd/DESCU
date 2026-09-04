@@ -5,6 +5,7 @@ import { Product, User } from '../types';
 import { ProductDetails } from '@/features/products/components/ProductDetails';
 import { useSEO } from '../hooks/useSEO';
 import { useLanguage } from '@/i18n';
+import { PackageSearch } from 'lucide-react';
 import { api, ApiError } from '@/lib/api/client';
 import { useBackNavigation } from '@/lib/useBackNavigation';
 
@@ -25,7 +26,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const goBack = useBackNavigation('/');
-    const { formatPrice, language } = useLanguage();
+    const { formatPrice, language, t } = useLanguage();
     const [fetchedProduct, setFetchedProduct] = React.useState<Product | null>(null);
     const [loading, setLoading] = React.useState(true);  // Start with loading true
     const [error, setError] = React.useState<string | null>(null);
@@ -124,8 +125,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
         return (
             <div className="flex flex-col justify-center items-center min-h-screen gap-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
-                <p className="text-gray-500 text-sm">Loading product...</p>
-                <p className="text-gray-400 text-xs">ID: {id}</p>
+                <p className="text-gray-500 text-sm">{t('common.loading')}</p>
             </div>
         );
     }
@@ -134,17 +134,16 @@ export const ProductPage: React.FC<ProductPageProps> = ({
         return (
             <div className="flex flex-col items-center justify-center min-h-screen p-8">
                 <div className="bg-red-50 border border-red-200 rounded-2xl p-8 max-w-md text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-3xl">😕</span>
+                    <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <PackageSearch size={28} />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">产品未找到 / Producto no encontrado</h2>
-                    <p className="text-gray-600 mb-4">{error || 'This product may have been removed or is no longer available.'}</p>
-                    <p className="text-xs text-gray-400 mb-4">ID: {id}</p>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">{t('product.not_found_title')}</h2>
+                    <p className="text-gray-600 mb-4">{t('product.not_found_body')}</p>
                     <button
                         onClick={() => navigate('/')}
                         className="px-6 py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors"
                     >
-                        返回首页 / Volver al inicio
+                        {t('product.not_found_back')}
                     </button>
                 </div>
             </div>

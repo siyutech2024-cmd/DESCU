@@ -22,6 +22,14 @@ export const CreateOrderSchema = z
                 message: 'Shipping address is required for shipping orders',
             });
         }
+        // Cash is only settled face to face; a shipped item must be paid online (escrow).
+        if (body.orderType === 'shipping' && body.paymentMethod === 'cash') {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['paymentMethod'],
+                message: 'Shipping orders must be paid online',
+            });
+        }
     });
 export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
 

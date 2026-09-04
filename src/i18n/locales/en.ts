@@ -562,4 +562,8 @@ export const en: TranslationTable = {
   'orders.pay_online': 'Online payment',
   'product.inactive': 'Paused',
   'product.unavailable': 'Unavailable',
+  'product.not_found_title': 'Listing not found',
+  'product.not_found_body': 'It may have been sold, removed, or the link is wrong.',
+  'product.not_found_back': 'Back to home',
+  'common.loading': 'Loading…',
 };

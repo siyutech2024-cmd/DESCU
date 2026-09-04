@@ -562,4 +562,8 @@ export const zh: TranslationTable = {
   'orders.pay_online': '在线支付',
   'product.inactive': '已下架',
   'product.unavailable': '不可用',
+  'product.not_found_title': '找不到该商品',
+  'product.not_found_body': '可能已售出、已删除，或链接有误。',
+  'product.not_found_back': '返回首页',
+  'common.loading': '加载中…',
 };

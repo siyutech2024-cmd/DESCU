@@ -562,4 +562,8 @@ export const es: TranslationTable = {
   'orders.pay_online': 'Pago en línea',
   'product.inactive': 'Pausado',
   'product.unavailable': 'No disponible',
+  'product.not_found_title': 'Anuncio no encontrado',
+  'product.not_found_body': 'Puede que se haya vendido, eliminado o que el enlace esté mal.',
+  'product.not_found_back': 'Volver al inicio',
+  'common.loading': 'Cargando…',
 };

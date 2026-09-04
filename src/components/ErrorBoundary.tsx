@@ -9,6 +9,18 @@ interface State {
     error?: Error;
 }
 
+const RELOAD_KEY = 'chunk_reload';
+const isStaleChunkError = (error: Error): boolean =>
+    /Failed to fetch dynamically imported module|Importing a module script failed|Loading (CSS )?chunk|error loading dynamically imported module/i.test(error?.message ?? '');
+const recentlyReloaded = (): boolean => {
+    try {
+        const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+        return Date.now() - last < 30_000;
+    } catch {
+        return false;
+    }
+};
+
 export class ErrorBoundary extends Component<Props, State> {
     public state: State = {
         hasError: false,
@@ -20,6 +32,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("Uncaught error:", error, errorInfo);
+        // A deploy renames the hashed chunks; a React.lazy route that was not loaded yet then
+        // fails to import. React swallows that rejection (no unhandledrejection event), so the
+        // reload guard in main.tsx never sees it — handle it here: reload once to pick up the
+        // new build instead of showing a dead "Something went wrong" screen.
+        if (isStaleChunkError(error) && !recentlyReloaded()) {
+            sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+            window.location.reload();
+        }
     }
 
     public render() {
