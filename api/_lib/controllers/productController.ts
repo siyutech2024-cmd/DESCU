@@ -74,6 +74,12 @@ export const createProduct = asyncHandler<AuthenticatedRequest>(async (req, res)
     res.status(201).json(data);
 });
 
+/** The seller's email is a contact detail, not listing data: never part of a public product payload. */
+const publicProduct = <T extends { seller_email?: unknown }>(row: T): Omit<T, 'seller_email'> => {
+    const { seller_email: _omit, ...rest } = row;
+    return rest;
+};
+
 export const getProducts = asyncHandler<Request>(async (req, res) => {
     const { limit, offset, status, seller_id } = parseQuery(ListProductsQuerySchema, req.query);
     const authHeader = req.headers.authorization;
@@ -105,7 +111,7 @@ export const getProducts = asyncHandler<Request>(async (req, res) => {
     if (error) throw error;
 
     // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
-    res.json(data || []);
+    res.json((data || []).map(publicProduct));
 });
 
 // Get single product
@@ -120,7 +126,7 @@ export const getProductById = asyncHandler<Request>(async (req, res) => {
     if (error || !product) throw notFound(t(req, 'PRODUCT_NOT_FOUND'));
 
     // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
-    res.json(product);
+    res.json(publicProduct(product));
 });
 
 /**
