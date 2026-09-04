@@ -7,7 +7,6 @@ import {
     markOrderAsShipped,
     confirmOrder,
     createDispute,
-    ordersHealthCheck,
     getUserOrders
 } from '../controllers/paymentController.js';
 
@@ -23,7 +22,6 @@ const router = ordersRouter;
 
 router.post('/api/orders/ship', requireAuth, markOrderAsShipped);
 router.post('/api/orders/confirm', requireAuth, confirmOrder);
-router.get('/api/orders/health', ordersHealthCheck);
 router.get('/api/orders', requireAuth, getUserOrders);
 router.post('/api/disputes', requireAuth, createDispute);
 
@@ -102,7 +100,7 @@ router.get('/api/orders/:id', requireAuth, async (req: any, res) => {
         const { id } = req.params;
         const userId = req.user.id;
         const { data: order, error } = await supabase.from('orders')
-            .select('*, product:products(*), buyer:users!buyer_id(*), seller:users!seller_id(*), timeline:order_timeline(*)')
+            .select('*, product:products(*), buyer:users!buyer_id(id, name, avatar_url), seller:users!seller_id(id, name, avatar_url), timeline:order_timeline(*)')
             .eq('id', id).single();
 
         if (error || !order) return res.status(404).json({ error: 'Order not found' });

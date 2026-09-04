@@ -6,6 +6,7 @@ import { ProductDetails } from '../components/ProductDetails';
 import { useSEO } from '../hooks/useSEO';
 import { useLanguage } from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';
+import { useBackNavigation } from '@/lib/useBackNavigation';
 
 interface ProductPageProps {
     products: Product[];
@@ -23,6 +24,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
 }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const goBack = useBackNavigation('/');
     const { formatPrice, language } = useLanguage();
     const [fetchedProduct, setFetchedProduct] = React.useState<Product | null>(null);
     const [loading, setLoading] = React.useState(true);  // Start with loading true
@@ -152,7 +154,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
     return (
         <ProductDetails
             product={product}
-            onBack={() => navigate('/')}
+            onBack={goBack}
             onContactSeller={onContactSeller}
             onRequireLogin={onRequireLogin}
             isInCart={false}

@@ -1,13 +1,15 @@
 import { Router } from 'express';
-import { generateSitemap, generateLlmsFull } from '../controllers/seoController.js';
 import { reverseGeocodeProxy } from '../controllers/locationController.js';
 
-/** SEO artefacts served by the API and geo-location proxies. */
+/**
+ * Geo-location proxies.
+ * /sitemap.xml and /llms-full.txt are NOT served here: in production vercel.json
+ * rewrites them to the standalone functions api/sitemap.ts and api/llms-full.ts
+ * (server/dev.ts mounts the same handlers for local parity).
+ */
 export const seoLocationRouter = Router();
 const router = seoLocationRouter;
 
-router.get('/sitemap.xml', generateSitemap);
-router.get('/llms-full.txt', generateLlmsFull);
 router.get('/api/location/reverse', reverseGeocodeProxy);
 
 // New IP Location Proxy

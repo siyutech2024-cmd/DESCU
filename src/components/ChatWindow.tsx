@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -124,6 +124,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [productPrice, setProductPrice] = useState<number>(0); // For price negotiation
   const [productSellerId, setProductSellerId] = useState<string>(''); // 产品卖家ID
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  /** scrollHeight captured before prepending older messages, so the viewport doesn't jump. */
+  const preserveScrollFromRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [showMenu, setShowMenu] = useState(false);
   const pendingMessageIds = useRef<Set<string>>(new Set()); // 跟踪正在发送的消息ID，防止重复
@@ -206,8 +209,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [conversation.productId]);
 
-  // Auto scroll to bottom when messages change
-  useEffect(() => {
+  // Auto scroll to bottom when messages change — except after "load earlier", where we keep
+  // the same messages in view by offsetting scrollTop by the height that was prepended.
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    const previousHeight = preserveScrollFromRef.current;
+    if (container && previousHeight !== null) {
+      preserveScrollFromRef.current = null;
+      // Jump instantly — the container's `scroll-smooth` would otherwise animate the correction.
+      const previousBehavior = container.style.scrollBehavior;
+      container.style.scrollBehavior = 'auto';
+      container.scrollTop += container.scrollHeight - previousHeight;
+      container.style.scrollBehavior = previousBehavior;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -318,6 +333,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       const older = olderNewestFirst ?? [];
 
       if (older.length > 0) {
+        preserveScrollFromRef.current = scrollContainerRef.current?.scrollHeight ?? null;
         setMessages(prev => mergeMessages([...older].reverse(), prev));
       }
       setHasMoreMessages(older.length >= MESSAGE_LIMIT);
@@ -330,82 +346,86 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
 
   return (
-    <div className="flex flex-col h-full fixed inset-0 z-50 bg-[#f8f9fa] sm:static sm:h-full sm:rounded-2xl sm:overflow-hidden sm:border sm:border-gray-200 animate-fade-in">
+    // Mobile: a fixed full-height column that ends where the bottom nav starts (shared
+    // --bottom-nav-h var). Desktop (md+): a normal block inside ChatPage's card.
+    <div className="fixed inset-x-0 top-0 bottom-nav-offset z-50 flex flex-col bg-[#f8f9fa] md:static md:h-full md:rounded-2xl md:overflow-hidden md:border md:border-gray-200 animate-fade-in">
 
-      {/* Header - Glassmorphism */}
-      <div className="absolute top-0 left-0 right-0 z-20 glass-panel border-b border-white/40 px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="p-2 -ml-2 text-gray-600 hover:bg-black/5 rounded-full transition-colors active:scale-95"
-        >
-          <ArrowLeft size={22} />
-        </button>
-
-        {/* ... (User Avatar & Name) ... */}
-        <div className="relative cursor-pointer" onClick={() => navigate(`/user/${conversation.otherUser.id}`)}>
-          <img
-            src={conversation.otherUser.avatar}
-            alt={conversation.otherUser.name}
-            className="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-white/80 hover:ring-brand-300 transition-all"
-          />
-          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
-        </div>
-
-        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/user/${conversation.otherUser.id}`)}>
-          <h2 className="font-bold text-gray-900 truncate leading-tight hover:text-brand-600 transition-colors">{conversation.otherUser.name}</h2>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-            <p className="text-xs text-brand-600 font-medium truncate">{t('chat.online')}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1 relative">
-          {/* Meetup Button (Only if active meetup order exists) */}
-          {activeOrder && activeOrder.order_type === 'meetup' && hasOpenOrder && (
-            <button
-              onClick={() => setIsMeetupModalOpen(true)}
-              className="p-2 text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors mr-1"
-              title={t('chat.arrange_meetup_btn')}
-            >
-              <MapPin size={20} />
-            </button>
-          )}
-
-
-
+      {/* Header - Glassmorphism (pt-safe: sits under the notch on mobile) */}
+      <div className="flex-shrink-0 relative z-20 glass-panel border-b border-white/40 pt-safe md:pt-0">
+        <div className="px-4 py-3 flex items-center gap-3">
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors"
+            onClick={onBack}
+            className="p-2 -ml-2 text-gray-600 hover:bg-black/5 rounded-full transition-colors active:scale-95"
           >
-            <MoreVertical size={20} />
+            <ArrowLeft size={22} />
           </button>
 
-          {/* Action Menu Breakdown */}
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 z-40 overflow-hidden animate-fade-in-up origin-top-right">
-                <button
-                  onClick={() => { setShowMenu(false); setIsReportOpen(true); }}
-                  className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-500 text-sm font-medium transition-colors border-b border-gray-100"
-                >
-                  {t('chat.report_user')}
-                </button>
-                <button
-                  onClick={() => { setShowMenu(false); handleBlockUser(); }}
-                  disabled={isBlocking}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  {t('chat.block_user')}
-                </button>
-              </div>
-            </>
-          )}
+          {/* ... (User Avatar & Name) ... */}
+          <div className="relative cursor-pointer" onClick={() => navigate(`/user/${conversation.otherUser.id}`)}>
+            <img
+              src={conversation.otherUser.avatar}
+              alt={conversation.otherUser.name}
+              className="w-10 h-10 rounded-full object-cover shadow-sm ring-2 ring-white/80 hover:ring-brand-300 transition-all"
+            />
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
+          </div>
+
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/user/${conversation.otherUser.id}`)}>
+            <h2 className="font-bold text-gray-900 truncate leading-tight hover:text-brand-600 transition-colors">{conversation.otherUser.name}</h2>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+              <p className="text-xs text-brand-600 font-medium truncate">{t('chat.online')}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 relative">
+            {/* Meetup Button (Only if active meetup order exists) */}
+            {activeOrder && activeOrder.order_type === 'meetup' && hasOpenOrder && (
+              <button
+                onClick={() => setIsMeetupModalOpen(true)}
+                className="p-2 text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-full transition-colors mr-1"
+                title={t('chat.arrange_meetup_btn')}
+              >
+                <MapPin size={20} />
+              </button>
+            )}
+
+
+
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-full transition-colors"
+            >
+              <MoreVertical size={20} />
+            </button>
+
+            {/* Action Menu Breakdown */}
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl rounded-xl shadow-2xl border border-white/50 z-40 overflow-hidden animate-fade-in-up origin-top-right">
+                  <button
+                    onClick={() => { setShowMenu(false); setIsReportOpen(true); }}
+                    className="w-full text-left px-4 py-3 hover:bg-red-50 text-red-500 text-sm font-medium transition-colors border-b border-gray-100"
+                  >
+                    {t('chat.report_user')}
+                  </button>
+                  <button
+                    onClick={() => { setShowMenu(false); handleBlockUser(); }}
+                    disabled={isBlocking}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    {t('chat.block_user')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 固定的商品卡片 - Fixed Product Card */}
-      <div className="absolute top-[72px] left-0 right-0 z-10 glass-panel border-b border-white/40 px-4 py-2">
+      {/* Product card - pinned under the header as a normal flex child */}
+      <div className="flex-shrink-0 relative z-10 glass-panel border-b border-white/40 px-4 py-2">
         <div
           onClick={handleProductClick}
           className="flex items-center gap-3 cursor-pointer hover:bg-white/50 rounded-xl p-2 transition-all"
@@ -463,8 +483,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
       </div>
 
-      {/* Messages Area - 调整 padding 适应固定商品卡 */}
-      <div className="flex-1 overflow-y-auto pt-[140px] pb-[120px] px-4 sm:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
+      {/* Messages Area - the only scroll container in the column */}
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto py-4 px-4 md:px-6 space-y-6 bg-gradient-to-b from-slate-50 to-[#f0f2f5] modern-scrollbar scroll-smooth">
 
         {/* ... (CheckoutModal logic placeholder) ... */}
         {activeOrder && (
@@ -590,9 +610,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      {/* Floating Input Area */}
-      {/* ... (Existing input area code) ... */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-white via-white/95 to-transparent z-[150] sm:absolute sm:bottom-0 sm:left-0 sm:right-0 pb-[calc(env(safe-area-inset-bottom)+88px)] md:pb-4">
+      {/* Composer - bottom of the flex column (above the bottom nav on mobile) */}
+      <div className="flex-shrink-0 relative z-20 p-3 md:p-4 bg-gradient-to-t from-white via-white/95 to-transparent">
 
         {/* Emoji Picker Popover */}
         {showEmojiPicker && (
@@ -696,7 +715,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             <button
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full hidden sm:block ${showEmojiPicker ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
+              className={`p-2 sm:p-2.5 transition-colors active:scale-95 rounded-full hidden md:block ${showEmojiPicker ? 'text-brand-600 bg-brand-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}`}
             >
               <Smile size={18} className="sm:w-[22px] sm:h-[22px]" />
             </button>

@@ -2,9 +2,8 @@
 import React, { useState } from 'react';
 import { Home, PlusCircle, User as UserIcon, MapPin, Bell, X, Globe, Check } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { useRegion } from '../contexts/RegionContext';
+import { useRegion, REGIONS } from '../contexts/RegionContext';
 import { DetailedLocationInfo } from '../services/locationService';
-import { Region } from '../types';
 
 interface BottomNavProps {
   currentView: string;
@@ -16,16 +15,6 @@ interface BottomNavProps {
   locationInfo?: DetailedLocationInfo | null;
   user?: { avatar: string; name: string } | null;
 }
-
-// 区域选项配置
-const REGIONS: { code: Region; name: string; flag: string; currency: string }[] = [
-  { code: 'MX', name: 'México', flag: '🇲🇽', currency: 'MXN' },
-  { code: 'US', name: 'United States', flag: '🇺🇸', currency: 'USD' },
-  { code: 'CN', name: '中国', flag: '🇨🇳', currency: 'CNY' },
-  { code: 'EU', name: 'Europe', flag: '🇪🇺', currency: 'EUR' },
-  { code: 'JP', name: '日本', flag: '🇯🇵', currency: 'JPY' },
-  { code: 'Global', name: 'Global', flag: '🌍', currency: 'USD' },
-];
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   currentView,
@@ -60,7 +49,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Globe size={20} className="text-brand-600" />
-                {t('region.select') || '选择区域'}
+                {t('region.select')}
               </h2>
               <button
                 onClick={() => setIsRegionModalOpen(false)}
@@ -76,7 +65,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 <div className="flex items-center gap-2 text-blue-700">
                   <MapPin size={16} />
                   <span className="text-sm font-medium">
-                    {t('region.current_location') || '当前位置'}: {locationInfo.displayName}
+                    {t('region.current_location')}: {locationInfo.displayName}
                   </span>
                 </div>
               </div>
@@ -100,7 +89,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                     <span className="text-2xl">{r.flag}</span>
                     <div className="text-left">
                       <div className="font-bold text-gray-900">{r.name}</div>
-                      <div className="text-xs text-gray-500">{t('region.currency') || '货币'}: {r.currency}</div>
+                      <div className="text-xs text-gray-500">{t('region.currency')}: {r.currency}</div>
                     </div>
                   </div>
                   {region === r.code && (

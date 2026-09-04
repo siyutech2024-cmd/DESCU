@@ -236,7 +236,7 @@ export const ChatList: React.FC<ChatListProps> = ({
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 animate-fade-in-up pb-24 sm:pb-6">
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 px-2">
         <h1 className="text-2xl font-black text-gray-900 tracking-tight">{t('chat.inbox')}</h1>
@@ -495,7 +495,7 @@ export const ChatList: React.FC<ChatListProps> = ({
 
       {/* 隐藏的对话恢复提示 */}
       {hiddenConversations.size > 0 && (
-        <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 animate-fade-in-up">
+        <div className="fixed bottom-nav-offset mb-2 md:bottom-6 md:mb-0 left-1/2 -translate-x-1/2 z-30 animate-fade-in-up">
           <button
             onClick={() => { setHiddenConversations(new Set()); localStorage.removeItem('descu_hidden_chats'); }}
             className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium hover:bg-gray-700 transition-colors"

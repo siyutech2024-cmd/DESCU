@@ -147,7 +147,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 pt-4">
+    <div className="min-h-screen bg-gray-50 pt-4">
       <div className="max-w-2xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">

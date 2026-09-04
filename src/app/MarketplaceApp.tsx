@@ -4,7 +4,7 @@ import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
 import { useLanguage } from '@/i18n';
 import { useAuth } from '@/features/auth';
-import { useGeolocation } from '@/features/location';
+import { useGeolocation, FALLBACK_LOCATION } from '@/features/location';
 import { useProducts, useProductFilters, useFavorites, useCreateProduct } from '@/features/products';
 import { useConversations } from '@/features/chat';
 import { useOrders } from '@/features/orders';
@@ -46,12 +46,15 @@ export const MarketplaceApp: React.FC = () => {
     const { user, login, updateUser, markVerified, isLoginModalOpen, openLoginModal, closeLoginModal, requireUser } = useAuth();
     const geo = useGeolocation();
     const origin = geo.location;
+    // The feed renders right away against the fallback location; once the real position
+    // resolves, distances are recomputed client-side and the list re-sorted (no refetch).
+    const feedOrigin = origin ?? FALLBACK_LOCATION;
 
-    const feed = useProducts(origin);
-    const filters = useProductFilters(feed.products, origin);
+    const feed = useProducts(feedOrigin);
+    const filters = useProductFilters(feed.products, feedOrigin);
     const { favorites, toggleFavorite } = useFavorites();
     const chat = useConversations();
-    const { pendingOrderCount } = useOrders();
+    const { actionRequiredCount } = useOrders();
 
     const [isSellModalOpen, setIsSellModalOpen] = useState(false);
 
@@ -80,7 +83,7 @@ export const MarketplaceApp: React.FC = () => {
     const handleSellClick = () => requireUser(() => setIsSellModalOpen(true));
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
+        <div className="min-h-dvh bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
             <Navbar
                 user={user}
                 onLogin={login}
@@ -94,7 +97,7 @@ export const MarketplaceApp: React.FC = () => {
                 locationInfo={geo.locationInfo}
             />
 
-            <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-16 md:pb-0">
+            <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-bottom-nav md:pb-0">
                 <React.Suspense fallback={<PageLoader />}>
                     <Routes>
                         <Route
@@ -171,7 +174,7 @@ export const MarketplaceApp: React.FC = () => {
                 }}
                 onSellClick={handleSellClick}
                 unreadCount={chat.unreadCount}
-                orderCount={pendingOrderCount}
+                orderCount={actionRequiredCount}
                 locationInfo={geo.locationInfo}
                 user={user}
             />

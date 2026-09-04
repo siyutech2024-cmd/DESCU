@@ -104,34 +104,37 @@
   animation: fade-in-up 0.6s ease-out forwards;
 }
 
-/* Safe area insets for iOS */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .mb-safe {
-    margin-bottom: env(safe-area-inset-bottom);
-  }
-
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .mt-safe {
-    margin-top: env(safe-area-inset-top);
-  }
+/*
+ * Layout constants.
+ * --bottom-nav-h: height of the mobile <BottomNav/> bar (border 1px + pt-3 + 22px icon +
+ * 4px gap + ~15px label + pb-3 ≈ 66px) plus the ~20px the raised centre FAB sticks out above
+ * it. Content that can end up behind the nav pads with `pb-bottom-nav` (applied ONCE on the
+ * app shell in MarketplaceApp) — pages must not add their own compensation.
+ */
+:root {
+  --bottom-nav-h: 86px;
 }
 
-/* iOS Safe Area for the entire app */
-html {
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+/* Safe area insets for iOS (notch / home indicator). Elements that sit at the edges of the
+   viewport — sticky/fixed headers, the bottom nav, fixed composers — apply these themselves;
+   the document itself is not padded so full-bleed backgrounds reach the edges. */
+@layer utilities {
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+  .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+  .mt-safe { margin-top: env(safe-area-inset-top, 0px); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+
+  /* Reserve room for the mobile bottom nav (+ home indicator). Pair with `md:pb-0`. */
+  .pb-bottom-nav { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+  /* Offset for fixed elements that must float above the bottom nav (e.g. chat composer). */
+  .bottom-nav-offset { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
 }
 
-/* Fix body to account for safe area */
 body {
   min-height: 100vh;
-  min-height: -webkit-fill-available;
+  min-height: 100dvh;
 }
 
 /* Additional animations */

@@ -488,4 +488,10 @@ export const es: TranslationTable = {
   'rating.comment_placeholder': 'Comparte detalles sobre tu experiencia...',
   'rating.no_reviews': 'Sin reseñas aún',
   'rating.cannot_rate_self': 'No puedes calificarte a ti mismo',
+
+  // Home / region picker
+  'home.deliver_to': 'Entregar en',
+  'region.select': 'Selecciona tu región',
+  'region.current_location': 'Ubicación actual',
+  'region.currency': 'Moneda',
 };

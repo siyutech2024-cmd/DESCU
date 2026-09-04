@@ -5,6 +5,7 @@ import { useLanguage } from '@/i18n';
 import { supabase } from '../services/supabase';
 import { api } from '@/lib/api/client';
 import { getUserRatingStats } from '@/services/ratingService';
+import { useBackNavigation } from '@/lib/useBackNavigation';
 
 const localeMap: Record<string, string> = {
     zh: 'zh-CN',
@@ -19,6 +20,7 @@ interface UserProfilePageProps {
 export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const goBack = useBackNavigation('/');
     const { t, language } = useLanguage();
 
     const [userInfo, setUserInfo] = useState<any>(null);
@@ -107,12 +109,12 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
         : '-';
 
     return (
-        <div className="max-w-2xl mx-auto pb-28 sm:pb-8 animate-fade-in">
+        <div className="max-w-2xl mx-auto pb-8 animate-fade-in">
             {/* Header */}
             <div className="relative">
                 <div className="h-36 bg-gradient-to-br from-brand-500 via-brand-400 to-pink-400" />
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={goBack}
                     className="absolute top-4 left-4 p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
                 >
                     <ArrowLeft size={20} />

@@ -488,4 +488,10 @@ export const zh: TranslationTable = {
   'rating.comment_placeholder': '分享你的交易体验...',
   'rating.no_reviews': '暂无评价',
   'rating.cannot_rate_self': '不能给自己评分',
+
+  // Home / region picker
+  'home.deliver_to': '配送至',
+  'region.select': '选择地区',
+  'region.current_location': '当前位置',
+  'region.currency': '货币',
 };

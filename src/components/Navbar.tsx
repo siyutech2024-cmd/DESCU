@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Globe, MapPin, Home, MessageCircle, LogOut } from 'lucide-react';
 import { User as UserType, Language, Region } from '../types';
 import { useLanguage } from '@/i18n';
@@ -36,6 +37,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const { t, language, setLanguage } = useLanguage();
   const { region, setRegion } = useRegion();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  /** The search box only filters the home feed: typing anywhere else jumps home, keeping the text. */
+  const handleSearchChange = (value: string) => {
+    onSearchChange(value);
+    if (pathname !== '/' && value.trim()) navigate('/');
+  };
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setLanguage(e.target.value as Language);
@@ -50,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-glass-sm transition-all duration-300">
+    <nav className="sticky top-0 z-50 pt-safe bg-white/70 backdrop-blur-xl border-b border-white/20 shadow-glass-sm transition-all duration-300">
       <div className="max-w-5xl mx-auto px-3 md:px-4 h-16 md:h-18 flex items-center gap-2 md:gap-4 justify-between">
 
         {/* Brand Logo - Added for brand consistency */}
@@ -81,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder={t('nav.search')}
               className="w-full bg-white/50 backdrop-blur-md border border-gray-200/50 focus:bg-white focus:border-brand-300/50 focus:ring-4 focus:ring-brand-500/10 rounded-full py-2 pl-9 pr-8 md:py-2.5 md:pl-11 md:pr-10 text-xs md:text-sm font-medium outline-none transition-all placeholder:text-gray-400 shadow-inner"
             />

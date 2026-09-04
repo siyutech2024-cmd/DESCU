@@ -1,9 +1,9 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n';
+import { useBackNavigation } from '@/lib/useBackNavigation';
 
 const PrivacyPolicyPage: React.FC = () => {
-    const navigate = useNavigate();
+    const goBack = useBackNavigation('/');
     const { language } = useLanguage();
 
     const content = language === 'zh' ? {
@@ -164,7 +164,7 @@ You can control cookie usage through your browser settings.`
                 {/* Header */}
                 <div className="mb-8">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={goBack}
                         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

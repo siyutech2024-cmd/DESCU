@@ -41,8 +41,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({
             return <div className="p-4 text-center">Loading or conversation not found...</div>;
         }
         return (
-            <div className="flex-1 sm:py-8 sm:px-4 flex justify-center bg-gray-50">
-                <div className="w-full max-w-4xl h-full sm:h-[85vh] bg-white sm:rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex-1 md:py-8 md:px-4 flex justify-center bg-gray-50">
+                <div className="w-full max-w-4xl h-full md:h-[85vh] bg-white md:rounded-2xl shadow-xl overflow-hidden">
                     <ChatWindow
                         key={activeConv.id}
                         conversation={activeConv}

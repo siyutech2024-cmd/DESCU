@@ -122,20 +122,6 @@ export const createProduct = async (req: any, res: Response) => {
     }
 };
 
-// Health Check
-export const productsHealthCheck = (req: Request, res: Response) => {
-    res.json({
-        status: 'ok',
-        message: 'Product controller loaded',
-        env: {
-            hasSupabaseUrl: !!process.env.SUPABASE_URL,
-            hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY,
-            hasSupabaseServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-            hasGeminiKey: !!process.env.GEMINI_API_KEY
-        }
-    });
-};
-
 export const getProducts = async (req: Request, res: Response) => {
     try {
         const { lang, limit = '50', offset = '0', status, seller_id } = req.query; // Added limit/offset/status/seller_id support

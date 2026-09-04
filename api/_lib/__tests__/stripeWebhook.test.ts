@@ -1,79 +1,20 @@
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://test.supabase.co';
 process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'test-key';
 
-/**
- * In-memory stand-in for the Supabase query builder, just enough for the webhook service:
- * tables are arrays of rows; filters are applied on await.
- */
-type Row = Record<string, any>;
-const db: Record<string, Row[]> = {};
-const calls: { table: string; op: string; payload?: unknown }[] = []; // handy when debugging a failing case
+import { db, FakeQuery, resetDb as resetTables, type Row } from './helpers/fakeSupabase';
 
-class FakeQuery {
-    private filters: ((r: Row) => boolean)[] = [];
-    private op: 'select' | 'insert' | 'update' | 'delete' = 'select';
-    private payload: any;
-    private wantSelect = false;
-    constructor(private table: string) { db[table] ??= []; }
-    select() { this.wantSelect = true; return this; }
-    insert(rows: Row | Row[]) { this.op = 'insert'; this.payload = Array.isArray(rows) ? rows : [rows]; return this; }
-    update(patch: Row) { this.op = 'update'; this.payload = patch; return this; }
-    delete() { this.op = 'delete'; return this; }
-    eq(col: string, v: any) { this.filters.push(r => r[col] === v); return this; }
-    in(col: string, vs: any[]) { this.filters.push(r => vs.includes(r[col])); return this; }
-    or(expr: string) {
-        // supports "col.is.null,col.eq.false"
-        const alts = expr.split(',').map(part => {
-            const [col, op, val] = part.split('.');
-            return (r: Row) => op === 'is' ? r[col] == null : String(r[col]) === val;
-        });
-        this.filters.push(r => alts.some(f => f(r)));
-        return this;
-    }
-    maybeSingle() { return this.then(res => ({ ...res, data: res.data?.[0] ?? null })); }
-    private exec() {
-        calls.push({ table: this.table, op: this.op, payload: this.payload });
-        const rows = db[this.table];
-        const match = (r: Row) => this.filters.every(f => f(r));
-        if (this.op === 'insert') {
-            if (this.table === 'stripe_events') {
-                const dup = this.payload.some((p: Row) => rows.some(r => r.event_id === p.event_id));
-                if (dup) return { data: null, error: { code: '23505', message: 'duplicate key' } };
-            }
-            rows.push(...this.payload);
-            return { data: this.payload, error: null };
-        }
-        if (this.op === 'delete') {
-            const keep = rows.filter(r => !match(r));
-            rows.splice(0, rows.length, ...keep);
-            return { data: null, error: null };
-        }
-        if (this.op === 'update') {
-            const hit = rows.filter(match);
-            hit.forEach(r => Object.assign(r, this.payload));
-            return { data: this.wantSelect ? hit : null, error: null };
-        }
-        return { data: rows.filter(match), error: null };
-    }
-    then(onOk?: ((v: any) => any) | null, onErr?: ((e: any) => any) | null): Promise<any> {
-        return Promise.resolve(this.exec()).then(onOk ?? undefined, onErr ?? undefined);
-    }
-}
-
-jest.mock('../db/supabase', () => ({ supabase: { from: (table: string) => new FakeQuery(table) } }));
+jest.mock('../db/supabase', () => ({ supabase: require('./helpers/fakeSupabase').fakeSupabase }));
 jest.mock('../services/orderNotificationService', () => ({ notifyOrderStatus: jest.fn().mockResolvedValue(undefined) }));
 
 import { processStripeEvent } from '../services/stripeWebhookService';
 
 const ORDER = 'order-1';
-const resetDb = () => {
-    for (const k of Object.keys(db)) delete db[k];
-    calls.length = 0;
-    db.orders = [{ id: ORDER, status: 'pending_payment', total_amount: 100, payment_captured: null, product_id: 'prod-1' }];
-    db.products = [{ id: 'prod-1', status: 'active' }];
-    db.order_timeline = [];
-    db.stripe_events = [];
-};
+const resetDb = () => resetTables({
+    orders: [{ id: ORDER, status: 'pending_payment', total_amount: 100, payment_captured: null, product_id: 'prod-1' }],
+    products: [{ id: 'prod-1', status: 'active' }],
+    order_timeline: [],
+    stripe_events: [],
+});
 
 const checkoutEvent = (id: string, overrides: Partial<Row> = {}) => ({
     id, type: 'checkout.session.completed', created: 1_700_000_000,

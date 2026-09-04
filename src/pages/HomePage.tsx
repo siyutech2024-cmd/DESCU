@@ -3,7 +3,7 @@ import React from 'react';
 import { ProductCard } from '../components/ProductCard';
 import { RefreshCw, MapPinOff, MapPin, SearchX, Package, Car, Home, Smartphone, Briefcase, Armchair, Shirt, Book, Trophy } from 'lucide-react';
 import { useLanguage } from '@/i18n';
-import { useRegion } from '../contexts/RegionContext';
+import { useRegion, REGIONS, REGION_CONFIG } from '../contexts/RegionContext';
 import { Product, Category, Region } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useSEO } from '../hooks/useSEO';
@@ -80,7 +80,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     ];
 
     return (
-        <main className="max-w-5xl mx-auto px-2 md:px-4 pb-32 md:pb-24 w-full overflow-x-hidden">
+        <main className="max-w-5xl mx-auto px-2 md:px-4 w-full overflow-x-hidden">
             {/* DESCU Brand Header */}
             {/* DESCU Brand Header - More Compact on Mobile */}
             <div className="flex flex-col items-center justify-center pt-4 pb-3 md:pt-10 md:pb-8">
@@ -100,14 +100,12 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <div className="md:hidden mt-3 relative">
                     <div className="flex items-center gap-2 bg-gray-100/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-gray-200 shadow-sm animate-fade-in">
                         <MapPin size={13} className="text-brand-600" />
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Deliver to:</span>
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t('home.deliver_to')}:</span>
                         <div className="flex items-center gap-1">
-                            <span className="text-sm">
-                                {region === 'MX' ? '🇲🇽' : region === 'US' ? '🇺🇸' : region === 'CN' ? '🇨🇳' : region === 'EU' ? '🇪🇺' : region === 'JP' ? '🇯🇵' : '🌍'}
-                            </span>
+                            <span className="text-sm">{REGION_CONFIG[region].flag}</span>
                             <div className="flex flex-col">
                                 <span className="text-xs font-bold text-gray-900">
-                                    {locationInfo?.city || (region === 'MX' ? 'Mexico' : region === 'US' ? 'USA' : region === 'CN' ? 'China' : region === 'EU' ? 'Europe' : region === 'JP' ? 'Japan' : 'Global')}
+                                    {locationInfo?.city || REGION_CONFIG[region].label}
                                 </span>
                                 {(locationInfo?.town || locationInfo?.district) && (
                                     <span className="text-[9px] text-gray-600">
@@ -122,12 +120,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                         onChange={(e) => setRegion(e.target.value as Region)}
                         className="absolute inset-0 w-full h-full opacity-0 z-10"
                     >
-                        <option value="MX">Mexico</option>
-                        <option value="US">USA</option>
-                        <option value="CN">China</option>
-                        <option value="EU">Europe</option>
-                        <option value="JP">Japan</option>
-                        <option value="Global">Global</option>
+                        {REGIONS.map(r => (
+                            <option key={r.code} value={r.code}>{r.label}</option>
+                        ))}
                     </select>
                 </div>
             </div>
@@ -204,7 +199,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     )}
                 </div>
             ) : (
-                <div className="flex flex-col gap-8 pb-20">
+                <div className="flex flex-col gap-8">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-6">
                         {sortedProducts.map((product, index) => (
                             <ProductCard
@@ -244,7 +239,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <div className="text-center py-12">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/30 backdrop-blur-sm border border-white/20 text-gray-400 text-xs font-medium">
-                    <span>DESCU Marketplace © 2024</span>
+                    <span>DESCU Marketplace © {new Date().getFullYear()}</span>
                     <span className="w-1 h-1 rounded-full bg-gray-300"></span>
                     <span>Premium Resale</span>
                 </div>

@@ -2,20 +2,10 @@ import { Response } from 'express';
 import { AdminRequest } from '../middleware/adminAuth.js';
 import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
+import { getStripe } from '../lib/stripe.js';
 import { isPaymentSettled } from '../domain/orders.js';
 import { releaseEscrow } from '../services/escrowReleaseService.js';
-
-// --- LAZY STRIPE INIT ---
-let stripeInstance: Stripe | null = null;
-const getStripe = () => {
-    if (!stripeInstance) {
-        stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-            apiVersion: '2024-12-18.acacia' as any,
-        });
-    }
-    return stripeInstance;
-};
+import { completeManualPayout } from '../services/payoutService.js';
 
 /**
  * 记录管理员操作日志
@@ -723,53 +713,17 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
 
 /**
  * 标记订单为已人工打款 (Manual Payout)
+ * Same action as POST /api/admin/payouts/:orderId/complete — both go through
+ * payoutService.completeManualPayout so there is a single state transition.
  */
 export const markOrderAsPaid = async (req: AdminRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { notes } = req.body; // Admin can optionally add a note (e.g. transaction ref)
+        const { notes, reference } = req.body ?? {}; // Admin can optionally add a note / transaction ref
 
-        // 1. Check if order exists and is in correct state
-        const { data: order, error: fetchError } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', id)
-            .single();
+        const outcome = await completeManualPayout({ orderId: String(id), adminId: req.admin?.id ?? null, reference, notes });
+        if (!outcome.ok) return res.status(outcome.code).json({ error: outcome.error });
 
-        if (fetchError || !order) {
-            return res.status(404).json({ error: 'Order not found' });
-        }
-
-        if (order.status !== 'completed_pending_payout') {
-            return res.status(400).json({ error: 'Order is not pending manual payout' });
-        }
-        if (order.transferred_to_seller) {
-            return res.status(409).json({ error: 'Funds were already transferred to the seller via Stripe; nothing to pay out manually' });
-        }
-
-        // 2. Update Order Status (conditional: a concurrent click cannot double-record the payout)
-        const { data: paid, error: updateError } = await supabase
-            .from('orders')
-            .update({
-                status: 'completed',
-                escrow_status: order.payment_method === 'online' ? 'released' : order.escrow_status,
-                transferred_to_seller: true,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', id)
-            .eq('status', 'completed_pending_payout')
-            .select('id');
-
-        if (updateError) throw updateError;
-        if (!paid?.length) return res.status(409).json({ error: 'Order is no longer pending payout' });
-
-        await supabase.from('order_timeline').insert({
-            order_id: id, event_type: 'manual_payout_completed',
-            description: notes ? `Manual payout: ${notes}` : 'Manual payout completed',
-            created_by: req.admin?.id ?? null, metadata: { notes: notes ?? null },
-        });
-
-        // 3. Log Admin Action
         if (req.admin) {
             await logAdminAction(
                 req.admin.id,
@@ -777,11 +731,13 @@ export const markOrderAsPaid = async (req: AdminRequest, res: Response) => {
                 'manual_payout',
                 'order',
                 String(id),
-                { notes, previous_status: 'completed_pending_payout' }
+                { notes, reference: outcome.order.payout_reference, previous_status: 'completed_pending_payout' },
+                req.ip,
+                req.get('user-agent')
             );
         }
 
-        res.json({ success: true });
+        res.json({ success: true, order: outcome.order });
 
     } catch (error: any) {
         console.error('标记订单已打款失败:', error);

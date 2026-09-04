@@ -22,14 +22,29 @@ const EXCHANGE_RATES: Record<string, number> = {
     JPY: 150,
 };
 
-const REGION_CONFIG: Record<Region, { currency: Currency; flag: string; label: string }> = {
-    MX: { currency: 'MXN', flag: '🇲🇽', label: 'Mexico' },
-    US: { currency: 'USD', flag: '🇺🇸', label: 'USA' },
-    CN: { currency: 'CNY', flag: '🇨🇳', label: 'China' },
-    EU: { currency: 'EUR', flag: '🇪🇺', label: 'Europe' },
-    JP: { currency: 'JPY', flag: '🇯🇵', label: 'Japan' },
-    Global: { currency: 'USD', flag: '🌍', label: 'Global' },
+export interface RegionInfo {
+    currency: Currency;
+    flag: string;
+    /** Short English label (used in compact UI such as the home "deliver to" pill). */
+    label: string;
+    /** Native / display name shown in region pickers. */
+    name: string;
+}
+
+export const REGION_CONFIG: Record<Region, RegionInfo> = {
+    MX: { currency: 'MXN', flag: '🇲🇽', label: 'Mexico', name: 'México' },
+    US: { currency: 'USD', flag: '🇺🇸', label: 'USA', name: 'United States' },
+    CN: { currency: 'CNY', flag: '🇨🇳', label: 'China', name: '中国' },
+    EU: { currency: 'EUR', flag: '🇪🇺', label: 'Europe', name: 'Europe' },
+    JP: { currency: 'JPY', flag: '🇯🇵', label: 'Japan', name: '日本' },
+    Global: { currency: 'USD', flag: '🌍', label: 'Global', name: 'Global' },
 };
+
+/** Ordered list of selectable regions — the single source for region pickers. */
+export const REGIONS: ReadonlyArray<RegionInfo & { code: Region }> = (Object.keys(REGION_CONFIG) as Region[]).map(code => ({
+    code,
+    ...REGION_CONFIG[code],
+}));
 
 import { useLanguage } from '@/i18n';
 

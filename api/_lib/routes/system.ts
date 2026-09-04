@@ -1,55 +1,34 @@
 import { Router } from 'express';
-import fs from 'fs';
-import path from 'path';
 
 /** Diagnostics / health endpoints. */
 export const systemRouter = Router();
 const router = systemRouter;
 
-// Test Route
-router.get('/api/test_ping', (req, res) => {
-    const debug: any = {
-        pong: true,
-        time: new Date().toISOString(),
-        location: 'api/_lib/routes/system.ts',
-        fs: {}
-    };
+/**
+ * Build/deploy identifier, cheaply: the commit Vercel deployed, else the npm
+ * package version when started via `npm run server`, else 'dev'.
+ */
+const resolveVersion = (): string =>
+    process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7)
+    || process.env.npm_package_version
+    || 'dev';
 
-    try {
-        const root = process.cwd();
-        debug.fs.cwd = root;
-
-        // Check api folder
-        const apiPath = path.join(root, 'api');
-        if (fs.existsSync(apiPath)) {
-            debug.fs.api = fs.readdirSync(apiPath);
-
-            // Check _lib
-            const libPath = path.join(apiPath, '_lib');
-            if (fs.existsSync(libPath)) {
-                debug.fs.lib = fs.readdirSync(libPath);
-
-                // Check controllers
-                const ctrlPath = path.join(libPath, 'controllers');
-                if (fs.existsSync(ctrlPath)) {
-                    debug.fs.controllers = fs.readdirSync(ctrlPath);
-                } else {
-                    debug.fs.controllers = 'NOT_FOUND';
-                }
-            } else {
-                debug.fs.lib = 'NOT_FOUND';
-            }
-        } else {
-            debug.fs.api = 'NOT_FOUND';
-        }
-
-    } catch (e: any) {
-        debug.fs_error = e.message;
-    }
-
-    res.json(debug);
+/**
+ * Liveness + configuration check. Reports only whether each integration's
+ * env var is present — never values, never filesystem contents.
+ */
+router.get('/api/health', (_req, res) => {
+    res.json({
+        ok: true,
+        version: resolveVersion(),
+        services: {
+            supabase: !!(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY)),
+            stripe: !!process.env.STRIPE_SECRET_KEY,
+            gemini: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY),
+        },
+    });
 });
 
-router.get('/', (req, res) => {
+router.get('/', (_req, res) => {
     res.send('DESCU API');
 });

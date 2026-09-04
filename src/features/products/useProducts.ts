@@ -11,7 +11,11 @@ type ProductPages = InfiniteData<ApiProduct[], number>;
 
 /**
  * Paginated product feed for the current language.
- * The query is disabled until a location is known so distances can be computed.
+ *
+ * The request starts immediately — it does not wait for geolocation. The API ranks
+ * products without lat/lng, so `origin` only affects the client-side distance shown on
+ * each card: pass the fallback location first and the real coordinates when they arrive;
+ * distances are recomputed from the cached pages without refetching.
  */
 export const useProducts = (origin: Coordinates | null) => {
     const { language } = useLanguage();
@@ -20,7 +24,6 @@ export const useProducts = (origin: Coordinates | null) => {
 
     const query = useInfiniteQuery<ApiProduct[], Error, ProductPages, typeof queryKey, number>({
         queryKey,
-        enabled: origin !== null,
         initialPageParam: 1,
         queryFn: ({ pageParam, signal }) => listProducts({ language, page: pageParam }, signal),
         getNextPageParam: (lastPage, pages) => (lastPage.length < PRODUCTS_PAGE_SIZE ? undefined : pages.length + 1),
@@ -59,8 +62,8 @@ export const useProducts = (origin: Coordinates | null) => {
 
     return {
         products,
-        // Treat "waiting for a location" as loading so the feed shows skeletons, not the empty state.
-        isLoading: origin === null || query.isPending,
+        // Skeletons only while the first page is in flight (`isPending` = no data yet).
+        isLoading: query.isPending,
         isLoadingMore: query.isFetchingNextPage,
         hasMore: query.hasNextPage ?? false,
         loadMore: () => {
