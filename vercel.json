@@ -22,10 +22,21 @@
                 {
                     "type": "header",
                     "key": "user-agent",
-                    "value": "(?i).*(googlebot|bingbot|yandexbot|duckduckbot|slurp|baiduspider|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot|GPTBot|ChatGPT-User|PerplexityBot|ClaudeBot|Google-Extended|Bytespider|cohere-ai|anthropic-ai).*"
+                    "value": "(?i).*(googlebot|google-inspectiontool|storebot-google|bingbot|bingpreview|yandexbot|duckduckbot|duckassistbot|slurp|baiduspider|facebookexternalhit|facebot|meta-externalagent|meta-externalfetcher|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|slackbot|skypeuripreview|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot|ia_archiver|GPTBot|ChatGPT-User|OAI-SearchBot|PerplexityBot|Perplexity-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|Google-Extended|Bytespider|cohere-ai|CCBot|Amazonbot|MistralAI-User|YouBot|Diffbot).*"
                 }
             ],
             "destination": "/api/prerender?path=/"
+        },
+        {
+            "source": "/como-funciona",
+            "has": [
+                {
+                    "type": "header",
+                    "key": "user-agent",
+                    "value": "(?i).*(googlebot|google-inspectiontool|storebot-google|bingbot|bingpreview|yandexbot|duckduckbot|duckassistbot|slurp|baiduspider|facebookexternalhit|facebot|meta-externalagent|meta-externalfetcher|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|slackbot|skypeuripreview|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot|ia_archiver|GPTBot|ChatGPT-User|OAI-SearchBot|PerplexityBot|Perplexity-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|Google-Extended|Bytespider|cohere-ai|CCBot|Amazonbot|MistralAI-User|YouBot|Diffbot).*"
+                }
+            ],
+            "destination": "/api/prerender?path=/como-funciona"
         },
         {
             "source": "/buy/:category/in/:city",
@@ -33,7 +44,7 @@
                 {
                     "type": "header",
                     "key": "user-agent",
-                    "value": "(?i).*(googlebot|bingbot|yandexbot|duckduckbot|slurp|baiduspider|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot|GPTBot|ChatGPT-User|PerplexityBot|ClaudeBot|Google-Extended|Bytespider|cohere-ai|anthropic-ai).*"
+                    "value": "(?i).*(googlebot|google-inspectiontool|storebot-google|bingbot|bingpreview|yandexbot|duckduckbot|duckassistbot|slurp|baiduspider|facebookexternalhit|facebot|meta-externalagent|meta-externalfetcher|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|slackbot|skypeuripreview|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot|ia_archiver|GPTBot|ChatGPT-User|OAI-SearchBot|PerplexityBot|Perplexity-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|Google-Extended|Bytespider|cohere-ai|CCBot|Amazonbot|MistralAI-User|YouBot|Diffbot).*"
                 }
             ],
             "destination": "/api/prerender?path=/buy/:category/in/:city"
@@ -48,7 +59,7 @@
                 {
                     "type": "header",
                     "key": "user-agent",
-                    "value": "(?i).*(googlebot|bingbot|yandexbot|duckduckbot|slurp|baiduspider|facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot|GPTBot|ChatGPT-User|PerplexityBot|ClaudeBot|Google-Extended|Bytespider|cohere-ai|anthropic-ai).*"
+                    "value": "(?i).*(googlebot|google-inspectiontool|storebot-google|bingbot|bingpreview|yandexbot|duckduckbot|duckassistbot|slurp|baiduspider|facebookexternalhit|facebot|meta-externalagent|meta-externalfetcher|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|slackbot|skypeuripreview|applebot|pinterestbot|semrushbot|ahrefsbot|mj12bot|petalbot|ia_archiver|GPTBot|ChatGPT-User|OAI-SearchBot|PerplexityBot|Perplexity-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|Google-Extended|Bytespider|cohere-ai|CCBot|Amazonbot|MistralAI-User|YouBot|Diffbot).*"
                 }
             ],
             "destination": "/api/prerender?path=/product/:id"

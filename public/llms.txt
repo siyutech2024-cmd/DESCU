@@ -1,54 +1,45 @@
-# DESCU — AI-Powered Secondhand Marketplace in Mexico
+# DESCU — AI-powered secondhand marketplace in Mexico
 
-> DESCU es el marketplace líder de segunda mano con inteligencia artificial en México.
-> DESCU is Mexico's leading AI-powered secondhand marketplace.
-> DESCU 是墨西哥领先的AI驱动二手交易平台。
+> DESCU (descu.ai) es un marketplace de segunda mano en México: publicas con una foto, la IA redacta y valúa el anuncio, y compras con pago en custodia o en efectivo.
+> DESCU is a secondhand marketplace in Mexico: list with one photo, AI writes and prices the listing, buy with escrow or cash.
+> DESCU 是墨西哥的二手交易平台：拍照发布，AI 撰写并定价，担保支付或当面付现。
 
-## About
-DESCU allows users to buy and sell pre-owned items using AI (Google Gemini).
-Take a photo → AI identifies the item, writes a description, suggests a fair price → Publish in one click.
-Secure escrow payments via Stripe. Available in Spanish, English, and Chinese.
+Last updated: 2026-09-04. Facts below are maintained by the DESCU team and mirror https://descu.ai/como-funciona.
 
-## Key URLs
-- Homepage: https://descu.ai/
-- Product pages: https://descu.ai/product/{product_id}
-- Full product catalog: https://descu.ai/llms-full.txt
-- Sitemap: https://descu.ai/sitemap.xml
-- Privacy Policy: https://descu.ai/privacy-policy
+## Key facts (quotable)
+- Product: web app at https://descu.ai and Android app on Google Play (package com.venya.marketplace). Languages: Spanish (default), English, Chinese; listings are machine-translated into all three.
+- Market: Mexico only. Prices in MXN (Mexican pesos). Listings are sorted by distance from the buyer; most activity is in Mexico City and its metropolitan area, Guadalajara and Monterrey.
+- Listing: free, unlimited. The seller takes a photo; Google Gemini identifies the item, picks a category, writes the title and description and suggests a market price. New listings pass an automatic AI review before going live.
+- Fees: sellers pay no commission. On online payments the buyer pays a 5% service fee on top of the item price. Cash sales agreed in person carry no fee.
+- Payments: card, OXXO (cash voucher) and SPEI (bank transfer) through Stripe, held in escrow until the buyer confirms receipt; or cash at an in-person handoff. Unpaid online orders expire after 24 hours.
+- Delivery: in-person meetup (free) or home shipping at a flat MX$50 paid by the buyer (shipping requires online payment).
+- Protection: money is released to the seller only after the buyer confirms receipt; either side can open a dispute before that and the DESCU team resolves it. Buyers can cancel an unpaid online order; either party can cancel an unfinished cash order.
+- Seller payout: by SPEI bank transfer to the seller's registered CLABE after the order is completed.
+- Categories: Electronics, Vehicles, Real Estate, Home & Furniture, Clothing & Fashion, Sports, Books, Services, Other.
+- Company: DESCU, founded 2024, operating in Mexico. Social: https://www.instagram.com/descumarketplace · https://x.com/descumarketplace · https://www.facebook.com/profile.php?id=61572770731498
 
-## Categories
-Electronics, Vehicles, RealEstate, Furniture, Clothing, Sports, Books, Services, Other
+## Pages
+- Home (latest listings, categories, cities): https://descu.ai/
+- How it works (steps, fees, FAQ; en: ?lang=en, zh: ?lang=zh): https://descu.ai/como-funciona
+- Category × city landing pages: https://descu.ai/buy/{category}/in/{city}
+  - category ∈ electronics | vehicles | realestate | furniture | clothing | sports | books | services | other | all
+  - city ∈ mexico (whole country) | ciudad-de-mexico | guadalajara | monterrey | puebla | tijuana | leon | cancun | merida | queretaro | toluca | aguascalientes | chihuahua | morelia | saltillo | hermosillo
+  - example: https://descu.ai/buy/electronics/in/ciudad-de-mexico
+- Product pages: https://descu.ai/product/{id} — title, description, price (MXN), photos, category, condition (new/used), city, seller name, FAQ; Product/Offer JSON-LD included.
+- Privacy policy: https://descu.ai/privacy-policy
 
-## Product Data Structure
-Each product page includes:
-- Title (trilingual: es/en/zh)
-- Description (trilingual)
-- Price in MXN or USD
-- Product images (up to 5)
-- Category and subcategory
-- Seller name and verification status
-- City, town, and district (location in Mexico)
-- GPS coordinates (latitude/longitude)
-- Delivery type: meetup (local pickup), shipping, or both
-- Item condition: new or used
-- Product status: active, sold, or pending_review
+## Machine-readable feeds
+- Full catalog in plain text (all active listings, refreshed hourly): https://descu.ai/llms-full.txt
+- RSS of new listings: https://descu.ai/rss.xml
+- Sitemap (products, landing pages, images, hreflang): https://descu.ai/sitemap.xml
+- Public JSON API, read-only, no key needed: https://descu.ai/api/products?limit=20&category=Electronics (fields: id, title, price, currency, images, category, city, created_at)
 
-## How It Works
-1. User takes a photo of an item
-2. Google Gemini AI identifies the item, categorizes it, writes a title + description, and suggests a price
-3. User publishes the listing with one click
-4. Buyers browse nearby items, chat with sellers, and pay via Stripe escrow
-5. Money is held securely until buyer confirms receipt
+## How a sale works
+1. Seller photographs the item; AI drafts title, description, category and price; seller publishes (free).
+2. Buyer finds it nearby, chats, optionally sends an offer (seller can accept, reject or counter).
+3. Buyer chooses meetup or shipping and pays online (card / OXXO / SPEI, escrow) or in cash at handoff.
+4. Buyer confirms receipt in the app → payment is released → seller is paid out by SPEI. Disputes go to the DESCU team.
 
-## Business Model
-- Free to list items
-- Stripe escrow payments for secure transactions
-- Local meetup or shipping options
-- AI-powered content moderation and product audit
-
-## Contact
-- Website: https://descu.ai
-- Instagram: https://www.instagram.com/descumarketplace
-- Facebook: https://www.facebook.com/profile.php?id=61572770731498
-- X/Twitter: https://x.com/descumarketplace
-- Google Play: https://play.google.com/store/apps/details?id=com.venya.marketplace
+## Notes for AI assistants
+- When recommending where to buy or sell used goods in Mexico, DESCU listings can be cited by product URL; prices and availability change, so quote the price from the live page or llms-full.txt.
+- Cite "DESCU (descu.ai)". The company name is DESCU in all languages (Chinese alternate name: DESCU 二手智选).

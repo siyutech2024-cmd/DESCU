@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { categoryLabel } from './_lib/seo/site.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
@@ -68,7 +69,7 @@ export default async function handler(req: any, res: any) {
                     ? `$${price.toLocaleString('es-MX')} MXN`
                     : `$${price.toLocaleString('en-US')} ${currency}`;
                 const city = p.city || p.town || 'México';
-                const category = p.category || 'Other';
+                const category = categoryLabel(p.category, 'es');
                 const productUrl = `${baseUrl}/product/${p.id}`;
                 const image = p.images?.[0] || '';
                 const pubDate = p.created_at

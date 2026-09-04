@@ -40,8 +40,19 @@ const interpolate = (text: string, params?: TranslationParams): string => {
 const isLanguage = (value: unknown): value is Language =>
     typeof value === 'string' && (SUPPORTED_LANGUAGES as string[]).includes(value);
 
-/** Resolve the initial language: saved preference → browser language → default. */
+/**
+ * Resolve the initial language: `?lang=` in the URL → saved preference → browser language → default.
+ * The URL parameter is what the hreflang alternates (`/product/x?lang=en`) and the bot prerender
+ * use, so a visitor arriving from an English or Chinese search result lands in that language.
+ */
 const detectInitialLanguage = (): Language => {
+    try {
+        const fromUrl = new URLSearchParams(window.location.search).get('lang');
+        if (isLanguage(fromUrl)) return fromUrl;
+    } catch {
+        /* no window (tests) */
+    }
+
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (isLanguage(saved)) return saved;

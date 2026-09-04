@@ -8,6 +8,8 @@ import { Product, Category, Region } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useSEO } from '../hooks/useSEO';
 import { DetailedLocationInfo } from '../services/locationService';
+// Shared with the bot prerender so both render the same titles.
+import { SITE_TEXT, categoryLabel } from '../../api/_lib/seo/site';
 
 interface HomePageProps {
     sortedProducts: Product[];
@@ -43,13 +45,20 @@ export const HomePage: React.FC<HomePageProps> = ({
     onToggleFavorite,
     locationInfo
 }) => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { region, setRegion } = useRegion();
     const navigate = useNavigate();
 
+    // Title/description follow the language and the active category (also used for /buy/{category}/in/{city}).
+    const seoText = SITE_TEXT[language];
+    const seoCategory = selectedCategory !== 'all' ? categoryLabel(selectedCategory, language) : null;
     useSEO({
-        title: 'DESCU - Compra y Vende Segunda Mano en México | IA Inteligente',
-        description: 'Marketplace de segunda mano con inteligencia artificial. Compra y vende artículos usados cerca de ti en México. Electrónicos, autos, muebles, ropa y más. ¡Publica con IA en un clic!',
+        title: seoCategory
+            ? (language === 'en' ? `Used ${seoCategory} in Mexico | DESCU` : language === 'zh' ? `墨西哥二手${seoCategory} | DESCU` : `${seoCategory} de segunda mano en México | DESCU`)
+            : seoText.homeTitle,
+        description: seoCategory
+            ? (language === 'en' ? `Pre-owned ${seoCategory.toLowerCase()} near you in Mexico. ${seoText.shortDesc}` : language === 'zh' ? `墨西哥附近的二手${seoCategory}。${seoText.shortDesc}` : `${seoCategory} de segunda mano cerca de ti en México. ${seoText.shortDesc}`)
+            : seoText.homeDesc,
     });
 
     // Map Category enum values to translation keys (enum values like "RealEstate" don't match keys like "real_estate")

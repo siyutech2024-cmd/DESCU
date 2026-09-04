@@ -1,44 +1,90 @@
-# DESCU Marketplace - robots.txt
+# DESCU — https://descu.ai
+# Public pages: /, /como-funciona, /buy/{category}/in/{city}, /product/{id}
+# Machine-readable: /sitemap.xml, /rss.xml, /llms.txt, /llms-full.txt
+
 User-agent: *
 Allow: /
-Allow: /product/
-Allow: /sitemap.xml
-
-# Block non-SEO pages (require login)
+# Account-only screens (nothing to index)
 Disallow: /admin/
 Disallow: /chat
 Disallow: /favorites
 Disallow: /orders
 Disallow: /profile
+Disallow: /checkout
+# API endpoints (the crawlable feeds are rewritten to their public URLs above)
+Disallow: /api/
+# Modal / state parameters that duplicate the page underneath
+Disallow: /*?sell=
+Disallow: /*?checkout=
+Disallow: /*&sell=
+Disallow: /*&checkout=
 
-# AI Search Engine Crawlers — full access to product content
+# AI search & answer engines — full access to product content and the LLM manifests
 User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
 Allow: /
 
 User-agent: ChatGPT-User
 Allow: /
 
-User-agent: Google-Extended
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
 User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-SearchBot
 Allow: /
 
 User-agent: anthropic-ai
 Allow: /
 
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
 User-agent: cohere-ai
+Allow: /
+
+User-agent: YouBot
 Allow: /
 
 User-agent: Bytespider
 Allow: /
 
-# Sitemap
+User-agent: CCBot
+Allow: /
+
 Sitemap: https://descu.ai/sitemap.xml
 
-# AI manifest (see https://descu.ai/llms.txt for LLM-friendly site description)
-# Full product catalog: https://descu.ai/llms-full.txt
-# RSS Feed: https://descu.ai/rss.xml
+# LLM-friendly site description: https://descu.ai/llms.txt
+# Full product catalog (plain text): https://descu.ai/llms-full.txt
+# RSS feed of new listings: https://descu.ai/rss.xml

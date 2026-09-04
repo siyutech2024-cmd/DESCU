@@ -6,6 +6,7 @@ import { useLanguage } from '@/i18n';
 import { useAuth } from '@/features/auth';
 import { useGeolocation, FALLBACK_LOCATION } from '@/features/location';
 import { useProducts, useProductFilters, useFavorites, useCreateProduct } from '@/features/products';
+import { normalizeCategory, ALL_CATEGORIES } from '@/features/products/categories';
 import { useConversations } from '@/features/chat';
 import { useOrders } from '@/features/orders';
 import { notify } from '@/lib/toast';
@@ -21,6 +22,7 @@ const OrdersPage = React.lazy(() => import('@/pages/OrdersPage').then(m => ({ de
 const ChatPage = React.lazy(() => import('@/pages/ChatPage').then(m => ({ default: m.ChatPage })));
 const UserProfilePage = React.lazy(() => import('@/pages/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 const PrivacyPolicyPage = React.lazy(() => import('@/pages/PrivacyPolicyPage'));
+const HowItWorksPage = React.lazy(() => import('@/pages/HowItWorksPage').then(m => ({ default: m.HowItWorksPage })));
 
 // Modals — code-split
 const SellModal = React.lazy(() => import('@/features/products/components/SellModal').then(m => ({ default: m.SellModal })));
@@ -85,7 +87,35 @@ export const MarketplaceApp: React.FC = () => {
 
     const currentView = useMemo(() => viewFromPath(pathname), [pathname]);
 
+    // /buy/{category}/in/{city}: the SEO landing pages render the feed with that category selected
+    // (crawlers get static HTML from api/prerender.ts; people get the live feed at the same URL).
+    const landingMatch = pathname.match(/^\/buy\/([^/]+)\/in\/[^/]+$/);
+    const landingCategory = landingMatch ? decodeURIComponent(landingMatch[1]).toLowerCase() : null;
+    useEffect(() => {
+        if (landingCategory === null) return;
+        setSelectedCategory(landingCategory === 'all' ? ALL_CATEGORIES : normalizeCategory(landingCategory));
+    }, [landingCategory]);
+
     const handleSellClick = () => requireUser(openSellModal);
+
+    const homeElement = (
+        <HomePage
+            sortedProducts={filters.filteredProducts}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            isLoadingLoc={geo.isLoading}
+            isLoadingProducts={feed.isLoading}
+            permissionDenied={geo.permissionDenied}
+            searchQuery={filters.searchQuery}
+            onSellClick={handleSellClick}
+            hasMore={feed.hasMore}
+            isLoadingMore={feed.isLoadingMore}
+            onLoadMore={feed.loadMore}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+            locationInfo={geo.locationInfo}
+        />
+    );
 
     return (
         <div className="min-h-dvh bg-gradient-to-br from-indigo-50/50 via-purple-50/50 to-pink-50/50 animate-gradient-xy flex flex-col font-sans text-gray-900 selection:bg-brand-100 selection:text-brand-900">
@@ -105,27 +135,8 @@ export const MarketplaceApp: React.FC = () => {
             <div className="flex-1 flex flex-col relative w-full max-w-[100vw] overflow-x-hidden pb-bottom-nav md:pb-0">
                 <React.Suspense fallback={<PageLoader />}>
                     <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <HomePage
-                                    sortedProducts={filters.filteredProducts}
-                                    selectedCategory={selectedCategory}
-                                    setSelectedCategory={setSelectedCategory}
-                                    isLoadingLoc={geo.isLoading}
-                                    isLoadingProducts={feed.isLoading}
-                                    permissionDenied={geo.permissionDenied}
-                                    searchQuery={filters.searchQuery}
-                                    onSellClick={handleSellClick}
-                                    hasMore={feed.hasMore}
-                                    isLoadingMore={feed.isLoadingMore}
-                                    onLoadMore={feed.loadMore}
-                                    favorites={favorites}
-                                    onToggleFavorite={toggleFavorite}
-                                    locationInfo={geo.locationInfo}
-                                />
-                            }
-                        />
+                        <Route path="/" element={homeElement} />
+                        <Route path="/buy/:category/in/:city" element={homeElement} />
                         <Route
                             path="/product/:id"
                             element={
@@ -166,6 +177,7 @@ export const MarketplaceApp: React.FC = () => {
                         <Route path="/orders" element={<OrdersPage user={user} />} />
                         <Route path="/user/:id" element={<UserProfilePage currentUserId={user?.id} />} />
                         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                        <Route path="/como-funciona" element={<HowItWorksPage onSellClick={handleSellClick} />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                 </React.Suspense>

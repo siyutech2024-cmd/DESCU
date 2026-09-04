@@ -118,7 +118,8 @@ export const ProductPage: React.FC<ProductPageProps> = ({
         title: product ? `${product.title} - ${formatPrice(product.price)} | DESCU México` : 'Producto No Encontrado | DESCU',
         description: product ? `${product.title} a solo ${formatPrice(product.price)} en DESCU. ${product.description?.substring(0, 120) || ''} Compra artículos de segunda mano cerca de ti en México.` : 'Producto no encontrado en DESCU.',
         image: product?.images[0],
-        product: product
+        product: product,
+        noindex: !loading && !product,
     });
 
     if (loading) {
