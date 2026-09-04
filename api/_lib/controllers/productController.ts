@@ -1,237 +1,124 @@
-import { Request, Response } from 'express';
+import type { Request } from 'express';
 import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 import { t } from '../utils/i18n.js';
+import { asyncHandler, notFound, parseBody, parseQuery, unauthorized } from '../lib/http.js';
+import type { AuthenticatedRequest } from '../middleware/userAuth.js';
+import { CreateProductSchema, ListProductsQuerySchema } from '../schemas/products.js';
 
-export const createProduct = async (req: any, res: Response) => {
-    try {
-        const user = req.user; // Set by requireAuth
-        const authHeader = req.headers.authorization;
-
-        if (!user || !authHeader) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const {
-            seller_name,
-            seller_avatar,
-            title,
-            description,
-            price,
-            currency,
-            images,
-            category,
-            subcategory,
-            source_language,
-            delivery_type,
-            latitude,
-            longitude,
-            location_name,
-            country,
-            city,
-            town,
-            district,
-            location_display_name
-        } = req.body;
-
-        // Validation
-        if (typeof title !== 'string' || !title.trim() || price === undefined) {
-            return res.status(400).json({ error: 'Missing required fields (title, price)' });
-        }
-        const numericPrice = Number(price);
-        if (!Number.isFinite(numericPrice) || numericPrice <= 0 || numericPrice > 100_000_000) {
-            return res.status(400).json({ error: 'Price must be a positive number' });
-        }
-        if (title.length > 200 || (typeof description === 'string' && description.length > 5000)) {
-            return res.status(400).json({ error: 'Title or description too long' });
-        }
-        if (images !== undefined && (!Array.isArray(images) || images.length > 10)) {
-            return res.status(400).json({ error: 'Images must be an array of at most 10 URLs' });
-        }
-
-        const productData = {
-            seller_id: user.id, // Enforce authenticated user ID
-            seller_name: (typeof seller_name === 'string' && seller_name.trim()) || user.email?.split('@')[0] || 'Unknown',
-            // Email comes from the verified auth user, never from the request body
-            seller_email: user.email || '',
-            seller_avatar: typeof seller_avatar === 'string' ? seller_avatar.slice(0, 2000) : null,
-            // Verification is an admin-granted attribute; clients cannot self-award it
-            seller_verified: false,
-            title: title.trim(),
-            description: description || '',
-            price: numericPrice,
-            currency: currency || 'MXN',
-            images: images || [],
-            category: category || 'other',
-            subcategory: subcategory || null,
-            source_language: source_language || 'es',
-            delivery_type: delivery_type || 'both',
-            latitude: latitude || 0,
-            longitude: longitude || 0,
-            location_name: location_name || '',
-            country: country || 'MX',
-            city: city || 'Unknown',
-            town: town || null,
-            district: district || null,
-            location_display_name: location_display_name || null,
-            status: 'pending_review',
-            views_count: 0,
-            reported_count: 0,
-            is_promoted: false
-        };
-
-        console.log('[Product] Creating product with status:', productData.status);
-
-        // Create a scoped Supabase client for this user to pass RLS
-        const scopedSupabase = createClient(
-            process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
-            process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
-            {
-                global: {
-                    headers: {
-                        Authorization: authHeader // Pass the Bearer token
-                    }
-                }
-            }
-        );
-
-        const { data, error } = await scopedSupabase
-            .from('products')
-            .insert([productData])
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Supabase insert error:', error);
-            throw error;
-        }
-
-        // 异步通知搜索引擎新产品（不阻塞响应）
-        if (data?.id) {
-            import('./seoController.js').then(({ notifyIndexNow, pingGoogleSitemap }) => {
-                const productUrl = `https://descu.ai/product/${data.id}`;
-                notifyIndexNow([productUrl, 'https://descu.ai/']).catch(() => { });
-                pingGoogleSitemap().catch(() => { });
-            }).catch(() => { });
-        }
-
-        res.status(201).json(data);
-    } catch (error: any) {
-        console.error('Error creating product:', error);
-        res.status(500).json({ error: error.message || 'Failed to create product' });
-    }
+/** Supabase client scoped to the caller's JWT so RLS applies (anon key + Bearer token). */
+const scopedClient = (authHeader: string) => {
+    const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    if (!sbUrl || !sbKey) throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
+    return createClient(sbUrl, sbKey, { global: { headers: { Authorization: authHeader } } });
 };
 
-export const getProducts = async (req: Request, res: Response) => {
-    try {
-        const { lang, limit = '50', offset = '0', status, seller_id } = req.query; // Added limit/offset/status/seller_id support
-        const authHeader = req.headers.authorization;
+export const createProduct = asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    const user = req.user; // Set by requireAuth
+    const authHeader = req.headers.authorization;
+    if (!user || !authHeader) throw unauthorized();
 
-        let client = supabase;
+    const body = parseBody(CreateProductSchema, req.body);
 
-        // If user is authenticated, use their context (for RLS)
-        if (authHeader) {
-            const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-            const sbKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    const productData = {
+        seller_id: user.id, // Enforce authenticated user ID
+        seller_name: body.seller_name?.trim() || user.email?.split('@')[0] || 'Unknown',
+        // Email comes from the verified auth user, never from the request body
+        seller_email: user.email || '',
+        seller_avatar: typeof body.seller_avatar === 'string' ? body.seller_avatar : null,
+        // Verification is an admin-granted attribute; clients cannot self-award it
+        seller_verified: false,
+        title: body.title,
+        description: body.description || '',
+        price: body.price,
+        currency: body.currency || 'MXN',
+        images: body.images || [],
+        category: body.category || 'other',
+        subcategory: body.subcategory || null,
+        source_language: body.source_language || 'es',
+        delivery_type: body.delivery_type || 'both',
+        latitude: body.latitude || 0,
+        longitude: body.longitude || 0,
+        location_name: body.location_name || '',
+        country: body.country || 'MX',
+        city: body.city || 'Unknown',
+        town: body.town || null,
+        district: body.district || null,
+        location_display_name: body.location_display_name || null,
+        status: 'pending_review',
+        views_count: 0,
+        reported_count: 0,
+        is_promoted: false,
+    };
 
-            if (!sbUrl || !sbKey) {
-                throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be configured');
-            }
+    console.log('[Product] Creating product with status:', productData.status);
 
-            client = createClient(
-                sbUrl,
-                sbKey,
-                {
-                    global: {
-                        headers: {
-                            Authorization: authHeader
-                        }
-                    }
-                }
-            );
-        }
+    // Insert through a client scoped to this user so the RLS insert policy applies.
+    const { data, error } = await scopedClient(authHeader)
+        .from('products')
+        .insert([productData])
+        .select()
+        .single();
+    if (error) throw error;
 
-        let query = client
-            .from('products')
-            .select('*')
-            .is('deleted_at', null);
-
-        // Filter by seller_id if provided
-        if (seller_id) {
-            query = query.eq('seller_id', seller_id);
-        }
-
-        // Status Logic:
-        // Default to 'active' unless 'status' param is provided
-        // Use 'all' to fetch all statuses (RLS policies will still apply)
-        if (status) {
-            if (status !== 'all') {
-                query = query.eq('status', status);
-            }
-        } else {
-            // Default behavior: Public feed only shows active products
-            query = query.eq('status', 'active');
-        }
-
-        query = query.order('created_at', { ascending: false });
-
-        // Apply Pagination (Range)
-        const limitVal = parseInt(String(limit)) || 20;
-        const offsetVal = parseInt(String(offset)) || 0;
-
-        // Supabase range is inclusive [start, end]
-        query = query.range(offsetVal, offsetVal + limitVal - 1);
-
-        // Limit results if translating to avoid timeouts (but keep pagination working)
-        if (lang && lang !== 'es' && limitVal > 20) {
-            // If user requested > 20 translated items, cap it?
-            // Actually, let's just trust the frontend to send limit=20
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        let products = data || [];
-
-        // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
-        // 移除实时翻译逻辑以提升性能
-
-        res.json(products);
-    } catch (error: any) {
-        console.error("Error fetching products:", error);
-        res.status(500).json({
-            error: error.message || 'Failed to fetch products',
-            stack: error.stack,
-            envCheck: {
-                hasSupabaseUrl: !!process.env.SUPABASE_URL,
-                hasSupabaseKey: !!process.env.SUPABASE_ANON_KEY
-            }
-        });
+    // 异步通知搜索引擎新产品（不阻塞响应）
+    if (data?.id) {
+        import('./seoController.js').then(({ notifyIndexNow, pingGoogleSitemap }) => {
+            const productUrl = `https://descu.ai/product/${data.id}`;
+            notifyIndexNow([productUrl, 'https://descu.ai/']).catch(() => { });
+            pingGoogleSitemap().catch(() => { });
+        }).catch(() => { });
     }
-};
+
+    res.status(201).json(data);
+});
+
+export const getProducts = asyncHandler<Request>(async (req, res) => {
+    const { limit, offset, status, seller_id } = parseQuery(ListProductsQuerySchema, req.query);
+    const authHeader = req.headers.authorization;
+
+    // If user is authenticated, use their context (for RLS)
+    const client = authHeader ? scopedClient(authHeader) : supabase;
+
+    let query = client
+        .from('products')
+        .select('*')
+        .is('deleted_at', null);
+
+    // Filter by seller_id if provided
+    if (seller_id) query = query.eq('seller_id', seller_id);
+
+    // Status Logic: default to 'active' unless 'status' is provided; 'all' fetches every
+    // status (RLS policies still apply).
+    if (status) {
+        if (status !== 'all') query = query.eq('status', status);
+    } else {
+        // Default behavior: Public feed only shows active products
+        query = query.eq('status', 'active');
+    }
+
+    // Supabase range is inclusive [start, end]
+    const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+    if (error) throw error;
+
+    // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
+    res.json(data || []);
+});
 
 // Get single product
-export const getProductById = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
+export const getProductById = asyncHandler<Request>(async (req, res) => {
+    const { id } = req.params;
 
-        const { data: product, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
-            .single();
+    const { data: product, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error || !product) throw notFound(t(req, 'PRODUCT_NOT_FOUND'));
 
-        if (error || !product) {
-            return res.status(404).json({ error: t(req, 'PRODUCT_NOT_FOUND') });
-        }
-
-        // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
-        // 移除实时翻译逻辑以提升性能
-
-        res.json(product);
-    } catch (error: any) {
-        console.error("Error fetching product:", error);
-        res.status(500).json({ error: error.message });
-    }
-};
+    // 翻译已通过预翻译字段实现，前端根据语言读取对应字段
+    res.json(product);
+});

@@ -7,15 +7,23 @@ jest.mock('../db/supabase', () => ({
 }));
 
 import { createReport, blockUser } from '../controllers/moderationController';
+import { errorMiddleware } from '../lib/http';
 
 const me = '7df5401c-a316-4214-85c9-4e76db8b9ef2';
 const other = '0b1d2c3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e';
 
+// Handlers are wrapped in asyncHandler: errors go to next() → errorMiddleware, exactly as in the app.
 const run = async (handler: any, body: unknown, params: Record<string, string> = {}) => {
-    const res: any = { statusCode: 200, body: undefined };
+    const res: any = { statusCode: 200, body: undefined, headersSent: false };
     res.status = (code: number) => { res.statusCode = code; return res; };
-    res.json = (payload: unknown) => { res.body = payload; return res; };
-    await handler({ user: { id: me }, body, params } as any, res);
+    res.json = (payload: unknown) => { res.body = payload; res.headersSent = true; return res; };
+    const req = { user: { id: me }, body, params, method: 'POST', originalUrl: '/test' } as any;
+    await new Promise<void>(resolve => {
+        const next = (err?: unknown) => { if (err) errorMiddleware(err, req, res, () => undefined); resolve(); };
+        const origJson = res.json;
+        res.json = (payload: unknown) => { origJson(payload); resolve(); return res; };
+        Promise.resolve(handler(req, res, next)).catch(next);
+    });
     return res;
 };
 

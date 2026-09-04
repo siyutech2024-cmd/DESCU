@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { registerRoutes } from './routes/index.js';
+import { errorMiddleware, notFoundMiddleware } from './lib/http.js';
 
 export const ALLOWED_ORIGINS: (string | RegExp)[] = [
     'http://localhost:5173',
@@ -17,7 +18,12 @@ export const ALLOWED_ORIGINS: (string | RegExp)[] = [
  * The same app is exported as a Vercel serverless function (api/index.ts) and
  * listened on directly by the local dev server (server/dev.ts).
  */
-export const createApp = () => {
+export interface CreateAppOptions {
+    /** Extra routes mounted before the /api 404 handler (local dev mounts the standalone SEO functions here). */
+    extraRoutes?: (app: express.Express) => void;
+}
+
+export const createApp = ({ extraRoutes }: CreateAppOptions = {}) => {
     const app = express();
 
     app.use(cors({
@@ -35,6 +41,11 @@ export const createApp = () => {
     app.use(express.json({ limit: '10mb' }));
 
     registerRoutes(app);
+    extraRoutes?.(app);
+
+    // Anything under /api that no router claimed, then the single error → JSON translator.
+    app.use('/api', notFoundMiddleware);
+    app.use(errorMiddleware);
 
     return app;
 };

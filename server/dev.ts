@@ -14,9 +14,12 @@ import llmsFullHandler from '../api/llms-full';
 
 const PORT = Number(process.env.PORT) || 3000;
 
-const app = createApp();
-app.get(['/sitemap.xml', '/api/sitemap.xml', '/api/sitemap'], sitemapHandler);
-app.get(['/llms-full.txt', '/api/llms-full'], llmsFullHandler);
+const app = createApp({
+    extraRoutes: app => {
+        app.get(['/sitemap.xml', '/api/sitemap.xml', '/api/sitemap'], sitemapHandler);
+        app.get(['/llms-full.txt', '/api/llms-full'], llmsFullHandler);
+    },
+});
 
 app.listen(PORT, () => {
     console.log(`DESCU API listening on http://localhost:${PORT}`);

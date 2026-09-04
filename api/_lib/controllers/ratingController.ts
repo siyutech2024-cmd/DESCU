@@ -1,58 +1,39 @@
-import { Request, Response } from 'express';
+import type { Request } from 'express';
 import { supabase } from '../db/supabase.js';
+import { asyncHandler, badRequest, parseBody, parseParams, unauthorized } from '../lib/http.js';
+import type { AuthenticatedRequest } from '../middleware/userAuth.js';
+import { RatingUserIdParamSchema, SubmitRatingSchema } from '../schemas/ratings.js';
 
-export const submitRating = async (req: Request & { user?: { id: string } }, res: Response) => {
-    try {
-        // The rater is ALWAYS the authenticated user — never trust a rater_id from the body.
-        const rater_id = req.user?.id;
-        const { target_user_id, score, comment } = req.body ?? {};
+export const submitRating = asyncHandler<AuthenticatedRequest>(async (req, res) => {
+    // The rater is ALWAYS the authenticated user — never trust a rater_id from the body.
+    const rater_id = req.user?.id;
+    if (!rater_id) throw unauthorized();
 
-        if (!rater_id) return res.status(401).json({ error: 'Unauthorized' });
-        if (typeof target_user_id !== 'string' || !target_user_id) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-        if (target_user_id === rater_id) {
-            return res.status(400).json({ error: 'You cannot rate yourself' });
-        }
-        const numericScore = Number(score);
-        if (!Number.isInteger(numericScore) || numericScore < 1 || numericScore > 5) {
-            return res.status(400).json({ error: 'Score must be an integer between 1 and 5' });
-        }
-        const safeComment = typeof comment === 'string' ? comment.trim().slice(0, 1000) : null;
+    const { target_user_id, score, comment } = parseBody(SubmitRatingSchema, req.body);
+    if (target_user_id === rater_id) throw badRequest('You cannot rate yourself');
 
-        const { data, error } = await supabase
-            .from('ratings')
-            .upsert({ rater_id, target_user_id, score: numericScore, comment: safeComment || null })
-            .select()
-            .single();
+    const { data, error } = await supabase
+        .from('ratings')
+        .upsert({ rater_id, target_user_id, score, comment: comment || null })
+        .select()
+        .single();
+    if (error) throw error;
 
-        if (error) throw error;
+    res.json(data);
+});
 
-        res.json(data);
-    } catch (error: any) {
-        console.error('Rating error:', error);
-        res.status(500).json({ error: error.message });
-    }
-};
+export const getUserRatingStats = asyncHandler<Request>(async (req, res) => {
+    const { userId } = parseParams(RatingUserIdParamSchema, req.params);
 
-export const getUserRatingStats = async (req: Request, res: Response) => {
-    try {
-        const { userId } = req.params;
+    // Use the view we created
+    const { data, error } = await supabase
+        .from('user_rating_stats')
+        .select('*')
+        .eq('target_user_id', userId)
+        .single();
 
-        // Use the view we created
-        const { data, error } = await supabase
-            .from('user_rating_stats')
-            .select('*')
-            .eq('target_user_id', userId)
-            .single();
+    // PGRST116 is "no rows", which is fine — a user without ratings gets the empty stats.
+    if (error && error.code !== 'PGRST116') throw error;
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows", which is fine
-            throw error;
-        }
-
-        res.json(data || { total_reviews: 0, average_rating: 0 });
-    } catch (error: any) {
-        console.error('Get Stats error:', error);
-        res.status(500).json({ error: error.message });
-    }
-};
+    res.json(data || { total_reviews: 0, average_rating: 0 });
+});
