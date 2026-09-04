@@ -87,7 +87,11 @@ export const errorMiddleware = (err: unknown, req: Request, res: Response, _next
     }
 
     console.error(`[API] ${req.method} ${req.originalUrl} failed:`, err);
-    res.status(500).json({ error: 'Internal server error' });
+    // Admins (requireAdmin sets req.admin) get the underlying message so the back office is debuggable.
+    const isAdmin = Boolean((req as Request & { admin?: unknown }).admin);
+    const payload: Record<string, unknown> = { error: 'Internal server error' };
+    if (isAdmin && e && typeof e === 'object') payload.details = { message: e.message, code: e.code };
+    res.status(500).json(payload);
 };
 
 /** Anything under /api that no router claimed. */

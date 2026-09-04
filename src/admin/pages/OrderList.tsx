@@ -15,7 +15,11 @@ import {
 
 interface Order {
     id: string;
-    amount: number;
+    /** Legacy column; current rows carry `total_amount`. */
+    amount: number | null;
+    total_amount?: number | null;
+    payment_method?: 'online' | 'cash' | null;
+    order_type?: 'meetup' | 'shipping' | null;
     currency: string;
     status: string;
     created_at: string;
@@ -72,7 +76,8 @@ const OrderList: React.FC = () => {
         }
     };
 
-    const getStatusBadge = (status: string) => {
+    const getStatusBadge = (order: Pick<Order, "status" | "payment_method" | "order_type">) => {
+        const status = order.status;
         const styles: Record<string, string> = {
             pending_payment: 'bg-yellow-100 text-yellow-800',
             paid: 'bg-blue-100 text-blue-800',
@@ -88,7 +93,9 @@ const OrderList: React.FC = () => {
 
         const labels: Record<string, string> = {
             pending_payment: '待付款',
-            paid: '已付款(待发货)',
+            paid: order.payment_method === 'cash' ? '现金 · 待见面' : (order.order_type === 'meetup' ? '已付款 · 待见面' : '已付款 · 待发货'),
+            escrow_held: order.order_type === 'meetup' ? '担保中 · 待见面' : '担保中 · 待发货',
+            meetup_arranged: '已约见面',
             shipped: '已发货',
             completed: '已完成',
             completed_pending_payout: '待人工打款', // NEW LABEL
@@ -239,11 +246,11 @@ const OrderList: React.FC = () => {
                                         </td>
                                         <td className="py-4 px-6">
                                             <div className="font-bold text-gray-900">
-                                                {new Intl.NumberFormat('es-MX', { style: 'currency', currency: order.currency || 'MXN' }).format(order.amount)}
+                                                {new Intl.NumberFormat('es-MX', { style: 'currency', currency: order.currency || 'MXN' }).format(Number(order.total_amount ?? order.amount ?? 0))}
                                             </div>
                                         </td>
                                         <td className="py-4 px-6">
-                                            {getStatusBadge(order.status)}
+                                            {getStatusBadge(order)}
                                         </td>
                                         <td className="py-4 px-6 text-sm text-gray-500">
                                             {new Date(order.created_at).toLocaleDateString()}
@@ -309,7 +316,7 @@ const OrderList: React.FC = () => {
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-gray-400 uppercase">Status</label>
-                                    <div className="mt-1">{getStatusBadge(selectedOrder.status)}</div>
+                                    <div className="mt-1">{getStatusBadge(selectedOrder)}</div>
                                 </div>
                             </div>
 
@@ -321,7 +328,7 @@ const OrderList: React.FC = () => {
                                 <div>
                                     <label className="text-xs font-bold text-gray-400 uppercase">Amount</label>
                                     <div className="text-lg font-black text-brand-600">
-                                        {new Intl.NumberFormat('es-MX', { style: 'currency', currency: selectedOrder.currency || 'MXN' }).format(selectedOrder.amount)}
+                                        {new Intl.NumberFormat('es-MX', { style: 'currency', currency: selectedOrder.currency || 'MXN' }).format(Number(selectedOrder.total_amount ?? selectedOrder.amount ?? 0))}
                                     </div>
                                 </div>
                             </div>

@@ -2,17 +2,11 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Star, Calendar, Shield, MessageCircle, ShoppingBag } from 'lucide-react';
-import { useLanguage } from '@/i18n';
+import { useLanguage, localeFor } from '@/i18n';
 import { api } from '@/lib/api/client';
 import { queryKeys } from '@/lib/queryClient';
 import { getUserRatingStats, EMPTY_RATING_STATS } from '@/services/ratingService';
 import { useBackNavigation } from '@/lib/useBackNavigation';
-
-const localeMap: Record<string, string> = {
-    zh: 'zh-CN',
-    en: 'en-US',
-    es: 'es-MX'
-};
 
 /** Public profile as served by `GET /api/users/:userId`. */
 interface PublicUser {
@@ -139,7 +133,7 @@ export const UserProfilePage: React.FC<UserProfilePageProps> = ({ currentUserId 
     }
 
     const memberSince = userInfo.created_at
-        ? new Date(userInfo.created_at).toLocaleDateString(localeMap[language] || 'en-US', { year: 'numeric', month: 'short' })
+        ? new Date(userInfo.created_at).toLocaleDateString(localeFor(language), { year: 'numeric', month: 'short' })
         : '-';
 
     return (

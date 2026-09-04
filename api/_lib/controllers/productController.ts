@@ -5,6 +5,7 @@ import { t } from '../utils/i18n.js';
 import { asyncHandler, conflict, forbidden, notFound, parseBody, parseParams, parseQuery, unauthorized } from '../lib/http.js';
 import type { AuthenticatedRequest } from '../middleware/userAuth.js';
 import { CreateProductSchema, ListProductsQuerySchema, ProductIdParamSchema, UpdateOwnProductStatusSchema } from '../schemas/products.js';
+import { categoryVariants, normalizeCategory } from '../domain/categories.js';
 
 /** Supabase client scoped to the caller's JWT so RLS applies (anon key + Bearer token). */
 const scopedClient = (authHeader: string) => {
@@ -34,7 +35,7 @@ export const createProduct = asyncHandler<AuthenticatedRequest>(async (req, res)
         price: body.price,
         currency: body.currency || 'MXN',
         images: body.images || [],
-        category: body.category || 'other',
+        category: normalizeCategory(body.category),
         subcategory: body.subcategory || null,
         source_language: body.source_language || 'es',
         delivery_type: body.delivery_type || 'both',
@@ -81,7 +82,7 @@ const publicProduct = <T extends { seller_email?: unknown }>(row: T): Omit<T, 's
 };
 
 export const getProducts = asyncHandler<Request>(async (req, res) => {
-    const { limit, offset, status, seller_id } = parseQuery(ListProductsQuerySchema, req.query);
+    const { limit, offset, status, seller_id, category } = parseQuery(ListProductsQuerySchema, req.query);
     const authHeader = req.headers.authorization;
 
     // If user is authenticated, use their context (for RLS)
@@ -94,6 +95,8 @@ export const getProducts = asyncHandler<Request>(async (req, res) => {
 
     // Filter by seller_id if provided
     if (seller_id) query = query.eq('seller_id', seller_id);
+    // Category: stored spellings vary (Electronics / electronics / real_estate …), match all of them.
+    if (category && category !== 'all') query = query.in('category', categoryVariants(category));
 
     // Status Logic: default to 'active' unless 'status' is provided; 'all' fetches every
     // status (RLS policies still apply).

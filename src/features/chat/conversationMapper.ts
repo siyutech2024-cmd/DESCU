@@ -84,7 +84,7 @@ export const mapApiConversation = (c: ApiConversation, currentUserId: string): C
     return {
         id: c.id,
         productId: c.product_id,
-        productTitle: c.productTitle || c.product_title || 'Product',
+        productTitle: c.productTitle || c.product_title || '', // empty → ChatList shows the localized unknown-product label
         productImage: c.productImage || c.product_image || '',
         otherUser: resolveOtherUser(c, currentUserId, buyerId, sellerId),
         messages: [],

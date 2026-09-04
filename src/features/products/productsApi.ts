@@ -9,11 +9,13 @@ export interface ListProductsParams {
     page: number;
     limit?: number;
     sellerId?: string;
+    /** Canonical category id, or 'all'. */
+    category?: string;
 }
 
-export const listProducts = ({ language, page, limit = PRODUCTS_PAGE_SIZE, sellerId }: ListProductsParams, signal?: AbortSignal) =>
+export const listProducts = ({ language, page, limit = PRODUCTS_PAGE_SIZE, sellerId, category }: ListProductsParams, signal?: AbortSignal) =>
     api.get<ApiProduct[]>('/api/products', {
-        params: { lang: language, limit, offset: (page - 1) * limit, seller_id: sellerId },
+        params: { lang: language, limit, offset: (page - 1) * limit, seller_id: sellerId, category: category && category !== 'all' ? category : undefined },
         signal,
     });
 

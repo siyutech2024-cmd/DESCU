@@ -53,6 +53,7 @@ export const ListProductsQuerySchema = z.object({
     offset: z.preprocess(v => Math.max(parseInt(String(v), 10) || 0, 0), z.number().int()),
     status: z.string().max(50).optional(),
     seller_id: z.string().uuid().optional(),
+    category: z.string().max(60).optional(),
 });
 export type ListProductsQuery = z.infer<typeof ListProductsQuerySchema>;
 

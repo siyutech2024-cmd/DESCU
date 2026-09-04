@@ -1,3 +1,4 @@
+import { formatDistance, isMeaningfulDistance } from '../distance';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Product, DeliveryType } from '@/types';
@@ -109,7 +110,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
         )}
 
         {/* Location Badge - Show distance for all products */}
-        {product.distance !== undefined && product.status !== 'sold' && (
+        {isMeaningfulDistance(product.distance) && product.status !== 'sold' && (
           <div className={`absolute bottom-1.5 left-1.5 md:bottom-2 md:left-2 backdrop-blur-md text-[9px] md:text-[10px] font-bold px-1.5 py-0.5 md:px-2.5 md:py-1 rounded-full flex items-center gap-0.5 shadow-sm border ${product.distance <= 5
             ? 'bg-green-100/90 text-green-800 border-green-200'
             : product.distance <= 50
@@ -117,7 +118,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
               : 'bg-orange-100/90 text-orange-800 border-orange-200'
             }`}>
             <MapPin size={8} className={`md:w-[10px] md:h-[10px] ${product.distance <= 5 ? 'text-green-600' : product.distance <= 50 ? 'text-brand-600' : 'text-orange-600'}`} />
-            {product.distance.toFixed(1)}km
+            {formatDistance(product.distance)}
           </div>
         )}
       </div>

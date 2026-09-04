@@ -314,7 +314,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                               <Check size={10} />
                               {(product.status === 'pending_review' || relistedProducts.has(product.id)) ? t('product.pending_review') :
                                 product.status === 'rejected' ? t('product.rejected') :
-                                  (product.status === 'sold' || soldProducts.has(product.id)) ? t('product.sold') : product.status}
+                                  (product.status === 'sold' || soldProducts.has(product.id)) ? t('product.sold') : t(product.status === 'inactive' ? 'product.inactive' : 'product.unavailable')}
                             </span>
                             {/* 重新上架按钮 - 仅已售出产品可见 */}
                             {((product.status === 'sold' || soldProducts.has(product.id)) && !relistedProducts.has(product.id)) && (

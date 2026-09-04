@@ -225,7 +225,7 @@ export const getUserConversations = asyncHandler<AuthenticatedRequest>(async (re
 
         return {
             ...conversation,
-            productTitle: product?.title || '未知商品',
+            productTitle: product?.title || null, // the client shows a localized placeholder
             productImage: product?.images?.[0] || '',
             sellerInfo,
             buyerInfo: publicUser(buyerId),

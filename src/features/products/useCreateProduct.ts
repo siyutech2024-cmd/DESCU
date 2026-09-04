@@ -45,7 +45,8 @@ export const useCreateProduct = (user: User | null, { onCreated }: Options = {})
                 delivery_type: input.deliveryType,
                 latitude: input.location.latitude,
                 longitude: input.location.longitude,
-                location_name: input.locationName,
+                // The city the coordinates resolve to — never a hard-coded label.
+                location_name: detailed?.city || detailed?.displayName || input.locationName,
                 country: user.country || 'MX',
                 city: detailed?.city || user.city || 'Unknown',
                 town: detailed?.town || null,

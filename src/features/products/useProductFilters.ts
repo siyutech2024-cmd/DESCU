@@ -25,10 +25,9 @@ const compareProducts = (a: Product, b: Product) => {
 /**
  * Client-side search / category / region filtering and distance sorting of the feed.
  */
-export const useProductFilters = (products: Product[], origin: Coordinates | null) => {
+export const useProductFilters = (products: Product[], origin: Coordinates | null, selectedCategory: string = 'all') => {
     const { region, currency: regionCurrency } = useRegion();
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const debouncedQuery = useDebounce(searchQuery, 300);
 
     const filteredProducts = useMemo(() => {
@@ -49,5 +48,5 @@ export const useProductFilters = (products: Product[], origin: Coordinates | nul
             .sort(compareProducts);
     }, [products, origin, debouncedQuery, selectedCategory, region, regionCurrency]);
 
-    return { searchQuery, setSearchQuery, selectedCategory, setSelectedCategory, filteredProducts };
+    return { searchQuery, setSearchQuery, filteredProducts };
 };

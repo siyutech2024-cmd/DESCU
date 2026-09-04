@@ -13,7 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api/client';
 import { queryKeys } from '@/lib/queryClient';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useLocale } from '@/i18n';
 
 interface SellerPayoutCardProps {
     userId: string;
@@ -64,6 +64,7 @@ const fetchPayouts = async (): Promise<PayoutData> => {
 
 export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) => {
     const { t } = useLanguage();
+    const locale = useLocale();
     const { data: payoutData = EMPTY_PAYOUTS, isLoading: payoutsLoading } = useQuery({
         queryKey: queryKeys.payouts(userId),
         queryFn: fetchPayouts,
@@ -337,7 +338,7 @@ export const SellerPayoutCard: React.FC<SellerPayoutCardProps> = ({ userId }) =>
                                             {payout.products?.title || 'Producto'}
                                         </p>
                                         <p className="text-xs text-gray-400">
-                                            {new Date(payout.completed_at).toLocaleDateString()}
+                                            {new Date(payout.completed_at).toLocaleDateString(locale)}
                                         </p>
                                     </div>
                                 </div>

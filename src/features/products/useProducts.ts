@@ -17,15 +17,20 @@ type ProductPages = InfiniteData<ApiProduct[], number>;
  * each card: pass the fallback location first and the real coordinates when they arrive;
  * distances are recomputed from the cached pages without refetching.
  */
-export const useProducts = (origin: Coordinates | null) => {
+export interface UseProductsOptions {
+    /** Category filter applied server-side (the feed is paginated, so filtering only the loaded page would hide results). */
+    category?: string;
+}
+
+export const useProducts = (origin: Coordinates | null, { category = 'all' }: UseProductsOptions = {}) => {
     const { language } = useLanguage();
     const queryClient = useQueryClient();
-    const queryKey = useMemo(() => queryKeys.products.list(language), [language]);
+    const queryKey = useMemo(() => queryKeys.products.list(language, category), [language, category]);
 
     const query = useInfiniteQuery<ApiProduct[], Error, ProductPages, typeof queryKey, number>({
         queryKey,
         initialPageParam: 1,
-        queryFn: ({ pageParam, signal }) => listProducts({ language, page: pageParam }, signal),
+        queryFn: ({ pageParam, signal }) => listProducts({ language, page: pageParam, category }, signal),
         getNextPageParam: (lastPage, pages) => (lastPage.length < PRODUCTS_PAGE_SIZE ? undefined : pages.length + 1),
     });
 

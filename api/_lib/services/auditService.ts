@@ -5,6 +5,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getSupabase } from '../db/supabase.js';
+import { normalizeCategory } from '../domain/categories.js';
 
 // --- LAZY AI INIT ---
 let genAI: GoogleGenerativeAI | null = null;
@@ -277,14 +278,15 @@ export const autoReviewPendingProducts = async (
                 // 核心逻辑：安全商品直接通过，不安全商品才需人工审核
                 if (audit.isSafe && audit.confidence > 0.6) {
                     // 安全商品：自动通过，分类不正确则纠正
-                    let finalCategory = product.category;
+                    // Always store the canonical spelling (the feed filters on it)
+                    let finalCategory = normalizeCategory(product.category);
                     let reviewNote = `[AI自动审核] 通过，置信度: ${(audit.confidence * 100).toFixed(0)}%`;
                     let wasCorrected = false;
 
                     if (!audit.categoryCorrect && audit.suggestedCategory) {
                         // 映射AI建议分类到系统分类
-                        const mappedCategory = mapToSystemCategory(audit.suggestedCategory);
-                        if (mappedCategory !== product.category) {
+                        const mappedCategory = normalizeCategory(mapToSystemCategory(audit.suggestedCategory));
+                        if (mappedCategory !== normalizeCategory(product.category)) {
                             finalCategory = mappedCategory;
                             reviewNote = `[AI自动审核] 通过，分类从 "${product.category}" 纠正为 "${mappedCategory}"`;
                             wasCorrected = true;

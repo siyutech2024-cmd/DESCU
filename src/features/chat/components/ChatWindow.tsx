@@ -6,7 +6,7 @@ import {
   Image as ImageIcon, Smile, MapPin, Clock, DollarSign
 } from 'lucide-react';
 import { Conversation, User } from '@/types';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useLocale } from '@/i18n';
 import { subscribeToMessages, markMessagesAsRead, getMessages, sendMessage } from '@/services/chatService';
 import { blockUser } from '@/services/moderationService';
 import { api, ApiError } from '@/lib/api/client';
@@ -84,6 +84,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onSendMessage
 }) => {
   const { t } = useLanguage();
+  const locale = useLocale();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
@@ -470,7 +471,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               {activeOrder.meetup_time && (
                 <>
                   <Clock size={12} className="text-blue-600" />
-                  <span className="text-xs text-blue-800">{new Date(activeOrder.meetup_time).toLocaleString()}</span>
+                  <span className="text-xs text-blue-800">{new Date(activeOrder.meetup_time).toLocaleString(locale)}</span>
                 </>
               )}
             </div>
@@ -513,7 +514,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
 
         <div className="text-center text-xs text-gray-400 font-medium my-4">
-          <span className="bg-gray-100 px-3 py-1 rounded-full">{new Date(messages[0]?.created_at || Date.now()).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+          <span className="bg-gray-100 px-3 py-1 rounded-full">{new Date(messages[0]?.created_at || Date.now()).toLocaleDateString(locale, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
         </div>
 
         {/* Messages List */}
@@ -591,7 +592,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   <div className={`flex items-center gap-1 text-[10px] mt-1 select-none ${isMe ? 'justify-end text-brand-100' : 'justify-end text-gray-400'
                     }`}>
                     <span>
-                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.created_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     {isMe && (
                       <CheckCheck size={14} className={msg.is_read ? "text-white" : "text-brand-300/80"} />

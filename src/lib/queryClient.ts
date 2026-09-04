@@ -22,7 +22,7 @@ export const queryClient = new QueryClient({
 export const queryKeys = {
     products: {
         all: ['products'] as const,
-        list: (language: string) => ['products', 'list', language] as const,
+        list: (language: string, category = 'all') => ['products', 'list', language, category] as const,
         detail: (id: string, language: string) => ['products', 'detail', id, language] as const,
         bySeller: (sellerId: string) => ['products', 'seller', sellerId] as const,
         /** The signed-in seller's own listings, all statuses (profile page). */

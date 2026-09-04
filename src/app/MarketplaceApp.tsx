@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { BottomNav } from '@/components/BottomNav';
@@ -52,8 +52,10 @@ export const MarketplaceApp: React.FC = () => {
     // resolves, distances are recomputed client-side and the list re-sorted (no refetch).
     const feedOrigin = origin ?? FALLBACK_LOCATION;
 
-    const feed = useProducts(feedOrigin);
-    const filters = useProductFilters(feed.products, feedOrigin);
+    // Category lives here so the feed refetches server-side (filtering only the loaded page hid results).
+    const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const feed = useProducts(feedOrigin, { category: selectedCategory });
+    const filters = useProductFilters(feed.products, feedOrigin, selectedCategory);
     const { favorites, toggleFavorite } = useFavorites();
     const chat = useConversations();
     const { actionRequiredCount } = useOrders();
@@ -108,8 +110,8 @@ export const MarketplaceApp: React.FC = () => {
                             element={
                                 <HomePage
                                     sortedProducts={filters.filteredProducts}
-                                    selectedCategory={filters.selectedCategory}
-                                    setSelectedCategory={filters.setSelectedCategory}
+                                    selectedCategory={selectedCategory}
+                                    setSelectedCategory={setSelectedCategory}
                                     isLoadingLoc={geo.isLoading}
                                     isLoadingProducts={feed.isLoading}
                                     permissionDenied={geo.permissionDenied}

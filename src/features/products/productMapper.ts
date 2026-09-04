@@ -1,3 +1,4 @@
+import { normalizeCategory } from './categories';
 import type { Coordinates, Product } from '@/types';
 import { calculateDistance } from '@/services/utils';
 import { avatarFor } from '@/features/auth/authService';
@@ -67,7 +68,7 @@ export const mapApiProduct = (p: ApiProduct, origin: Coordinates | null): Produc
         price: p.price,
         currency: p.currency,
         images: p.images || [],
-        category: p.category as Product['category'],
+        category: normalizeCategory(p.category),
         subcategory: p.subcategory,
         deliveryType: p.delivery_type as Product['deliveryType'],
         location,

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { Conversation, ConversationLastMessage, User } from '@/types';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useLocale } from '@/i18n';
 import { deleteConversation } from '@/services/chatService';
 import { MessageCircle, ChevronRight, ChevronDown, Package, ShoppingBag, CheckCircle, MessageSquare, Users, Trash2, EyeOff, X } from 'lucide-react';
 import { ConfirmSheet } from '@/components/ui/Sheet';
@@ -76,6 +76,7 @@ export const ChatList: React.FC<ChatListProps> = ({
   onSelectConversation
 }) => {
   const { t } = useLanguage();
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [hiddenConversations, setHiddenConversations] = useState<Set<string>>(() => {
@@ -310,11 +311,11 @@ export const ChatList: React.FC<ChatListProps> = ({
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-1 text-xs text-gray-500">
                         <Users size={12} />
-                        <span>{buyerCount} {t('chat.buyers')}</span>
+                        <span>{buyerCount} {t(buyerCount === 1 ? 'chat.buyer_one' : 'chat.buyers')}</span>
                       </div>
                       <span className="text-gray-300">•</span>
                       <span className="text-[10px] text-gray-400">
-                        {new Date(group.latestMessageTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        {new Date(group.latestMessageTime).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
                   </div>
@@ -403,7 +404,7 @@ export const ChatList: React.FC<ChatListProps> = ({
                                   {conv.otherUser.name}
                                 </h4>
                                 <span className="text-[10px] font-medium text-gray-400 flex-shrink-0">
-                                  {lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
+                                  {lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : ''}
                                 </span>
                               </div>
 

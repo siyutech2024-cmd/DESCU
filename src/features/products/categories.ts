@@ -50,3 +50,24 @@ export const categoryLabelKey = (id: string | null | undefined): string => {
   const match = Object.keys(CATEGORY_LABEL_KEYS).find(k => k.toLowerCase() === normalized);
   return match ? CATEGORY_LABEL_KEYS[match] : CATEGORY_LABEL_KEYS[Category.Other];
 };
+
+/** Legacy / foreign spellings → canonical enum value (mirrors api/_lib/domain/categories.ts). */
+const CATEGORY_ALIASES: Record<string, Category> = {
+  electronics: Category.Electronics, electronica: Category.Electronics, electrónica: Category.Electronics,
+  furniture: Category.Furniture, home: Category.Furniture, hogar: Category.Furniture, homegarden: Category.Furniture,
+  clothing: Category.Clothing, fashion: Category.Clothing, moda: Category.Clothing, healthbeauty: Category.Clothing,
+  books: Category.Books, libros: Category.Books,
+  sports: Category.Sports, deportes: Category.Sports,
+  vehicles: Category.Vehicles, autos: Category.Vehicles, cars: Category.Vehicles,
+  realestate: Category.RealEstate, inmuebles: Category.RealEstate,
+  services: Category.Services, servicios: Category.Services,
+  other: Category.Other, otros: Category.Other,
+};
+
+/** Canonical category for whatever spelling the row carries (`electronics`, `real_estate`, "Health & Beauty > …"). */
+export const normalizeCategory = (raw: string | null | undefined): Category => {
+  if (!raw) return Category.Other;
+  const top = raw.split('>')[0].trim();
+  if ((CATEGORIES as readonly string[]).includes(top)) return top as Category;
+  return CATEGORY_ALIASES[top.toLowerCase().replace(/[\s_\-&]/g, '')] ?? Category.Other;
+};

@@ -63,6 +63,22 @@ const LAYER_CLASS: Record<SheetLayer, string> = {
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
+// Open sheets, bottom → top. Escape on the document closes only the topmost one — even when
+// focus never made it into the panel (e.g. the user clicked the page or the tab was inactive).
+const openSheets: { close: () => void; dismissible: () => boolean }[] = [];
+let escapeListenerInstalled = false;
+const ensureEscapeListener = () => {
+    if (escapeListenerInstalled || typeof document === 'undefined') return;
+    escapeListenerInstalled = true;
+    document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape' || e.defaultPrevented) return;
+        const top = openSheets[openSheets.length - 1];
+        if (!top || !top.dismissible()) return;
+        e.preventDefault();
+        top.close();
+    });
+};
+
 // Body scroll lock shared by every open sheet (nested sheets must not unlock early).
 let lockCount = 0;
 let savedOverflow = '';
@@ -112,12 +128,17 @@ export const Sheet: React.FC<SheetProps> = ({
     const dismissibleRef = useRef(dismissible);
     dismissibleRef.current = dismissible;
 
-    // Scroll lock + focus restore
+    // Scroll lock + focus restore + registration in the open-sheet stack (for Escape)
     useLayoutEffect(() => {
         if (!open) return;
         previouslyFocused.current = (document.activeElement as HTMLElement) ?? null;
         lockBody();
+        ensureEscapeListener();
+        const entry = { close: () => onCloseRef.current(), dismissible: () => dismissibleRef.current };
+        openSheets.push(entry);
         return () => {
+            const i = openSheets.indexOf(entry);
+            if (i >= 0) openSheets.splice(i, 1);
             unlockBody();
             previouslyFocused.current?.focus?.();
         };
@@ -136,17 +157,11 @@ export const Sheet: React.FC<SheetProps> = ({
         return () => cancelAnimationFrame(frame);
     }, [open, initialFocusRef]);
 
-    // Escape + Tab trap
+    // Tab trap (Escape: see ensureEscapeListener)
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
         // Events from a sheet nested inside this one (layer="modal-top") are its business.
         if (!panelRef.current || !panelRef.current.contains(e.target as Node)) return;
-        if (e.key === 'Escape') {
-            if (!dismissibleRef.current) return;
-            e.stopPropagation();
-            onCloseRef.current();
-            return;
-        }
-        if (e.key !== 'Tab') return;
+        if (e.key !== 'Tab') return; // Escape is handled once, at document level, for the topmost sheet
         const nodes = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE))
             .filter(el => el.offsetParent !== null || el === document.activeElement);
         if (nodes.length === 0) { e.preventDefault(); return; }

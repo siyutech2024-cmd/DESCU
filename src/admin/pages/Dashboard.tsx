@@ -122,32 +122,28 @@ export const Dashboard: React.FC = () => {
             value: stats?.stats?.totalProducts || 0,
             subtitle: `今日新增 ${stats?.stats?.productsToday || 0}`,
             icon: Package,
-            color: 'bg-blue-600',
-            trend: '+12% 本周'
+            color: 'bg-blue-600'
         },
         {
             title: '用户总数',
             value: stats?.stats?.totalUsers || 0,
             subtitle: '活跃用户',
             icon: Users,
-            color: 'bg-green-600',
-            trend: '+8% 本周'
+            color: 'bg-green-600'
         },
         {
             title: '消息数量',
             value: stats?.stats?.totalMessages || 0,
             subtitle: `今日 ${stats?.stats?.messagesToday || 0}`,
             icon: MessageSquare,
-            color: 'bg-purple-600',
-            trend: '+15% 本周'
+            color: 'bg-purple-600'
         },
         {
             title: '对话总数',
             value: stats?.stats?.totalConversations || 0,
             subtitle: '活跃对话',
             icon: ShoppingCart,
-            color: 'bg-orange-600',
-            trend: '+5% 本周'
+            color: 'bg-orange-600'
         }
     ];
 
@@ -288,7 +284,7 @@ export const Dashboard: React.FC = () => {
                                         {product.seller_name} • {new Date(product.created_at).toLocaleDateString('zh-CN')}
                                     </p>
                                 </div>
-                                <span className="text-sm font-semibold text-blue-600">¥{product.price}</span>
+                                <span className="text-sm font-semibold text-blue-600">MX${Number(product.price).toLocaleString('es-MX')}</span>
                             </div>
                         ))
                     ) : (

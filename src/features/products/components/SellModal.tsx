@@ -290,7 +290,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
         subcategory: formData.subcategory || undefined,
         deliveryType: formData.deliveryType!,
         location: userLocation,
-        locationName: language === 'es' ? 'CDMX' : 'Nearby',
+        locationName: '', // resolved from the coordinates in useCreateProduct
       });
       onClose();
     } catch (error: any) {

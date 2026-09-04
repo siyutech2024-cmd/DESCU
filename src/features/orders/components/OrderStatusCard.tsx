@@ -12,7 +12,7 @@ import { Order, User } from '@/types';
 import { api } from '@/lib/api/client';
 import { notify } from '@/lib/toast';
 import { queryKeys } from '@/lib/queryClient';
-import { useLanguage } from '@/i18n';
+import { useLanguage, useLocale } from '@/i18n';
 import { MeetupArrangementModal } from './MeetupArrangementModal';
 
 interface OrderStatusCardProps {
@@ -34,6 +34,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { t } = useLanguage();
+    const locale = useLocale();
     const isBuyer = currentUser.id === order.buyer_id;
     const isMeetup = order.order_type === 'meetup';
     const [isLoading, setIsLoading] = useState(false);
@@ -101,7 +102,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
 
         const labels: Record<Order['status'], string> = {
             pending_payment: t('orders.status.pending_payment'),
-            paid: t('orders.status.paid'),
+            paid: order.payment_method === 'cash' ? t('orders.status.paid_cash') : t('orders.status.paid'),
             escrow_held: t('orders.status.escrow_held'),
             meetup_arranged: t('orders.status.meetup_arranged'),
             shipped: t('orders.status.shipped'),
@@ -140,7 +141,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
                                         <p className="text-sm text-gray-600 mt-1">{order.meetup_location}</p>
                                         {order.meetup_time && (
                                             <p className="text-xs text-blue-600 font-bold mt-1 bg-blue-50 w-fit px-2 py-1 rounded">
-                                                {new Date(order.meetup_time).toLocaleString()}
+                                                {new Date(order.meetup_time).toLocaleString(locale)}
                                             </p>
                                         )}
                                     </>
@@ -292,7 +293,7 @@ export const OrderStatusCard: React.FC<OrderStatusCardProps> = ({ order, current
                         ${(order.total_amount || 0).toFixed(2)} {order.currency}
                     </div>
                     <div className="text-xs text-gray-400">
-                        {order.payment_method === 'cash' ? t('orders.pay_cash') : t('orders.paid_online')}
+                        {order.payment_method === 'cash' ? t('orders.pay_cash') : t('orders.pay_online')}
                     </div>
                 </div>
             </div>

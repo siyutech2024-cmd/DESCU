@@ -3,6 +3,21 @@ import { supabase } from '../db/supabase.js';
 import { createClient } from '@supabase/supabase-js';
 import { getStripe } from '../lib/stripe.js';
 import { canTransition, isOrderStatus, isPaymentSettled } from '../domain/orders.js';
+import { normalizeCategory } from '../domain/categories.js';
+
+/** Rows of the admin_product_stats view keyed by canonical category (the view groups by raw spelling). */
+const mergeCategoryStats = (rows: any[]): any[] => {
+    const merged = new Map<string, any>();
+    for (const row of rows) {
+        const key = normalizeCategory(row.category);
+        const acc = merged.get(key) ?? { ...row, category: key, count: 0, active_count: 0, inactive_count: 0, pending_count: 0, promoted_count: 0, today_count: 0, week_count: 0 };
+        for (const k of ['count', 'active_count', 'inactive_count', 'pending_count', 'promoted_count', 'today_count', 'week_count']) {
+            acc[k] = (Number(acc[k]) || 0) + (Number(row[k]) || 0);
+        }
+        merged.set(key, acc);
+    }
+    return [...merged.values()].sort((a, b) => b.count - a.count);
+};
 import { HttpError, asyncHandler, conflict, notFound, parseBody, parseParams, parseQuery, unauthorized } from '../lib/http.js';
 import { releaseEscrow } from '../services/escrowReleaseService.js';
 import { completeManualPayout } from '../services/payoutService.js';
@@ -168,7 +183,7 @@ export const getDashboardStats = asyncHandler<AdminRequest>(async (_req, res) =>
             messagesToday: messagesToday.count || 0,
             totalConversations: conversationStats.count || 0
         },
-        categoryStats: categoryStats.data || [],
+        categoryStats: mergeCategoryStats(categoryStats.data || []),
         weeklyTrend: weeklyTrend.data || [],
         recentProducts: recentProducts.data || [],
         // Debug info (remove in production)
@@ -269,7 +284,8 @@ export const getReportsData = asyncHandler<AdminRequest>(async (req, res) => {
     // 统计每个分类的数量
     const categoryCounts: Record<string, number> = {};
     categoryStats?.forEach(item => {
-        const category = item.category || '未分类';
+        // Stored spellings vary (Other/other, electronics/Electronics, AI paths) — report on the canonical one.
+        const category = normalizeCategory(item.category);
         categoryCounts[category] = (categoryCounts[category] || 0) + 1;
     });
 
