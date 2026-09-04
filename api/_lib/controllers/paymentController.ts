@@ -3,9 +3,13 @@ import { supabase } from '../db/supabase.js';
 import { getStripe } from '../lib/stripe.js';
 import { AuthenticatedRequest } from '../middleware/userAuth.js';
 import { getAuthClient } from '../utils/supabaseHelper.js';
-import { confirmBlockReason, isPaymentSettled } from '../domain/orders.js';
+import { confirmBlockReason, isInFlight, isPaymentSettled, type OrderStatus } from '../domain/orders.js';
 import { releaseEscrow } from '../services/escrowReleaseService.js';
+import { transitionOrder } from '../services/orderTransitionService.js';
 import { processStripeEvent } from '../services/stripeWebhookService.js';
+
+/** A seller may ship once the money is in (or the order is cash). */
+const SHIPPABLE_STATUSES: readonly OrderStatus[] = ['paid', 'escrow_held'];
 
 /**
  * Order lifecycle + legacy Stripe webhook handlers.
@@ -31,22 +35,29 @@ export const markOrderAsShipped = async (req: Request, res: Response) => {
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.seller_id !== userId) return res.status(403).json({ error: 'Only seller can mark shipped' });
         if (order.order_type !== 'shipping') return res.status(400).json({ error: 'Not a shipping order' });
-        if (!['paid', 'escrow_held'].includes(order.status) || !isPaymentSettled(order)) {
+        if (!SHIPPABLE_STATUSES.includes(order.status as OrderStatus) || !isPaymentSettled(order)) {
             return res.status(400).json({ error: `Order cannot be shipped in status "${order.status}"` });
         }
 
-        const { error } = await supabase
-            .from('orders')
-            .update({
-                status: 'shipped',
-                shipping_carrier: carrier,
-                tracking_number: trackingNumber,
-                updated_at: new Date()
-            })
-            .eq('id', orderId);
+        const outcome = await transitionOrder({
+            orderId,
+            from: order.status as OrderStatus,
+            to: 'shipped',
+            patch: { shipping_carrier: carrier ?? null, tracking_number: trackingNumber ?? null },
+            timeline: {
+                event_type: 'shipped',
+                description: `Shipped${carrier ? ` via ${carrier}` : ''}${trackingNumber ? ` (${trackingNumber})` : ''}`,
+                created_by: userId,
+                metadata: { carrier: carrier ?? null, tracking_number: trackingNumber ?? null },
+            },
+            select: 'id, status',
+        });
+        if (!outcome.ok) return res.status(outcome.code).json({ error: outcome.error });
 
-        if (error) throw error;
-        res.json({ success: true });
+        import('../services/orderNotificationService.js')
+            .then(({ notifyOrderStatus }) => notifyOrderStatus(orderId, 'shipped', { carrier, trackingNumber }).catch(console.error))
+            .catch(console.error);
+        res.json({ success: true, order: outcome.order });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -121,7 +132,7 @@ export const createDispute = async (req: Request, res: Response) => {
             return res.status(403).json({ error: 'Not authorized for this order' });
         }
         // Disputes only make sense while money/goods are in flight.
-        if (!['paid', 'escrow_held', 'meetup_arranged', 'shipped', 'delivered'].includes(order.status)) {
+        if (!isInFlight(order.status)) {
             return res.status(400).json({ error: `Order cannot be disputed in status "${order.status}"` });
         }
         if (typeof reason !== 'string' || !reason.trim()) return res.status(400).json({ error: 'reason is required' });
@@ -146,22 +157,21 @@ export const createDispute = async (req: Request, res: Response) => {
 
         // 3. Update Order Status — conditional on the status we validated, so a confirm
         //    that finished in between cannot be flipped back to 'disputed'.
-        const { data: flagged, error: flagError } = await supabase
-            .from('orders')
-            .update({ status: 'disputed', updated_at: new Date().toISOString() })
-            .eq('id', orderId)
-            .eq('status', order.status)
-            .select('id');
-        if (flagError) throw flagError;
-        if (!flagged || flagged.length === 0) {
+        const flagged = await transitionOrder({
+            orderId,
+            from: order.status,
+            to: 'disputed',
+            timeline: { event_type: 'dispute_opened', description: reason.trim(), created_by: userId, metadata: { dispute_id: dispute.id } },
+            select: 'id',
+        });
+        if (!flagged.ok) {
             await supabase.from('disputes').update({ status: 'dismissed', admin_note: 'Order changed state while the dispute was being opened' }).eq('id', dispute.id);
-            return res.status(409).json({ error: 'Order changed state; please reload and try again' });
+            return res.status(flagged.code).json({ error: flagged.error });
         }
 
-        await supabase.from('order_timeline').insert({
-            order_id: orderId, event_type: 'dispute_opened', description: reason.trim(), created_by: userId, metadata: { dispute_id: dispute.id },
-        });
-
+        import('../services/orderNotificationService.js')
+            .then(({ notifyOrderStatus }) => notifyOrderStatus(orderId, 'disputed', { reason: reason.trim() }).catch(console.error))
+            .catch(console.error);
         res.json({ success: true, disputeId: dispute.id });
 
     } catch (error: any) {

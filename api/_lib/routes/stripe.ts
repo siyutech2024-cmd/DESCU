@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
 import { requireAuth } from '../middleware/userAuth.js';
 import { getStripe } from '../lib/stripe.js';
-import { toCents } from '../domain/orders.js';
+import { AWAITING_PAYMENT_STATUSES, isAwaitingPayment, toCents } from '../domain/orders.js';
+import { transitionOrder } from '../services/orderTransitionService.js';
 import { processStripeEvent } from '../services/stripeWebhookService.js';
 import { handleStripeWebhook } from '../controllers/paymentController.js';
 
@@ -277,7 +278,7 @@ router.post('/api/stripe/create-payment-intent', requireAuth, async (req: any, r
         const { data: order } = await supabase.from('orders').select('*').eq('id', orderId).single();
         if (!order) return res.status(404).json({ error: 'Order not found' });
         if (order.buyer_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
-        if (order.payment_captured === true || !['pending_payment', 'meetup_arranged'].includes(order.status)) {
+        if (order.payment_captured === true || !isAwaitingPayment(order.status)) {
             return res.status(400).json({ error: 'Invalid order status' });
         }
 
@@ -318,7 +319,7 @@ router.post('/api/stripe/confirm-payment', requireAuth, async (req: any, res) =>
         if (loadError) throw loadError;
         if (!existing) return res.status(404).json({ error: 'Order not found' });
         if (existing.buyer_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
-        if (existing.payment_captured === true || !['pending_payment', 'meetup_arranged'].includes(existing.status)) {
+        if (existing.payment_captured === true || !isAwaitingPayment(existing.status)) {
             return res.status(400).json({ error: `Order is not awaiting payment (status: ${existing.status})` });
         }
 
@@ -335,22 +336,22 @@ router.post('/api/stripe/confirm-payment', requireAuth, async (req: any, res) =>
             return res.status(400).json({ error: 'Payment does not match this order' });
         }
 
-        const { data: order, error } = await supabase
-            .from('orders')
-            .update({ status: 'paid', payment_captured: true, stripe_payment_intent_id: paymentIntent.id })
-            .eq('id', orderId)
-            .eq('buyer_id', userId)
-            .in('status', ['pending_payment', 'meetup_arranged'])
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        await supabase.from('order_timeline').insert({
-            order_id: orderId, event_type: 'payment_confirmed', description: 'Payment Confirmed', created_by: userId, metadata: { payment_intent_id: paymentIntentId }
+        const outcome = await transitionOrder({
+            orderId,
+            from: AWAITING_PAYMENT_STATUSES,
+            to: 'paid',
+            patch: { payment_captured: true, stripe_payment_intent_id: paymentIntent.id },
+            where: q => q.eq('buyer_id', userId).or('payment_captured.is.null,payment_captured.eq.false'),
+            timeline: { event_type: 'payment_confirmed', description: 'Payment Confirmed', created_by: userId, metadata: { payment_intent_id: paymentIntentId } },
         });
+        if (!outcome.ok) {
+            // The webhook usually wins this race; the order is paid either way.
+            const { data: current } = await supabase.from('orders').select('*').eq('id', orderId).maybeSingle();
+            if (current?.payment_captured) return res.json({ success: true, order: current, alreadyProcessed: true });
+            return res.status(outcome.code).json({ error: outcome.error });
+        }
 
-        res.json({ success: true, order });
+        res.json({ success: true, order: outcome.order });
     } catch (error: any) {
         console.error('Confirm payment error:', error);
         res.status(500).json({ error: 'Failed to confirm payment', message: error.message });

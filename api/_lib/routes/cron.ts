@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { autoReviewPendingProducts } from '../services/auditService.js';
+import { expireUnpaidOrders } from '../services/orderTransitionService.js';
 
 /**
  * Cron routes — triggered by Vercel Cron (x-vercel-cron header) or an external
@@ -52,3 +53,25 @@ const runAutoReview = async (req: Request, res: Response) => {
 cronRouter.post('/api/cron/auto-review', runAutoReview);
 // Vercel Cron 默认使用 GET
 cronRouter.get('/api/cron/auto-review', runAutoReview);
+
+/**
+ * Expire unpaid online orders (pending_payment past expires_at + grace) → cancelled,
+ * and put their products back on sale. See domain/orderStatus.ts for the window.
+ */
+const runExpireOrders = async (req: Request, res: Response) => {
+    try {
+        if (!isAuthorizedCron(req)) {
+            console.warn('[Cron] Unauthorized access attempt to expire-orders');
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        const result = await expireUnpaidOrders(200);
+        console.log('[Cron] expire-orders:', result);
+        res.json({ success: true, ...result, timestamp: new Date().toISOString() });
+    } catch (error: any) {
+        console.error('[Cron] expire-orders failed:', error);
+        res.status(500).json({ error: 'expire-orders failed', message: error.message });
+    }
+};
+
+cronRouter.post('/api/cron/expire-orders', runExpireOrders);
+cronRouter.get('/api/cron/expire-orders', runExpireOrders);

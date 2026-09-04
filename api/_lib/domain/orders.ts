@@ -1,7 +1,10 @@
 /**
  * Order domain rules shared by routes, controllers and tests.
  * Keep money/state decisions here so every endpoint agrees.
+ * The status graph itself lives in ./orderStatus.ts.
  */
+import { IN_FLIGHT_STATUSES } from './orderStatus.js';
+export * from './orderStatus.js';
 
 export const ORDER_TYPES = ['meetup', 'shipping'] as const;
 export const PAYMENT_METHODS = ['online', 'cash'] as const;
@@ -13,8 +16,8 @@ export const PLATFORM_FEE_RATE = 0.05;
 /** Flat shipping fee in MXN. */
 export const SHIPPING_FEE_MXN = 50;
 
-/** Statuses from which a buyer/seller "confirm" is meaningful. */
-export const CONFIRMABLE_STATUSES = ['paid', 'escrow_held', 'meetup_arranged', 'shipped', 'delivered'] as const;
+/** Statuses from which a buyer/seller "confirm" is meaningful (= goods/money in flight). */
+export const CONFIRMABLE_STATUSES = IN_FLIGHT_STATUSES;
 
 export interface OrderLike {
     status: string;

@@ -1,5 +1,6 @@
 import { supabase } from '../db/supabase.js';
-import { computeReleaseAmounts } from '../domain/orders.js';
+import { computeReleaseAmounts, type OrderStatus } from '../domain/orders.js';
+import { transitionOrder } from './orderTransitionService.js';
 
 /**
  * Manual payout queue (SPEI bank transfer by the admin).
@@ -183,38 +184,44 @@ export const completeManualPayout = async ({ orderId, adminId, reference, notes 
     const now = new Date().toISOString();
     const payoutReference = (typeof reference === 'string' && reference.trim()) ? reference.trim() : `MANUAL-${Date.now()}`;
     const patch: Record<string, unknown> = {
-        status: 'completed',
         transferred_to_seller: true,
         payout_status: 'completed',
         payout_at: now,
         payout_reference: payoutReference,
-        updated_at: now,
     };
     if (order.payment_method === 'online') patch.escrow_status = 'released';
     if (!order.completed_at) patch.completed_at = now;
 
-    const { data: paid, error: updateError } = await openPayoutFilters(
-        supabase
-            .from('orders')
-            .update(patch)
-            .eq('id', orderId)
-            .in('status', ['completed_pending_payout', ...LEGACY_OPEN_STATUSES])
-    ).select();
-    if (updateError) throw updateError;
-    if (!paid || paid.length === 0) {
-        return { ok: false, code: 409, error: 'Order is no longer pending payout' };
-    }
-
     const cleanNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null;
-    await supabase.from('order_timeline').insert({
-        order_id: orderId,
+    const timeline = {
         event_type: 'manual_payout_completed',
         description: `Manual payout completed via bank transfer: ${payoutReference}${cleanNotes ? ` — ${cleanNotes}` : ''}`,
         created_by: adminId,
         metadata: { reference: payoutReference, notes: cleanNotes },
-    });
+    };
 
-    return { ok: true, order: paid[0] };
+    if (order.status === 'completed') {
+        // Legacy row already `completed` before the payout queue existed: only the payout
+        // bookkeeping changes, the status does not move.
+        const { data: paid, error: updateError } = await openPayoutFilters(
+            supabase.from('orders').update({ ...patch, updated_at: now }).eq('id', orderId).eq('status', 'completed')
+        ).select();
+        if (updateError) throw updateError;
+        if (!paid || paid.length === 0) return { ok: false, code: 409, error: 'Order is no longer pending payout' };
+        await supabase.from('order_timeline').insert({ order_id: orderId, ...timeline });
+        return { ok: true, order: paid[0] };
+    }
+
+    const outcome = await transitionOrder({
+        orderId,
+        from: order.status as OrderStatus,
+        to: 'completed',
+        patch,
+        where: q => openPayoutFilters(q),
+        timeline,
+    });
+    if (!outcome.ok) return { ok: false, code: 409, error: 'Order is no longer pending payout' };
+    return outcome;
 };
 
 /** Admin has picked the order up and is doing the transfer. */

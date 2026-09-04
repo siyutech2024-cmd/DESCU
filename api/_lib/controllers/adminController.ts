@@ -6,6 +6,7 @@ import { getStripe } from '../lib/stripe.js';
 import { isPaymentSettled } from '../domain/orders.js';
 import { releaseEscrow } from '../services/escrowReleaseService.js';
 import { completeManualPayout } from '../services/payoutService.js';
+import { transitionOrder } from '../services/orderTransitionService.js';
 
 /**
  * 记录管理员操作日志
@@ -669,13 +670,18 @@ export const resolveDispute = async (req: AdminRequest, res: Response) => {
                         throw refundError;
                     }
                 }
-                const { data: refunded, error: refundUpdateError } = await supabase.from('orders')
-                    .update({ status: 'refunded', escrow_status: isOnline ? 'refunded' : order.escrow_status, updated_at: new Date().toISOString() })
-                    .eq('id', order.id)
-                    .eq('status', order.status)
-                    .select('id');
-                if (refundUpdateError) throw refundUpdateError;
-                if (!refunded?.length) throw new Error('Order changed state during refund; reconcile manually');
+                const refunded = await transitionOrder({
+                    orderId: order.id,
+                    from: order.status,
+                    to: 'refunded',
+                    patch: { escrow_status: isOnline ? 'refunded' : order.escrow_status },
+                    select: 'id, product_id',
+                });
+                if (!refunded.ok) throw new Error(`Order changed state during refund (${refunded.error}); reconcile manually`);
+                // The item goes back on sale once the buyer has been refunded.
+                if (refunded.order.product_id) {
+                    await supabase.from('products').update({ status: 'active' }).eq('id', refunded.order.product_id).eq('status', 'sold');
+                }
             } else {
                 // Release to the seller through the shared escrow path (transfer / manual payout queue / cash).
                 const outcome = await releaseEscrow(order, {

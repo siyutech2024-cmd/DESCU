@@ -32,13 +32,21 @@ export class FakeQuery {
     eq(col: string, v: any) { this.filters.push(r => r[col] === v); return this; }
     neq(col: string, v: any) { this.filters.push(r => r[col] !== v); return this; }
     is(col: string, v: any) { this.filters.push(r => (v === null ? r[col] == null : r[col] === v)); return this; }
-    in(col: string, vs: any[]) { this.filters.push(r => vs.includes(r[col])); return this; }
+    in(col: string, vs: readonly any[]) { this.filters.push(r => vs.includes(r[col])); return this; }
+    lt(col: string, v: any) { this.filters.push(r => r[col] != null && r[col] < v); return this; }
+    lte(col: string, v: any) { this.filters.push(r => r[col] != null && r[col] <= v); return this; }
+    gt(col: string, v: any) { this.filters.push(r => r[col] != null && r[col] > v); return this; }
+    gte(col: string, v: any) { this.filters.push(r => r[col] != null && r[col] >= v); return this; }
     or(expr: string) {
-        // supports "col.is.null,col.eq.false,col.neq.value"
+        // supports "col.is.null,col.eq.false,col.neq.value,col.lt.2026-01-01T00:00:00.000Z"
+        // (the value may itself contain dots, so only the first two are separators)
         const alts = expr.split(',').map(part => {
-            const [col, op, val] = part.split('.');
+            const [col, op, ...rest] = part.split('.');
+            const val = rest.join('.');
             if (op === 'is') return (r: Row) => (val === 'null' ? r[col] == null : String(r[col]) === val);
             if (op === 'neq') return (r: Row) => r[col] != null && String(r[col]) !== val;
+            if (op === 'lt') return (r: Row) => r[col] != null && String(r[col]) < val;
+            if (op === 'gt') return (r: Row) => r[col] != null && String(r[col]) > val;
             return (r: Row) => String(r[col]) === val;
         });
         this.filters.push(r => alts.some(f => f(r)));

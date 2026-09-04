@@ -1,6 +1,7 @@
 import type Stripe from 'stripe';
 import { supabase } from '../db/supabase.js';
-import { toCents } from '../domain/orders.js';
+import { AWAITING_PAYMENT_STATUSES, isAwaitingPayment, toCents } from '../domain/orders.js';
+import { transitionOrder } from './orderTransitionService.js';
 
 /**
  * Single implementation behind both Stripe webhook endpoints
@@ -14,7 +15,7 @@ import { toCents } from '../domain/orders.js';
  *    and the amount covers the order total (OXXO/SPEI complete asynchronously)
  */
 
-const AWAITING_PAYMENT = ['pending_payment', 'meetup_arranged'];
+const AWAITING_PAYMENT = AWAITING_PAYMENT_STATUSES;
 
 export type WebhookOutcome = 'processed' | 'duplicate' | 'ignored';
 
@@ -50,7 +51,7 @@ const markOrderPaid = async (params: {
         console.warn(`[Stripe webhook] ${source}: order ${orderId} not found`);
         return;
     }
-    if (order.payment_captured || !AWAITING_PAYMENT.includes(order.status)) {
+    if (order.payment_captured || !isAwaitingPayment(order.status)) {
         console.log(`[Stripe webhook] ${source}: order ${orderId} already ${order.status}; skipping`);
         if (!order.payment_captured && amountReceivedCents) {
             // Money was captured for an order that is no longer waiting for it (cancelled /
@@ -76,31 +77,27 @@ const markOrderPaid = async (params: {
     }
 
     const patch: Record<string, unknown> = {
-        status: isEscrow ? 'escrow_held' : 'paid',
         payment_captured: true,
         escrow_status: isEscrow ? 'held' : 'none',
-        updated_at: new Date().toISOString(),
     };
     if (paymentIntentId) patch.stripe_payment_intent_id = paymentIntentId;
     if (platformFeeCents !== null) patch.platform_fee = platformFeeCents / 100;
 
     // Conditional update: only the row that is still awaiting payment is touched.
-    const { data: updated, error: updateError } = await supabase
-        .from('orders')
-        .update(patch)
-        .eq('id', orderId)
-        .in('status', AWAITING_PAYMENT)
-        .or('payment_captured.is.null,payment_captured.eq.false')
-        .select('id');
-    if (updateError) throw updateError;
-    if (!updated || updated.length === 0) return; // lost the race to a concurrent event — fine
-
-    await supabase.from('order_timeline').insert({
-        order_id: orderId,
-        event_type: isEscrow ? 'escrow_payment_received' : 'payment_completed',
-        description: isEscrow ? '付款成功，资金已进入担保账户，等待买家确认收货后释放' : 'Payment completed via Stripe',
-        metadata: { payment_intent: paymentIntentId, escrow: isEscrow, source },
+    const outcome = await transitionOrder({
+        orderId,
+        from: AWAITING_PAYMENT,
+        to: isEscrow ? 'escrow_held' : 'paid',
+        patch,
+        where: q => q.or('payment_captured.is.null,payment_captured.eq.false'),
+        timeline: {
+            event_type: isEscrow ? 'escrow_payment_received' : 'payment_completed',
+            description: isEscrow ? '付款成功，资金已进入担保账户，等待买家确认收货后释放' : 'Payment completed via Stripe',
+            metadata: { payment_intent: paymentIntentId, escrow: isEscrow, source },
+        },
+        select: 'id',
     });
+    if (!outcome.ok) return; // lost the race to a concurrent event — fine
 
     // Mark the product as sold so it leaves the feed.
     if (order.product_id) {

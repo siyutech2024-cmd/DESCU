@@ -1,8 +1,17 @@
 import { Router } from 'express';
 import { supabase } from '../db/supabase.js';
-import { computeOrderAmounts, confirmBlockReason, isOrderType, isPaymentMethod } from '../domain/orders.js';
+import {
+    ORDER_PAYMENT_WINDOW_MS,
+    computeOrderAmounts,
+    confirmBlockReason,
+    initialOrderStatus,
+    isOrderStatus,
+    isOrderType,
+    isPaymentMethod,
+} from '../domain/orders.js';
 import { requireAuth } from '../middleware/userAuth.js';
 import { releaseEscrow } from '../services/escrowReleaseService.js';
+import { cancelOrder, transitionOrder } from '../services/orderTransitionService.js';
 import {
     markOrderAsShipped,
     confirmOrder,
@@ -58,8 +67,8 @@ router.post('/api/orders/create', requireAuth, async (req: any, res) => {
             product_id: productId, buyer_id: buyerId, seller_id: product.seller_id,
             order_type: orderType, payment_method: paymentMethod,
             product_amount: productAmount, shipping_fee: shippingFee, platform_fee: platformFee, total_amount: totalAmount,
-            currency: 'MXN', status: paymentMethod === 'cash' ? 'paid' : 'pending_payment',
-            expires_at: new Date(Date.now() + 86400000)
+            currency: 'MXN', status: initialOrderStatus(paymentMethod),
+            expires_at: new Date(Date.now() + ORDER_PAYMENT_WINDOW_MS)
         };
         if (orderType === 'shipping') orderData.shipping_address = shippingAddress;
         if (orderType === 'meetup' && meetupLocation) {
@@ -178,19 +187,36 @@ router.post('/api/orders/:id/arrange-meetup', requireAuth, async (req: any, res)
         if (order.buyer_id !== userId && order.seller_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
         if (order.order_type !== 'meetup') return res.status(400).json({ error: 'Not a meetup order' });
 
-        if (['completed', 'cancelled', 'disputed', 'refunded'].includes(order.status)) {
-            return res.status(400).json({ error: `Cannot arrange a meetup for an order in status "${order.status}"` });
+        if (typeof location !== 'string' || !location.trim()) return res.status(400).json({ error: 'location is required' });
+        if (!isOrderStatus(order.status)) return res.status(400).json({ error: `Unknown order status "${order.status}"` });
+
+        const meetupPatch = {
+            meetup_location: location, meetup_time: time ?? null, meetup_location_lat: lat ?? null, meetup_location_lng: lng ?? null,
+            meetup_confirmed_by_buyer: false, meetup_confirmed_by_seller: false,
+        };
+        const timeline = {
+            event_type: 'meetup_arranged', description: `Meetup Arranged: ${location}`, created_by: userId, metadata: { location, time },
+        };
+
+        let updatedOrder: Record<string, any>;
+        if (order.status === 'pending_payment') {
+            // Unpaid online order: keep the meetup details but stay in pending_payment until the money arrives.
+            const { data, error } = await supabase.from('orders')
+                .update({ ...meetupPatch, updated_at: new Date().toISOString() })
+                .eq('id', id).eq('status', 'pending_payment').select();
+            if (error) throw error;
+            if (!data?.length) return res.status(409).json({ error: 'Order changed state; please reload and try again' });
+            updatedOrder = data[0];
+            await supabase.from('order_timeline').insert({ order_id: id, ...timeline });
+        } else {
+            // paid / escrow_held / meetup_arranged → meetup_arranged; anything else is rejected by the state machine.
+            const outcome = await transitionOrder({ orderId: id, from: order.status, to: 'meetup_arranged', patch: meetupPatch, timeline });
+            if (!outcome.ok) {
+                const message = outcome.code === 400 ? `Cannot arrange a meetup for an order in status "${order.status}"` : outcome.error;
+                return res.status(outcome.code).json({ error: message });
+            }
+            updatedOrder = outcome.order;
         }
-        // An unpaid online order keeps waiting for payment; only paid orders advance to meetup_arranged.
-        const nextStatus = order.status === 'pending_payment' ? 'pending_payment' : 'meetup_arranged';
-        const { data: updatedOrder, error } = await supabase.from('orders').update({
-            meetup_location: location, meetup_time: time, meetup_location_lat: lat, meetup_location_lng: lng, status: nextStatus,
-            meetup_confirmed_by_buyer: false, meetup_confirmed_by_seller: false
-        }).eq('id', id).select().single();
-        if (error) throw error;
-        await supabase.from('order_timeline').insert({
-            order_id: id, event_type: 'meetup_arranged', description: `Meetup Arranged: ${location}`, created_by: userId, metadata: { location, time }
-        });
 
         // 🔔 发送见面安排通知
         import('../services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
@@ -200,5 +226,33 @@ router.post('/api/orders/:id/arrange-meetup', requireAuth, async (req: any, res)
     } catch (error: any) {
         console.error('Arrange meetup error:', error);
         res.status(500).json({ error: 'Failed to arrange meetup', message: error.message });
+    }
+});
+
+/**
+ * Cancel an order. Buyer: unpaid online orders. Either party: cash orders not yet completed.
+ * Paid online orders cannot be cancelled here — the buyer opens a dispute instead.
+ */
+router.post('/api/orders/:id/cancel', requireAuth, async (req: any, res) => {
+    try {
+        const { id } = req.params;
+        const userId: string = req.user.id;
+        const { data: order, error } = await supabase.from('orders')
+            .select('id, status, buyer_id, seller_id, product_id, payment_method, payment_captured')
+            .eq('id', id).maybeSingle();
+        if (error?.code === '22P02') return res.status(404).json({ error: 'Order not found' });
+        if (error) throw error;
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        const outcome = await cancelOrder({ order, actorId: userId, reason: req.body?.reason });
+        if (!outcome.ok) return res.status(outcome.code).json({ error: outcome.error });
+
+        import('../services/orderNotificationService.js').then(({ notifyOrderStatus }) => {
+            notifyOrderStatus(id, 'cancelled').catch(console.error);
+        }).catch(console.error);
+        res.json({ success: true, order: outcome.order });
+    } catch (error: any) {
+        console.error('Cancel order error:', error);
+        res.status(500).json({ error: 'Failed to cancel order', message: error.message });
     }
 });

@@ -1,6 +1,7 @@
 import { supabase } from '../db/supabase.js';
 import { getStripe } from '../lib/stripe.js';
-import { computeReleaseAmounts, isPaymentSettled, type OrderLike } from '../domain/orders.js';
+import { canTransition, computeReleaseAmounts, isOrderStatus, isPaymentSettled, type OrderLike, type OrderStatus } from '../domain/orders.js';
+import { transitionOrder } from './orderTransitionService.js';
 
 /**
  * The single place where an order is completed and (for online payments) the escrowed
@@ -47,6 +48,11 @@ export interface ReleasableOrder extends OrderLike {
 
 export const releaseEscrow = async (order: ReleasableOrder, ctx: ReleaseContext): Promise<ReleaseOutcome> => {
     const orderId: string = order.id;
+
+    // 0. The state graph must allow completion from where the order is *before* any money moves.
+    if (!isOrderStatus(order.status) || !canTransition(order.status, 'completed')) {
+        return { ok: false, code: 409, error: `Order cannot be completed from status "${order.status}"` };
+    }
 
     // 1. Lock (re-enterable when stale).
     const lockedAt = new Date().toISOString();
@@ -126,11 +132,7 @@ export const releaseEscrow = async (order: ReleasableOrder, ctx: ReleaseContext)
     // 2. Finalise — conditional on still holding the lock so a stale retry cannot
     //    overwrite a live one (or a dispute opened in between).
     const now = new Date().toISOString();
-    const updateData: Record<string, unknown> = {
-        status: newStatus,
-        completed_at: now,
-        updated_at: now,
-    };
+    const updateData: Record<string, unknown> = { completed_at: now };
     if (isOnlinePayment) {
         updateData.escrow_status = transferId ? 'released' : 'pending_release';
     }
@@ -141,20 +143,28 @@ export const releaseEscrow = async (order: ReleasableOrder, ctx: ReleaseContext)
         updateData.platform_fee_collected = platformFeeCollected / 100;
     }
 
-    const { data: finalized, error: finalizeError } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId)
-        .eq('confirmed_at', lockedAt)
-        .select('id');
-    if (finalizeError || !finalized || finalized.length === 0) {
+    let finalizeError: string | null = null;
+    try {
+        const finalized = await transitionOrder({
+            orderId,
+            from: order.status as OrderStatus,
+            to: newStatus,
+            patch: updateData,
+            where: q => q.eq('confirmed_at', lockedAt),
+            select: 'id',
+        });
+        if (!finalized.ok) finalizeError = finalized.code === 400 ? finalized.error : 'lock lost';
+    } catch (err: any) {
+        finalizeError = err?.message ?? String(err);
+    }
+    if (finalizeError) {
         // Money may already have moved: keep the lock, surface loudly.
         console.error('[Escrow Release] CRITICAL: order update failed after release', { orderId, transferId, finalizeError });
         await supabase.from('order_timeline').insert({
             order_id: orderId,
             event_type: 'finalize_failed',
             description: 'Order status update failed after escrow release — needs manual reconciliation',
-            metadata: { transfer_id: transferId, error: finalizeError?.message ?? 'lock lost', source: ctx.source },
+            metadata: { transfer_id: transferId, error: finalizeError, source: ctx.source },
         });
         return { ok: false, code: 500, error: 'Order was released but could not be finalised; support has been notified' };
     }

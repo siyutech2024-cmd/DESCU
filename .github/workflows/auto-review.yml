@@ -37,3 +37,22 @@ jobs:
             echo "❌ Auto-review failed with HTTP $http_code"
             exit 1
           fi
+
+      - name: Expire unpaid orders
+        if: always()
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          API_URL: ${{ secrets.API_URL }}
+        run: |
+          URL="${API_URL:-https://descu.ai}/api/cron/expire-orders"
+          response=$(curl -s -w "\n%{http_code}" -X POST "$URL" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json")
+          http_code=$(echo "$response" | tail -n1)
+          echo "Response: $(echo "$response" | sed '$d')"
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ expire-orders completed"
+          else
+            echo "❌ expire-orders failed with HTTP $http_code"
+            exit 1
+          fi
