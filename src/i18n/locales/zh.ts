@@ -494,4 +494,16 @@ export const zh: TranslationTable = {
   'region.select': '选择地区',
   'region.current_location': '当前位置',
   'region.currency': '货币',
+
+  // Batch 1: sell modal / profile / product detail / auth placeholder / onboarding
+  'modal.cover': '封面',
+  'modal.max_images': '最多 {n} 张图片',
+  'profile.no_favorites': '还没有收藏',
+  'detail.distance_away': '距离 {km} km',
+  'auth.signed_out_title': '登录后继续',
+  'auth.signed_out_hint_profile': '收藏、发布并管理你的订单',
+  'auth.signed_out_hint_chat': '与买家和卖家聊天',
+  'onboarding.title': '欢迎来到 DESCU',
+  'onboarding.subtitle': '选择你的地区开始使用',
+  'onboarding.change_later': '之后可随时在设置中更改',
 };

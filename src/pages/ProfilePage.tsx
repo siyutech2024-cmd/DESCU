@@ -1,15 +1,18 @@
 
 import React from 'react';
+import { UserCircle } from 'lucide-react';
 import { User, Product } from '../types';
 import { UserProfile } from '../components/UserProfile';
-import { useLanguage } from '@/i18n';
+import { SignedOutPlaceholder } from '../components/SignedOutPlaceholder';
 import { useNavigate } from 'react-router-dom';
+import { useBackNavigation } from '@/lib/useBackNavigation';
 import { api } from '@/lib/api/client';
 
 interface ProfilePageProps {
     user: User | null;
     products: Product[];
-    onLogin: () => void;
+    /** @deprecated The signed-out state opens the shared login modal via `useAuth()`. */
+    onLogin?: () => void;
     onUpdateUser: (user: User) => void;
     onVerifyUser: () => void;
     onBoostProduct: (productId: string) => void;
@@ -20,15 +23,14 @@ interface ProfilePageProps {
 export const ProfilePage: React.FC<ProfilePageProps> = ({
     user,
     products,
-    onLogin,
     onUpdateUser,
     onVerifyUser,
     onBoostProduct,
     favorites = new Set(),
     allProducts = []
 }) => {
-    const { t } = useLanguage();
     const navigate = useNavigate();
+    const goBack = useBackNavigation('/');
     const [myProducts, setMyProducts] = React.useState<Product[]>([]);
 
     React.useEffect(() => {
@@ -63,17 +65,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     }, [user]);
 
     if (!user) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-                <h2 className="text-xl font-bold mb-4">{t('nav.login')}</h2>
-                <button
-                    onClick={onLogin}
-                    className="bg-brand-600 text-white px-8 py-3 rounded-full font-bold shadow-lg"
-                >
-                    Google Login
-                </button>
-            </div>
-        );
+        return <SignedOutPlaceholder hintKey="auth.signed_out_hint_profile" icon={UserCircle} />;
     }
 
     // fallback to props if API fail or loading, but prefer myProducts if available
@@ -84,7 +76,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             user={user}
             userProducts={displayProducts}
             onUpdateUser={onUpdateUser}
-            onBack={() => navigate('/')}
+            onBack={goBack}
             onProductClick={(p) => navigate(`/product/${p.id}`)}
             onVerifyUser={onVerifyUser}
             onBoostProduct={onBoostProduct}

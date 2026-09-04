@@ -4,6 +4,7 @@ import { X, Upload, Sparkles, MapPin, Loader2, Camera, Truck, Handshake, Info, A
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { AISuggestion, Category, Coordinates, Product, User, DeliveryType } from '../types';
 import { analyzeProductImage } from '@/features/products/analyzeApi';
+import { CATEGORIES, categoryLabelKey } from '@/features/products/categories';
 import { fileToBase64, getFullDataUrl, compressImage } from '../services/utils';
 import { useLanguage } from '@/i18n';
 import { useRegion } from '../contexts/RegionContext';
@@ -163,7 +164,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
 
   const triggerImageSelection = async () => {
     if (images.length >= MAX_IMAGES) {
-      showToast(t('modal.max_images') || `Maximum ${MAX_IMAGES} images`, 'warning');
+      showToast(t('modal.max_images', { n: MAX_IMAGES }), 'warning');
       return;
     }
 
@@ -201,7 +202,7 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
   // 直接拍照（移动端浏览器使用）
   const triggerCamera = () => {
     if (images.length >= MAX_IMAGES) {
-      showToast(t('modal.max_images') || `Maximum ${MAX_IMAGES} images`, 'warning');
+      showToast(t('modal.max_images', { n: MAX_IMAGES }), 'warning');
       return;
     }
     cameraInputRef.current?.click();
@@ -503,8 +504,8 @@ export const SellModal: React.FC<SellModalProps> = ({ isOpen, onClose, onSubmit,
                   onChange={e => setFormData({ ...formData, category: e.target.value as Category })}
                   className="w-full px-3 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none bg-white font-medium text-gray-700"
                 >
-                  {Object.values(Category).map(c => (
-                    <option key={c} value={c}>{t(`cat.${c.toLowerCase()}`)}</option>
+                  {CATEGORIES.map(c => (
+                    <option key={c} value={c}>{t(categoryLabelKey(c))}</option>
                   ))}
                 </select>
               </div>

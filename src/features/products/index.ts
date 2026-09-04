@@ -6,3 +6,4 @@ export type { NewProductInput } from './useCreateProduct';
 export { mapApiProduct } from './productMapper';
 export type { ApiProduct } from './productMapper';
 export * as productsApi from './productsApi';
+export { CATEGORIES, ALL_CATEGORIES, categoryLabelKey } from './categories';

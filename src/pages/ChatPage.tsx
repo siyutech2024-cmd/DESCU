@@ -1,35 +1,32 @@
 
 import React from 'react';
+import { MessageCircle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, Conversation } from '../types';
 import { ChatList } from '../components/ChatList';
 import { ChatWindow } from '../components/ChatWindow';
-import { useLanguage } from '@/i18n';
+import { SignedOutPlaceholder } from '../components/SignedOutPlaceholder';
+import { useBackNavigation } from '@/lib/useBackNavigation';
 
 interface ChatPageProps {
     conversations: Conversation[];
     user: User | null;
-    onLogin: () => void;
+    /** @deprecated The signed-out state opens the shared login modal via `useAuth()`. */
+    onLogin?: () => void;
     onSendMessage: (conversationId: string, text: string) => Promise<void>;
 }
 
 export const ChatPage: React.FC<ChatPageProps> = ({
     conversations,
     user,
-    onLogin,
     onSendMessage
 }) => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t } = useLanguage();
+    const goBackToList = useBackNavigation('/chat');
 
     if (!user) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-                <h2 className="text-xl font-bold mb-4">{t('nav.login')}</h2>
-                <button onClick={onLogin} className="bg-brand-600 text-white px-8 py-3 rounded-full font-bold shadow-lg">Google Login</button>
-            </div>
-        );
+        return <SignedOutPlaceholder hintKey="auth.signed_out_hint_chat" icon={MessageCircle} />;
     }
 
     if (id) {
@@ -47,7 +44,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({
                         key={activeConv.id}
                         conversation={activeConv}
                         currentUser={user}
-                        onBack={() => navigate('/chat')}
+                        onBack={goBackToList}
                         onSendMessage={onSendMessage}
                     />
                 </div>

@@ -494,4 +494,16 @@ export const es: TranslationTable = {
   'region.select': 'Selecciona tu región',
   'region.current_location': 'Ubicación actual',
   'region.currency': 'Moneda',
+
+  // Batch 1: sell modal / profile / product detail / auth placeholder / onboarding
+  'modal.cover': 'Portada',
+  'modal.max_images': 'Máximo {n} imágenes',
+  'profile.no_favorites': 'Aún no tienes favoritos',
+  'detail.distance_away': 'a {km} km',
+  'auth.signed_out_title': 'Inicia sesión para continuar',
+  'auth.signed_out_hint_profile': 'Guarda favoritos, publica y gestiona tus pedidos',
+  'auth.signed_out_hint_chat': 'Chatea con compradores y vendedores',
+  'onboarding.title': 'Bienvenido a DESCU',
+  'onboarding.subtitle': 'Elige tu región para empezar',
+  'onboarding.change_later': 'Puedes cambiarlo en cualquier momento en Ajustes',
 };

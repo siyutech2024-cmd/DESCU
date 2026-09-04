@@ -129,12 +129,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                     color: 'text-indigo-600'
                 },
                 {
-                    path: 'admins',
-                    icon: Shield,
-                    label: '管理员',
-                    color: 'text-red-600'
-                },
-                {
                     path: 'settings',
                     icon: Settings,
                     label: '系统设置',

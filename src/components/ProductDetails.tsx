@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, MapPin, ShoppingBag, Check, ShieldCheck, Clock, Truck, Handshake, MessageCircle, Zap, Flag, Facebook, Link as LinkIcon, AlertCircle, Star } from 'lucide-react';
 import { Product, DeliveryType } from '../types';
 import { useLanguage } from '@/i18n';
@@ -16,6 +17,7 @@ import { api } from '@/lib/api/client';
 import { notify } from '@/lib/toast';
 import { queryKeys } from '@/lib/queryClient';
 import { useAuth } from '@/features/auth';
+import { categoryLabelKey } from '@/features/products/categories';
 import { submitRating, getUserRatingStats, EMPTY_RATING_STATS } from '../services/ratingService';
 
 interface ProductDetailsProps {
@@ -33,8 +35,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   const { convertPrice, formatCurrency, currency: userCurrency } = useRegion();
   const { openLoginModal } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const sellerId = product.seller?.id ?? '';
+  const goToSeller = () => {
+    if (sellerId) navigate(`/user/${sellerId}`);
+  };
   const isOwnListing = !!user && user.id === sellerId;
 
   // Seller rating stats (refreshed after the current user submits a rating).
@@ -147,7 +153,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
   };
 
   return (
-    <div className="min-h-screen bg-transparent pb-32 pt-4 animate-fade-in">
+    <div className="min-h-[60vh] bg-transparent pt-4 animate-fade-in">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header Actions */}
         <div className="flex items-center justify-between mb-6">
@@ -228,7 +234,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               <div className="mb-auto">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="glass-pill px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider text-brand-700">
-                    {product.subcategory ? t(`subcat.${product.subcategory}`) : t(`cat.${product.category?.toLowerCase()}`)}
+                    {product.subcategory ? t(`subcat.${product.subcategory}`) : t(categoryLabelKey(product.category))}
                   </span>
                   <span className="flex items-center gap-1.5 text-gray-500 text-xs font-medium bg-white/30 px-2 py-1 rounded-full">
                     <Clock size={12} />
@@ -391,8 +397,20 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
 
         {/* Seller & Location Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 pb-8">
-          {/* Seller Card */}
-          <div className="glass-card p-6 rounded-[2rem] flex items-center gap-5">
+          {/* Seller Card — whole card navigates to the seller's public profile */}
+          <div
+            role="link"
+            tabIndex={0}
+            aria-label={`${t('detail.seller')}: ${product.seller.name}`}
+            onClick={goToSeller}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                goToSeller();
+              }
+            }}
+            className="glass-card p-6 rounded-[2rem] flex items-center gap-5 cursor-pointer hover:shadow-lg transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+          >
             <div className="relative">
               <img src={product.seller.avatar} alt={product.seller.name} className="w-16 h-16 rounded-full border-2 border-white shadow-md object-cover" />
               {product.seller.isVerified && (
@@ -407,7 +425,6 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 {product.seller.name}
                 <CreditBadge score={sellerScore} size="sm" />
               </div>
-              <div className="text-sm text-gray-500 font-medium">{product.seller.email}</div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-600">
                   <Star size={14} className="fill-yellow-400 text-yellow-400" />
@@ -418,7 +435,11 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
                 {!isOwnListing && (
                   <button
                     type="button"
-                    onClick={handleOpenRating}
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleOpenRating();
+                    }}
+                    onKeyDown={e => e.stopPropagation()}
                     className="text-xs font-bold text-brand-600 border border-brand-200 px-3 py-1 rounded-full hover:bg-brand-50 transition-colors"
                   >
                     {t('product.rate_seller')}
@@ -437,7 +458,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack,
               <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('detail.location')}</div>
               <div className="font-bold text-xl text-gray-900">{product.locationName || 'Unknown'}</div>
               <p className="text-sm text-gray-500 font-medium">
-                {product.distance !== undefined ? `${product.distance}km away` : t('list.loc_success')}
+                {product.distance !== undefined ? t('detail.distance_away', { km: product.distance }) : t('list.loc_success')}
               </p>
             </div>
           </div>

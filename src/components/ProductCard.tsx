@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Product, DeliveryType } from '../types';
 import { MapPin, Truck, Zap } from 'lucide-react';
 import { useLanguage } from '@/i18n';
@@ -8,7 +9,13 @@ import { getOptimizedImageUrl } from '../services/imageOptimizer';
 interface ProductCardProps {
   product: Product;
   isInCart: boolean;
-  onClick: (product: Product) => void;
+  /**
+   * Optional click handler. The card is a real link to `/product/:id`, so callers no longer
+   * need to navigate themselves. When provided, it is invoked for plain left clicks *instead of*
+   * the default link navigation (so legacy callers that call `navigate()` do not double-navigate);
+   * modified clicks (middle / ctrl / cmd) always follow the href natively.
+   */
+  onClick?: (product: Product) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (product: Product) => void;
   priority?: boolean; // 首屏图片优先加载
@@ -25,15 +32,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
   const { price: convertedPrice, currency: targetCurrency } = convertPrice(product.price, productCurrency);
   const showDual = productCurrency !== userCurrency;
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Stop propagation if the click originated from the button
-    if ((e.target as HTMLElement).closest('button')) return;
+  const productUrl = `/product/${product.id}`;
+
+  const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!onClick) return;
+    // Let the browser handle new-tab / modified clicks via the href.
+    const isPlainLeftClick = e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+    if (!isPlainLeftClick) return;
+    e.preventDefault();
     onClick(product);
   };
 
   return (
-    <div
+    <Link
+      to={productUrl}
       onClick={handleCardClick}
+      aria-label={localizedTitle}
       className={`glass-card rounded-xl md:rounded-2xl overflow-hidden group cursor-pointer relative flex flex-col h-full active:scale-[0.98] transition-all duration-200 ${product.isPromoted ? 'ring-2 ring-yellow-400/50 shadow-brand-500/10' : 'border border-white/40'}`}
     >
       {/* Promoted Badge */}
@@ -47,7 +61,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
       {/* Favorite Button */}
       {onToggleFavorite && (
         <button
+          type="button"
+          aria-label={t('nav.favorites')}
+          aria-pressed={!!isFavorite}
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             onToggleFavorite(product);
           }}
@@ -139,6 +157,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, isInCart, onC
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };

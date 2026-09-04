@@ -9,8 +9,6 @@ import { UserList } from './pages/UserList';
 import { MessageMonitor } from './pages/MessageMonitor';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
-import { AdminManagement } from './pages/AdminManagement';
-import { RolePermissions } from './pages/RolePermissions';
 import { ProductReview } from './pages/ProductReview';
 import DisputeList from './pages/DisputeList';
 import OrderList from './pages/OrderList';
@@ -30,8 +28,6 @@ export const AdminApp: React.FC = () => {
                     <Route path="messages" element={<MessageMonitor />} />
                     <Route path="reports" element={<Reports />} />
                     <Route path="settings" element={<Settings />} />
-                    <Route path="admins" element={<AdminManagement />} />
-                    <Route path="roles" element={<RolePermissions />} />
                     <Route path="reviews" element={<ProductReview />} />
                     <Route path="orders" element={<OrderList />} />
                     <Route path="disputes" element={<DisputeList />} />

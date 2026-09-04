@@ -49,7 +49,7 @@ export const REGIONS: ReadonlyArray<RegionInfo & { code: Region }> = (Object.key
 import { useLanguage } from '@/i18n';
 
 /** Language a region maps to when the user actively switches region. */
-const REGION_LANGUAGE: Record<Region, Language> = {
+export const REGION_LANGUAGE: Record<Region, Language> = {
     CN: 'zh',
     US: 'en',
     EU: 'en',
